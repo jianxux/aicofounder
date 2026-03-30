@@ -5,8 +5,8 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 ## Phase 1: Polish & Tests (Priority)
 - [x] Install testing deps (vitest, @testing-library/react, jsdom) and configure
 - [x] Unit tests for src/lib/projects.ts (CRUD, edge cases) — 100% coverage
-- [ ] Unit tests for src/lib/types.ts validation
-- [ ] Component tests for StickyNote (render, drag events, edit)
+- [x] Unit tests for src/lib/types.ts validation
+- [x] Component tests for StickyNote (render, drag events, edit)
 - [ ] Component tests for PhaseTracker (render, toggle, collapse)
 - [ ] Component tests for ChatPanel (render, send message, remind)
 - [ ] Component tests for Canvas (render, add note, zoom)
