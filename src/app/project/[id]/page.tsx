@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
@@ -23,6 +23,8 @@ export default function ProjectWorkspacePage() {
   const projectId = params.id;
   const [project, setProject] = useState<Project | null>(null);
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const requestControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const storedProject = getProjectById(projectId);
@@ -39,6 +41,12 @@ export default function ProjectWorkspacePage() {
     setProject(recoveredProject);
     setActivePhaseId(recoveredProject.phases[0]?.id ?? "getting-started");
   }, [projectId]);
+
+  useEffect(() => {
+    return () => {
+      requestControllerRef.current?.abort();
+    };
+  }, []);
 
   const persistProject = (nextProject: Project) => {
     const updated = { ...nextProject, updatedAt: new Date().toISOString() };
@@ -59,21 +67,60 @@ export default function ProjectWorkspacePage() {
     persistProject({ ...project, name });
   };
 
-  const handleSendMessage = (content: string) => {
+  const handleSendMessage = async (content: string) => {
     if (!project) {
       return;
     }
 
     const userMessage = createMessage("user", content);
-    const assistantMessage = createMessage(
-      "assistant",
-      "I’m analyzing your idea. Let me research this, challenge the assumptions, and suggest the next concrete step.",
-    );
+    const nextMessages = [...project.messages, userMessage];
 
-    persistProject({
-      ...project,
-      messages: [...project.messages, userMessage, assistantMessage],
-    });
+    setIsLoading(true);
+    persistProject({ ...project, messages: nextMessages });
+
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: nextMessages }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send chat message");
+      }
+
+      const data = (await response.json()) as { message?: string };
+      const assistantMessage = createMessage("assistant", data.message ?? "");
+
+      persistProject({
+        ...project,
+        messages: [...nextMessages, assistantMessage],
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+
+      const assistantMessage = createMessage("assistant", "Sorry, I encountered an error. Please try again.");
+
+      persistProject({
+        ...project,
+        messages: [...nextMessages, assistantMessage],
+      });
+    } finally {
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+      }
+
+      setIsLoading(false);
+    }
   };
 
   const handleRemind = () => {
@@ -204,6 +251,7 @@ export default function ProjectWorkspacePage() {
             phases={project.phases}
             activePhaseId={activePhaseId}
             onSendMessage={handleSendMessage}
+            isLoading={isLoading}
             onRemind={handleRemind}
             onToggleTask={handleToggleTask}
             onSetActivePhase={handleSetActivePhase}

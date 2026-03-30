@@ -9,6 +9,7 @@ type ChatPanelProps = {
   phases: Phase[];
   activePhaseId: string;
   onSendMessage: (message: string) => void;
+  isLoading: boolean;
   onRemind: () => void;
   onToggleTask: (phaseId: string, taskId: string) => void;
   onSetActivePhase: (phaseId: string) => void;
@@ -19,6 +20,7 @@ export default function ChatPanel({
   phases,
   activePhaseId,
   onSendMessage,
+  isLoading,
   onRemind,
   onToggleTask,
   onSetActivePhase,
@@ -68,6 +70,15 @@ export default function ChatPanel({
             </div>
           );
         })}
+        {isLoading ? (
+          <div className="flex justify-start" aria-label="AI is thinking">
+            <div className="flex items-center gap-2 rounded-3xl bg-stone-100 px-4 py-3 shadow-sm">
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.3s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-stone-400 [animation-delay:-0.15s]" />
+              <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-stone-400" />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-t border-stone-200 px-6 py-5">
@@ -84,10 +95,12 @@ export default function ChatPanel({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Tell your AI cofounder what you want to explore next..."
+            disabled={isLoading}
             className="min-h-24 flex-1 resize-none rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
           />
           <button
             type="submit"
+            disabled={isLoading}
             className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
           >
             Send

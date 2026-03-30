@@ -63,12 +63,14 @@ type RenderOptions = {
   messages?: ChatMessage[];
   phases?: Phase[];
   activePhaseId?: string;
+  isLoading?: boolean;
 };
 
 const renderChatPanel = ({
   messages = createMessages(),
   phases = createPhases(),
   activePhaseId = "build",
+  isLoading = false,
 }: RenderOptions = {}) => {
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
@@ -81,6 +83,7 @@ const renderChatPanel = ({
       phases={phases}
       activePhaseId={activePhaseId}
       onSendMessage={onSendMessage}
+      isLoading={isLoading}
       onRemind={onRemind}
       onToggleTask={onToggleTask}
       onSetActivePhase={onSetActivePhase}
@@ -180,6 +183,27 @@ describe("ChatPanel", () => {
       fireEvent.click(screen.getByRole("button", { name: "Remind me what we were working on" }));
 
       expect(onRemind).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows the typing indicator when isLoading is true", () => {
+      renderChatPanel({ isLoading: true });
+
+      expect(screen.getByLabelText("AI is thinking")).toBeInTheDocument();
+    });
+
+    it("disables the textarea and send button when isLoading is true", () => {
+      renderChatPanel({ isLoading: true });
+
+      expect(
+        screen.getByPlaceholderText("Tell your AI cofounder what you want to explore next..."),
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    });
+
+    it("does not show the typing indicator when isLoading is false", () => {
+      renderChatPanel({ isLoading: false });
+
+      expect(screen.queryByLabelText("AI is thinking")).not.toBeInTheDocument();
     });
   });
 
