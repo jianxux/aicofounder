@@ -40,3 +40,86 @@ export type Project = {
   messages: ChatMessage[];
   phases: Phase[];
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+export const isSender = (value: unknown): value is Sender =>
+  value === "user" || value === "assistant";
+
+export const isChatMessage = (value: unknown): value is ChatMessage => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isSender(value.sender) &&
+    typeof value.content === "string" &&
+    typeof value.createdAt === "string"
+  );
+};
+
+export const isNoteColor = (value: unknown): value is NoteColor =>
+  value === "yellow";
+
+export const isStickyNoteData = (value: unknown): value is StickyNoteData => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.content === "string" &&
+    isNoteColor(value.color) &&
+    typeof value.x === "number" &&
+    typeof value.y === "number"
+  );
+};
+
+export const isPhaseTask = (value: unknown): value is PhaseTask => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    typeof value.done === "boolean"
+  );
+};
+
+export const isPhase = (value: unknown): value is Phase => {
+  if (!isRecord(value) || !Array.isArray(value.tasks)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    value.tasks.every(isPhaseTask)
+  );
+};
+
+export const isProject = (value: unknown): value is Project => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.notes) ||
+    !Array.isArray(value.messages) ||
+    !Array.isArray(value.phases)
+  ) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.description === "string" &&
+    typeof value.phase === "string" &&
+    typeof value.updatedAt === "string" &&
+    value.notes.every(isStickyNoteData) &&
+    value.messages.every(isChatMessage) &&
+    value.phases.every(isPhase)
+  );
+};
