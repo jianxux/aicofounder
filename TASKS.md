@@ -3,7 +3,7 @@
 Tasks for the hourly build cron. Pick the next unchecked item, build it with dual-review, commit with 90%+ test coverage.
 
 ## Phase 1: Polish & Tests (Priority)
-- [ ] Install testing deps (vitest, @testing-library/react, jsdom) and configure
+- [x] Install testing deps (vitest, @testing-library/react, jsdom) and configure
 - [ ] Unit tests for src/lib/projects.ts (CRUD, edge cases) — 100% coverage
 - [ ] Unit tests for src/lib/types.ts validation
 - [ ] Component tests for StickyNote (render, drag events, edit)
