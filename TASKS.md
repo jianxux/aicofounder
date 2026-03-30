@@ -15,7 +15,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Fix any build errors from `npm run build`
 
 ## Phase 2: Core Features
-- [ ] Real AI chat integration (OpenAI API route at /api/chat)
+- [x] Real AI chat integration (OpenAI API route at /api/chat)
 - [ ] Streaming chat responses (SSE or ReadableStream)
 - [ ] System prompt for AI cofounder persona (critical, structured, guides through phases)
 - [ ] Auto-advance phases based on chat progress
