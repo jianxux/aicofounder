@@ -12,6 +12,7 @@ type ChatPanelProps = {
   isLoading: boolean;
   onRemind: () => void;
   onBrainstorm: () => void;
+  onResearch?: () => void;
   onToggleTask: (phaseId: string, taskId: string) => void;
   onSetActivePhase: (phaseId: string) => void;
 };
@@ -24,6 +25,7 @@ export default function ChatPanel({
   isLoading,
   onRemind,
   onBrainstorm,
+  onResearch,
   onToggleTask,
   onSetActivePhase,
 }: ChatPanelProps) {
@@ -99,6 +101,14 @@ export default function ChatPanel({
             className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
             🔎 Brainstorm pain points
+          </button>
+          <button
+            type="button"
+            onClick={onResearch}
+            disabled={isLoading}
+            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
+          >
+            📄 Deep Research
           </button>
         </div>
 

@@ -6,9 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
+import ResearchReport from "@/components/ResearchReport";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
+import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { ChatMessage, Project, StickyNoteData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
@@ -28,6 +30,7 @@ export default function ProjectWorkspacePage() {
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null);
+  const [researchReport, setResearchReport] = useState<ResearchReportData | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
 
@@ -272,6 +275,57 @@ export default function ProjectWorkspacePage() {
     }
   };
 
+  const handleResearch = async () => {
+    const currentProject = projectRef.current;
+
+    if (!currentProject || isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const latestUserMessage = [...currentProject.messages]
+        .reverse()
+        .find((message) => message.sender === "user" && message.content.trim());
+
+      const response = await fetch("/api/research", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectName: currentProject.name,
+          projectDescription:
+            latestUserMessage?.content ?? `Current phase: ${activePhase?.title ?? "Getting started"}`,
+          researchQuestion: "What are the key opportunities and risks?",
+        }),
+      });
+
+      const payload = (await response.json()) as ResearchReportData | { error: string };
+
+      if (!response.ok || "error" in payload) {
+        throw new Error("Failed to run deep research");
+      }
+
+      setResearchReport(payload);
+    } catch {
+      const baseProject = projectRef.current;
+
+      if (baseProject) {
+        persistProject({
+          ...baseProject,
+          messages: [
+            ...baseProject.messages,
+            createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
+          ],
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleToggleTask = (phaseId: string, taskId: string) => {
     if (!project) {
       return;
@@ -398,10 +452,12 @@ export default function ProjectWorkspacePage() {
             isLoading={isLoading}
             onRemind={handleRemind}
             onBrainstorm={handleBrainstorm}
+            onResearch={handleResearch}
             onToggleTask={handleToggleTask}
             onSetActivePhase={handleSetActivePhase}
           />
           <div className="flex flex-col gap-4">
+            {researchReport ? <ResearchReport report={researchReport} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
               <Canvas notes={project.notes} onChangeNotes={handleNotesChange} />

@@ -75,6 +75,7 @@ const renderChatPanel = ({
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
   const onBrainstorm = vi.fn();
+  const onResearch = vi.fn();
   const onToggleTask = vi.fn();
   const onSetActivePhase = vi.fn();
 
@@ -87,12 +88,13 @@ const renderChatPanel = ({
       isLoading={isLoading}
       onRemind={onRemind}
       onBrainstorm={onBrainstorm}
+      onResearch={onResearch}
       onToggleTask={onToggleTask}
       onSetActivePhase={onSetActivePhase}
     />,
   );
 
-  return { onSendMessage, onRemind, onBrainstorm, onToggleTask, onSetActivePhase };
+  return { onSendMessage, onRemind, onBrainstorm, onResearch, onToggleTask, onSetActivePhase };
 };
 
 describe("ChatPanel", () => {
@@ -195,6 +197,14 @@ describe("ChatPanel", () => {
       expect(onBrainstorm).toHaveBeenCalledTimes(1);
     });
 
+    it("calls onResearch when the deep research button is clicked", () => {
+      const { onResearch } = renderChatPanel();
+
+      fireEvent.click(screen.getByRole("button", { name: /deep research/i }));
+
+      expect(onResearch).toHaveBeenCalledTimes(1);
+    });
+
     it("shows the typing indicator when isLoading is true", () => {
       renderChatPanel({ isLoading: true });
 
@@ -209,6 +219,7 @@ describe("ChatPanel", () => {
       ).toBeDisabled();
       expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
       expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /deep research/i })).toBeDisabled();
     });
 
     it("does not show the typing indicator when isLoading is false", () => {
