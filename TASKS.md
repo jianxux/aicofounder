@@ -20,7 +20,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] System prompt for AI cofounder persona (critical, structured, guides through phases)
 - [x] Auto-advance phases based on chat progress
 - [x] Brainstorming agent — search Reddit/communities for pain points
-- [ ] Deep Research — parallel agents producing cited reports
+- [x] Deep Research — parallel agents producing cited reports
 - [ ] Ultraplan — find biggest blocker, create actionable plan
 
 ## Phase 3: Canvas & UX
