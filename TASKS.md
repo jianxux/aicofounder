@@ -12,7 +12,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Component tests for Canvas (render, add note, zoom)
 - [x] Component tests for AuthButton (signed in/out states, fallback)
 - [x] Component tests for Dashboard page (project list, create)
-- [ ] Fix any build errors from `npm run build`
+- [x] Fix any build errors from `npm run build`
 
 ## Phase 2: Core Features
 - [ ] Real AI chat integration (OpenAI API route at /api/chat)
