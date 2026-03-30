@@ -25,11 +25,13 @@ export default function ProjectWorkspacePage() {
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const projectRef = useRef<Project | null>(null);
 
   useEffect(() => {
     const storedProject = getProjectById(projectId);
 
     if (storedProject) {
+      projectRef.current = storedProject;
       setProject(storedProject);
       setActivePhaseId(storedProject.phases[0]?.id ?? "getting-started");
       return;
@@ -38,6 +40,7 @@ export default function ProjectWorkspacePage() {
     const fallbackProject = createProjectRecord();
     const recoveredProject = { ...fallbackProject, id: projectId, updatedAt: new Date().toISOString() };
     upsertProject(recoveredProject);
+    projectRef.current = recoveredProject;
     setProject(recoveredProject);
     setActivePhaseId(recoveredProject.phases[0]?.id ?? "getting-started");
   }, [projectId]);
@@ -50,6 +53,7 @@ export default function ProjectWorkspacePage() {
 
   const persistProject = (nextProject: Project) => {
     const updated = { ...nextProject, updatedAt: new Date().toISOString() };
+    projectRef.current = updated;
     setProject(updated);
     upsertProject(updated);
   };
@@ -68,15 +72,18 @@ export default function ProjectWorkspacePage() {
   };
 
   const handleSendMessage = async (content: string) => {
-    if (!project) {
+    const currentProject = projectRef.current;
+
+    if (!currentProject) {
       return;
     }
 
     const userMessage = createMessage("user", content);
-    const nextMessages = [...project.messages, userMessage];
+    const assistantMessage = createMessage("assistant", "");
+    const nextMessages = [...currentProject.messages, userMessage, assistantMessage];
 
     setIsLoading(true);
-    persistProject({ ...project, messages: nextMessages });
+    persistProject({ ...currentProject, messages: nextMessages });
 
     requestControllerRef.current?.abort();
     const controller = new AbortController();
@@ -92,28 +99,86 @@ export default function ProjectWorkspacePage() {
         signal: controller.signal,
       });
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         throw new Error("Failed to send chat message");
       }
 
-      const data = (await response.json()) as { message?: string };
-      const assistantMessage = createMessage("assistant", data.message ?? "");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+      let buffer = "";
 
-      persistProject({
-        ...project,
-        messages: [...nextMessages, assistantMessage],
-      });
+      const applyAssistantContent = (nextContent: string) => {
+        const baseProject = projectRef.current;
+
+        if (!baseProject) {
+          return;
+        }
+
+        persistProject({
+          ...baseProject,
+          messages: baseProject.messages.map((message) =>
+            message.id === assistantMessage.id ? { ...message, content: nextContent } : message,
+          ),
+        });
+      };
+
+      const processChunk = (chunkText: string) => {
+        buffer += chunkText;
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) {
+            continue;
+          }
+
+          const payload = line.slice(6);
+
+          if (payload === "[DONE]") {
+            continue;
+          }
+
+          const data = JSON.parse(payload) as { content?: string };
+          const delta = data.content;
+
+          if (!delta) {
+            continue;
+          }
+
+          assistantContent += delta;
+          applyAssistantContent(assistantContent);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        processChunk(decoder.decode(value, { stream: true }));
+      }
+
+      processChunk(decoder.decode());
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         return;
       }
 
-      const assistantMessage = createMessage("assistant", "Sorry, I encountered an error. Please try again.");
+      const baseProject = projectRef.current;
 
-      persistProject({
-        ...project,
-        messages: [...nextMessages, assistantMessage],
-      });
+      if (baseProject) {
+        persistProject({
+          ...baseProject,
+          messages: baseProject.messages.map((message) =>
+            message.id === assistantMessage.id
+              ? { ...message, content: "Sorry, I encountered an error. Please try again." }
+              : message,
+          ),
+        });
+      }
     } finally {
       if (requestControllerRef.current === controller) {
         requestControllerRef.current = null;
