@@ -52,6 +52,14 @@ describe("lib/types guards", () => {
     expect(types.isNoteColor(stickyNote.color)).toBe(true);
   });
 
+  it.each(["yellow", "blue", "green", "pink", "purple"] as const)(
+    "accepts %s as a valid note color",
+    (color) => {
+      expect(types.isNoteColor(color)).toBe(true);
+      expect(types.isStickyNoteData({ ...stickyNote, color })).toBe(true);
+    },
+  );
+
   it("accepts a valid PhaseTask and Phase", () => {
     expect(types.isPhaseTask(phaseTask)).toBe(true);
     expect(types.isPhase(phase)).toBe(true);
@@ -66,10 +74,15 @@ describe("lib/types guards", () => {
     expect(types.isStickyNoteData({ ...stickyNote, x: "120" })).toBe(false);
     expect(types.isPhaseTask({ ...phaseTask, done: "no" })).toBe(false);
     expect(types.isPhase({ ...phase, tasks: [{ ...phaseTask, done: "no" }] })).toBe(false);
-    expect(types.isProject({ ...project, notes: [{ ...stickyNote, color: "blue" }] })).toBe(
-      false,
-    );
+    expect(types.isProject({ ...project, notes: [{ ...stickyNote, color: "blue" }] })).toBe(true);
   });
+
+  it.each(["amber", "", null, undefined, 123, {}, []])(
+    "rejects %o as an invalid note color",
+    (value) => {
+      expect(types.isNoteColor(value)).toBe(false);
+    },
+  );
 
   it("rejects non-record values in every object type guard", () => {
     nonRecordValues.forEach((value) => {

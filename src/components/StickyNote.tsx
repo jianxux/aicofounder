@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent } from "react";
-import { StickyNoteData } from "@/lib/types";
+import type { NoteColor, StickyNoteData } from "@/lib/types";
 
 type StickyNoteProps = {
   note: StickyNoteData;
@@ -10,10 +10,43 @@ type StickyNoteProps = {
   onDragStart: (noteId: string, event: MouseEvent<HTMLDivElement>) => void;
 };
 
+const COLOR_MAP: Record<
+  NoteColor,
+  { borderColor: string; bgColor: string; headerBg: string }
+> = {
+  yellow: {
+    borderColor: "border-amber-200",
+    bgColor: "bg-amber-100",
+    headerBg: "bg-amber-200/80",
+  },
+  blue: {
+    borderColor: "border-sky-200",
+    bgColor: "bg-sky-100",
+    headerBg: "bg-sky-200/80",
+  },
+  green: {
+    borderColor: "border-emerald-200",
+    bgColor: "bg-emerald-100",
+    headerBg: "bg-emerald-200/80",
+  },
+  pink: {
+    borderColor: "border-pink-200",
+    bgColor: "bg-pink-100",
+    headerBg: "bg-pink-200/80",
+  },
+  purple: {
+    borderColor: "border-violet-200",
+    bgColor: "bg-violet-100",
+    headerBg: "bg-violet-200/80",
+  },
+};
+
 export default function StickyNote({ note, zoom, onChange, onDragStart }: StickyNoteProps) {
+  const colors = COLOR_MAP[note.color] ?? COLOR_MAP.yellow;
+
   return (
     <div
-      className="absolute w-60 rounded-2xl border border-amber-200 bg-amber-100 shadow-sm transition hover:shadow-md"
+      className={`absolute w-60 rounded-2xl border ${colors.borderColor} ${colors.bgColor} shadow-sm transition hover:shadow-md`}
       style={{
         left: note.x,
         top: note.y,
@@ -23,7 +56,7 @@ export default function StickyNote({ note, zoom, onChange, onDragStart }: Sticky
     >
       <div
         onMouseDown={(event) => onDragStart(note.id, event)}
-        className="cursor-grab rounded-t-2xl border-b border-amber-200 bg-amber-200/80 px-4 py-3 active:cursor-grabbing"
+        className={`cursor-grab rounded-t-2xl border-b ${colors.borderColor} ${colors.headerBg} px-4 py-3 active:cursor-grabbing`}
       >
         <input
           value={note.title}

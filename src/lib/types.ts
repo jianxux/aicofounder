@@ -7,7 +7,7 @@ export type ChatMessage = {
   createdAt: string;
 };
 
-export type NoteColor = "yellow";
+export type NoteColor = "yellow" | "blue" | "green" | "pink" | "purple";
 
 export type StickyNoteData = {
   id: string;
@@ -61,7 +61,11 @@ export const isChatMessage = (value: unknown): value is ChatMessage => {
 };
 
 export const isNoteColor = (value: unknown): value is NoteColor =>
-  value === "yellow";
+  value === "yellow" ||
+  value === "blue" ||
+  value === "green" ||
+  value === "pink" ||
+  value === "purple";
 
 export const isStickyNoteData = (value: unknown): value is StickyNoteData => {
   if (!isRecord(value)) {

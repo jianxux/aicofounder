@@ -125,4 +125,48 @@ describe("StickyNote", () => {
     expect(titleInput).toHaveValue("");
     expect(contentTextarea).toHaveValue("");
   });
+
+  it.each([
+    ["yellow", "border-amber-200", "bg-amber-100", "bg-amber-200/80"],
+    ["blue", "border-sky-200", "bg-sky-100", "bg-sky-200/80"],
+    ["green", "border-emerald-200", "bg-emerald-100", "bg-emerald-200/80"],
+    ["pink", "border-pink-200", "bg-pink-100", "bg-pink-200/80"],
+    ["purple", "border-violet-200", "bg-violet-100", "bg-violet-200/80"],
+  ] as const)(
+    "renders %s note color classes",
+    (color, borderClass, bodyBgClass, headerBgClass) => {
+      const { container } = render(
+        <StickyNote
+          note={createNote({ color })}
+          zoom={1}
+          onChange={vi.fn()}
+          onDragStart={vi.fn()}
+        />,
+      );
+
+      const noteElement = container.firstChild;
+      const header = screen.getByDisplayValue("Launch plan").parentElement;
+
+      expect(noteElement).toHaveClass(borderClass, bodyBgClass);
+      expect(header).toHaveClass(borderClass, headerBgClass);
+    },
+  );
+
+  it("falls back to yellow classes for a missing or invalid color", () => {
+    const invalidNote = { ...createNote(), color: "orange" } as StickyNoteData;
+    const { container } = render(
+      <StickyNote
+        note={invalidNote}
+        zoom={1}
+        onChange={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    const noteElement = container.firstChild;
+    const header = screen.getByDisplayValue("Launch plan").parentElement;
+
+    expect(noteElement).toHaveClass("border-amber-200", "bg-amber-100");
+    expect(header).toHaveClass("border-amber-200", "bg-amber-200/80");
+  });
 });

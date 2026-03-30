@@ -3,7 +3,7 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import StickyNote from "@/components/StickyNote";
-import { StickyNoteData } from "@/lib/types";
+import type { NoteColor, StickyNoteData } from "@/lib/types";
 
 type CanvasProps = {
   notes: StickyNoteData[];
@@ -16,12 +16,20 @@ type DragState = {
   offsetY: number;
 } | null;
 
-function createNote() {
+const NOTE_COLORS: Array<{ color: NoteColor; bgClass: string }> = [
+  { color: "yellow", bgClass: "bg-amber-200" },
+  { color: "blue", bgClass: "bg-sky-200" },
+  { color: "green", bgClass: "bg-emerald-200" },
+  { color: "pink", bgClass: "bg-pink-200" },
+  { color: "purple", bgClass: "bg-violet-200" },
+];
+
+function createNote(color: NoteColor) {
   return {
     id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`,
     title: "New note",
     content: "Capture an insight, a research question, or a next step here.",
-    color: "yellow" as const,
+    color,
     x: 180,
     y: 180,
   };
@@ -31,6 +39,7 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [dragState, setDragState] = useState<DragState>(null);
+  const [selectedColor, setSelectedColor] = useState<NoteColor>("yellow");
 
   useEffect(() => {
     if (!dragState) {
@@ -100,7 +109,7 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
   };
 
   const addNote = () => {
-    onChangeNotes([...notes, createNote()]);
+    onChangeNotes([...notes, createNote(selectedColor)]);
   };
 
   return (
@@ -123,6 +132,19 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
       </div>
 
       <div className="absolute bottom-5 right-5 flex items-center gap-2 rounded-full border border-stone-200 bg-white/95 p-2 shadow-sm backdrop-blur">
+        <div className="flex items-center gap-2">
+          {NOTE_COLORS.map(({ color, bgClass }) => (
+            <button
+              key={color}
+              type="button"
+              aria-label={`Select ${color} note color`}
+              onClick={() => setSelectedColor(color)}
+              className={`h-6 w-6 rounded-full ${bgClass} cursor-pointer transition ${
+                selectedColor === color ? "ring-2 ring-offset-2 ring-stone-400" : ""
+              }`}
+            />
+          ))}
+        </div>
         <button
           type="button"
           onClick={addNote}

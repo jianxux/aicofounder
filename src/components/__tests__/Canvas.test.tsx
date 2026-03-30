@@ -27,6 +27,13 @@ const createNotes = (): StickyNoteData[] => [
 ];
 
 describe("Canvas", () => {
+  const getZoomOutButton = () => screen.getByRole("button", { name: "-" });
+
+  const getZoomInButton = () =>
+    screen
+      .getAllByRole("button", { name: "+" })
+      .find((button) => !button.className.includes("bg-stone-950"));
+
   beforeEach(() => {
     Object.defineProperty(globalThis, "crypto", {
       value: {
@@ -82,6 +89,59 @@ describe("Canvas", () => {
     ]);
   });
 
+  it("renders the full color picker with yellow selected by default", () => {
+    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+
+    const yellowButton = screen.getByRole("button", { name: "Select yellow note color" });
+
+    expect(yellowButton).toHaveClass("bg-amber-200", "ring-2", "ring-offset-2", "ring-stone-400");
+    expect(screen.getByRole("button", { name: "Select blue note color" })).toHaveClass("bg-sky-200");
+    expect(screen.getByRole("button", { name: "Select green note color" })).toHaveClass("bg-emerald-200");
+    expect(screen.getByRole("button", { name: "Select pink note color" })).toHaveClass("bg-pink-200");
+    expect(screen.getByRole("button", { name: "Select purple note color" })).toHaveClass("bg-violet-200");
+  });
+
+  it("updates the selected color when a color circle is clicked", () => {
+    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+
+    const yellowButton = screen.getByRole("button", { name: "Select yellow note color" });
+    const pinkButton = screen.getByRole("button", { name: "Select pink note color" });
+
+    fireEvent.click(pinkButton);
+
+    expect(pinkButton).toHaveClass("ring-2", "ring-offset-2", "ring-stone-400");
+    expect(yellowButton).not.toHaveClass("ring-2");
+  });
+
+  it("creates new notes with the selected color", () => {
+    const notes = createNotes();
+    const onChangeNotes = vi.fn();
+
+    render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Select blue note color" }));
+
+    const addButton = screen
+      .getAllByRole("button", { name: "+" })
+      .find((button) => button.className.includes("bg-stone-950"));
+
+    expect(addButton).toBeDefined();
+
+    fireEvent.click(addButton!);
+
+    expect(onChangeNotes).toHaveBeenCalledWith([
+      ...notes,
+      {
+        id: "mock-uuid-1",
+        title: "New note",
+        content: "Capture an insight, a research question, or a next step here.",
+        color: "blue",
+        x: 180,
+        y: 180,
+      },
+    ]);
+  });
+
   it("falls back to Date.now for the note id when crypto.randomUUID is unavailable", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
@@ -122,13 +182,7 @@ describe("Canvas", () => {
   it("updates the zoom display to 90% when zooming out", () => {
     render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
 
-    const toolbar = screen.getByText("100%").parentElement;
-
-    expect(toolbar).not.toBeNull();
-
-    const buttons = toolbar!.querySelectorAll("button");
-
-    fireEvent.click(buttons[1]!);
+    fireEvent.click(getZoomOutButton());
 
     expect(screen.getByText("90%")).toBeInTheDocument();
   });
@@ -136,13 +190,11 @@ describe("Canvas", () => {
   it("updates the zoom display to 110% when zooming in", () => {
     render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
 
-    const toolbar = screen.getByText("100%").parentElement;
+    const zoomInButton = getZoomInButton();
 
-    expect(toolbar).not.toBeNull();
+    expect(zoomInButton).toBeDefined();
 
-    const buttons = toolbar!.querySelectorAll("button");
-
-    fireEvent.click(buttons[2]!);
+    fireEvent.click(zoomInButton!);
 
     expect(screen.getByText("110%")).toBeInTheDocument();
   });
@@ -150,17 +202,13 @@ describe("Canvas", () => {
   it("does not zoom out below 80%", () => {
     render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
 
-    const toolbar = screen.getByText("100%").parentElement;
+    const zoomOutButton = getZoomOutButton();
 
-    expect(toolbar).not.toBeNull();
-
-    const buttons = toolbar!.querySelectorAll("button");
-
-    fireEvent.click(buttons[1]!);
-    fireEvent.click(buttons[1]!);
-    fireEvent.click(buttons[1]!);
-    fireEvent.click(buttons[1]!);
-    fireEvent.click(buttons[1]!);
+    fireEvent.click(zoomOutButton);
+    fireEvent.click(zoomOutButton);
+    fireEvent.click(zoomOutButton);
+    fireEvent.click(zoomOutButton);
+    fireEvent.click(zoomOutButton);
 
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.queryByText("70%")).not.toBeInTheDocument();
@@ -169,17 +217,15 @@ describe("Canvas", () => {
   it("does not zoom in above 140%", () => {
     render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
 
-    const toolbar = screen.getByText("100%").parentElement;
+    const zoomInButton = getZoomInButton();
 
-    expect(toolbar).not.toBeNull();
+    expect(zoomInButton).toBeDefined();
 
-    const buttons = toolbar!.querySelectorAll("button");
-
-    fireEvent.click(buttons[2]!);
-    fireEvent.click(buttons[2]!);
-    fireEvent.click(buttons[2]!);
-    fireEvent.click(buttons[2]!);
-    fireEvent.click(buttons[2]!);
+    fireEvent.click(zoomInButton!);
+    fireEvent.click(zoomInButton!);
+    fireEvent.click(zoomInButton!);
+    fireEvent.click(zoomInButton!);
+    fireEvent.click(zoomInButton!);
 
     expect(screen.getByText("140%")).toBeInTheDocument();
     expect(screen.queryByText("150%")).not.toBeInTheDocument();
@@ -373,6 +419,6 @@ describe("Canvas", () => {
 
     const toolbar = screen.getByText("100%").parentElement;
 
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(3);
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(8);
   });
 });
