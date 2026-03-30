@@ -24,7 +24,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Ultraplan — find biggest blocker, create actionable plan
 
 ## Phase 3: Canvas & UX
-- [ ] Multiple note colors (yellow, blue, green, pink, purple)
+- [x] Multiple note colors (yellow, blue, green, pink, purple)
 - [ ] Document cards on canvas (rich markdown)
 - [ ] Sections for grouping canvas items
 - [ ] Delete notes
