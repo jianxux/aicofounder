@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
+import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ChatMessage, Project, StickyNoteData } from "@/lib/types";
 
@@ -222,7 +223,7 @@ export default function ProjectWorkspacePage() {
       return;
     }
 
-    const phases = project.phases.map((phase) =>
+    const updatedPhases = project.phases.map((phase) =>
       phase.id === phaseId
         ? {
             ...phase,
@@ -231,11 +232,31 @@ export default function ProjectWorkspacePage() {
         : phase,
     );
 
-    const currentPhase = phases.find((phase) => phase.id === phaseId) ?? phases[0];
+    if (shouldAdvancePhase(updatedPhases, phaseId)) {
+      const nextPhaseId = getNextPhaseId(updatedPhases, phaseId);
+      const completedPhase = updatedPhases.find((phase) => phase.id === phaseId);
+      const nextPhase = updatedPhases.find((phase) => phase.id === nextPhaseId);
+
+      if (nextPhaseId && completedPhase && nextPhase) {
+        setActivePhaseId(nextPhaseId);
+        persistProject({
+          ...project,
+          phases: updatedPhases,
+          phase: nextPhase.title,
+          messages: [
+            ...project.messages,
+            createMessage("assistant", getPhaseAdvanceMessage(completedPhase.title, nextPhase.title)),
+          ],
+        });
+        return;
+      }
+    }
+
+    const currentPhase = updatedPhases.find((phase) => phase.id === phaseId) ?? updatedPhases[0];
 
     persistProject({
       ...project,
-      phases,
+      phases: updatedPhases,
       phase: currentPhase.title,
     });
   };
