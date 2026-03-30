@@ -10,7 +10,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Component tests for PhaseTracker (render, toggle, collapse)
 - [x] Component tests for ChatPanel (render, send message, remind)
 - [x] Component tests for Canvas (render, add note, zoom)
-- [ ] Component tests for AuthButton (signed in/out states, fallback)
+- [x] Component tests for AuthButton (signed in/out states, fallback)
 - [ ] Component tests for Dashboard page (project list, create)
 - [ ] Fix any build errors from `npm run build`
 
