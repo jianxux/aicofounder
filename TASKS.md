@@ -18,7 +18,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Real AI chat integration (OpenAI API route at /api/chat)
 - [x] Streaming chat responses (SSE or ReadableStream)
 - [x] System prompt for AI cofounder persona (critical, structured, guides through phases)
-- [ ] Auto-advance phases based on chat progress
+- [x] Auto-advance phases based on chat progress
 - [ ] Brainstorming agent — search Reddit/communities for pain points
 - [ ] Deep Research — parallel agents producing cited reports
 - [ ] Ultraplan — find biggest blocker, create actionable plan
