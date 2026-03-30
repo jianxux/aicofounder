@@ -11,6 +11,7 @@ type ChatPanelProps = {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   onRemind: () => void;
+  onBrainstorm: () => void;
   onToggleTask: (phaseId: string, taskId: string) => void;
   onSetActivePhase: (phaseId: string) => void;
 };
@@ -22,6 +23,7 @@ export default function ChatPanel({
   onSendMessage,
   isLoading,
   onRemind,
+  onBrainstorm,
   onToggleTask,
   onSetActivePhase,
 }: ChatPanelProps) {
@@ -82,13 +84,23 @@ export default function ChatPanel({
       </div>
 
       <div className="border-t border-stone-200 px-6 py-5">
-        <button
-          type="button"
-          onClick={onRemind}
-          className="mb-3 text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800"
-        >
-          Remind me what we were working on
-        </button>
+        <div className="mb-3 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={onRemind}
+            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800"
+          >
+            Remind me what we were working on
+          </button>
+          <button
+            type="button"
+            onClick={onBrainstorm}
+            disabled={isLoading}
+            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
+          >
+            🔎 Brainstorm pain points
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="flex items-end gap-3">
           <textarea

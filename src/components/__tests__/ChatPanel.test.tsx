@@ -74,6 +74,7 @@ const renderChatPanel = ({
 }: RenderOptions = {}) => {
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
+  const onBrainstorm = vi.fn();
   const onToggleTask = vi.fn();
   const onSetActivePhase = vi.fn();
 
@@ -85,12 +86,13 @@ const renderChatPanel = ({
       onSendMessage={onSendMessage}
       isLoading={isLoading}
       onRemind={onRemind}
+      onBrainstorm={onBrainstorm}
       onToggleTask={onToggleTask}
       onSetActivePhase={onSetActivePhase}
     />,
   );
 
-  return { onSendMessage, onRemind, onToggleTask, onSetActivePhase };
+  return { onSendMessage, onRemind, onBrainstorm, onToggleTask, onSetActivePhase };
 };
 
 describe("ChatPanel", () => {
@@ -185,6 +187,14 @@ describe("ChatPanel", () => {
       expect(onRemind).toHaveBeenCalledTimes(1);
     });
 
+    it("calls onBrainstorm when the brainstorm button is clicked", () => {
+      const { onBrainstorm } = renderChatPanel();
+
+      fireEvent.click(screen.getByRole("button", { name: /brainstorm pain points/i }));
+
+      expect(onBrainstorm).toHaveBeenCalledTimes(1);
+    });
+
     it("shows the typing indicator when isLoading is true", () => {
       renderChatPanel({ isLoading: true });
 
@@ -198,6 +208,7 @@ describe("ChatPanel", () => {
         screen.getByPlaceholderText("Tell your AI cofounder what you want to explore next..."),
       ).toBeDisabled();
       expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
     });
 
     it("does not show the typing indicator when isLoading is false", () => {

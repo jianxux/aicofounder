@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
+import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ChatMessage, Project, StickyNoteData } from "@/lib/types";
@@ -25,6 +27,7 @@ export default function ProjectWorkspacePage() {
   const [project, setProject] = useState<Project | null>(null);
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
 
@@ -218,6 +221,57 @@ export default function ProjectWorkspacePage() {
     persistProject({ ...project, notes });
   };
 
+  const handleBrainstorm = async () => {
+    const currentProject = projectRef.current;
+
+    if (!currentProject || isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const latestUserMessage = [...currentProject.messages]
+        .reverse()
+        .find((message) => message.sender === "user" && message.content.trim());
+
+      const response = await fetch("/api/brainstorm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectName: currentProject.name,
+          projectDescription:
+            latestUserMessage?.content ?? `Current phase: ${activePhase?.title ?? "Getting started"}`,
+          focusArea: activePhase?.title,
+        }),
+      });
+
+      const payload = (await response.json()) as BrainstormResult | { error: string };
+
+      if (!response.ok || "error" in payload) {
+        throw new Error("Failed to brainstorm pain points");
+      }
+
+      setBrainstormResult(payload);
+    } catch {
+      const baseProject = projectRef.current;
+
+      if (baseProject) {
+        persistProject({
+          ...baseProject,
+          messages: [
+            ...baseProject.messages,
+            createMessage("assistant", "Sorry, I couldn't brainstorm pain points right now. Please try again."),
+          ],
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleToggleTask = (phaseId: string, taskId: string) => {
     if (!project) {
       return;
@@ -343,11 +397,15 @@ export default function ProjectWorkspacePage() {
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             onRemind={handleRemind}
+            onBrainstorm={handleBrainstorm}
             onToggleTask={handleToggleTask}
             onSetActivePhase={handleSetActivePhase}
           />
-          <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
-            <Canvas notes={project.notes} onChangeNotes={handleNotesChange} />
+          <div className="flex flex-col gap-4">
+            {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
+            <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
+              <Canvas notes={project.notes} onChangeNotes={handleNotesChange} />
+            </div>
           </div>
         </div>
       </div>
