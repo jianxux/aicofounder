@@ -7,10 +7,12 @@ import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
 import ResearchReport from "@/components/ResearchReport";
+import UltraplanReport from "@/components/UltraplanReport";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
+import { UltraplanResult } from "@/lib/ultraplan";
 import { ChatMessage, Project, StickyNoteData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
@@ -30,6 +32,7 @@ export default function ProjectWorkspacePage() {
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null);
+  const [ultraplanResult, setUltraplanResult] = useState<UltraplanResult | null>(null);
   const [researchReport, setResearchReport] = useState<ResearchReportData | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
@@ -326,6 +329,60 @@ export default function ProjectWorkspacePage() {
     }
   };
 
+  const handleUltraplan = async () => {
+    const currentProject = projectRef.current;
+
+    if (!currentProject || isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userMessages = currentProject.messages.filter(
+        (message) => message.sender === "user" && message.content.trim(),
+      );
+      const latestUserMessage = userMessages[userMessages.length - 1];
+
+      const response = await fetch("/api/ultraplan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectName: currentProject.name,
+          projectDescription: latestUserMessage?.content ?? activePhase?.title ?? "Getting started",
+          currentPhase: activePhase?.title,
+          completedTasks: activePhase?.tasks.filter((task) => task.done).length ?? 0,
+          totalTasks: activePhase?.tasks.length ?? 0,
+          recentMessages: userMessages.slice(-5).map((message) => message.content),
+        }),
+      });
+
+      const payload = (await response.json()) as UltraplanResult | { error: string };
+
+      if (!response.ok || "error" in payload) {
+        throw new Error("Failed to create ultraplan");
+      }
+
+      setUltraplanResult(payload);
+    } catch {
+      const baseProject = projectRef.current;
+
+      if (baseProject) {
+        persistProject({
+          ...baseProject,
+          messages: [
+            ...baseProject.messages,
+            createMessage("assistant", "Sorry, I couldn't create an ultraplan right now. Please try again."),
+          ],
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleToggleTask = (phaseId: string, taskId: string) => {
     if (!project) {
       return;
@@ -453,11 +510,13 @@ export default function ProjectWorkspacePage() {
             onRemind={handleRemind}
             onBrainstorm={handleBrainstorm}
             onResearch={handleResearch}
+            onUltraplan={handleUltraplan}
             onToggleTask={handleToggleTask}
             onSetActivePhase={handleSetActivePhase}
           />
           <div className="flex flex-col gap-4">
             {researchReport ? <ResearchReport report={researchReport} /> : null}
+            {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
               <Canvas notes={project.notes} onChangeNotes={handleNotesChange} />

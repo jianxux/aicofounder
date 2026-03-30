@@ -13,6 +13,7 @@ type ChatPanelProps = {
   onRemind: () => void;
   onBrainstorm: () => void;
   onResearch?: () => void;
+  onUltraplan?: () => void;
   onToggleTask: (phaseId: string, taskId: string) => void;
   onSetActivePhase: (phaseId: string) => void;
 };
@@ -26,6 +27,7 @@ export default function ChatPanel({
   onRemind,
   onBrainstorm,
   onResearch,
+  onUltraplan,
   onToggleTask,
   onSetActivePhase,
 }: ChatPanelProps) {
@@ -109,6 +111,14 @@ export default function ChatPanel({
             className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
             📄 Deep Research
+          </button>
+          <button
+            type="button"
+            onClick={onUltraplan}
+            disabled={isLoading}
+            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
+          >
+            ⚡ Ultraplan
           </button>
         </div>
 
