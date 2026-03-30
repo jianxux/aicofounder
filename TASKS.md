@@ -8,7 +8,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Unit tests for src/lib/types.ts validation
 - [x] Component tests for StickyNote (render, drag events, edit)
 - [x] Component tests for PhaseTracker (render, toggle, collapse)
-- [ ] Component tests for ChatPanel (render, send message, remind)
+- [x] Component tests for ChatPanel (render, send message, remind)
 - [ ] Component tests for Canvas (render, add note, zoom)
 - [ ] Component tests for AuthButton (signed in/out states, fallback)
 - [ ] Component tests for Dashboard page (project list, create)
