@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
 import { createAndStoreProject, getStoredProjects } from "@/lib/projects";
@@ -75,7 +76,7 @@ const renderPage = () => render(<DashboardPage />);
 
 describe("DashboardPage", () => {
   let locationHref = "http://localhost/dashboard";
-  let setHref: ReturnType<typeof vi.fn>;
+  let setHref: Mock<(value: string) => void>;
 
   beforeEach(() => {
     vi.clearAllMocks();
