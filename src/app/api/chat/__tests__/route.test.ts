@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OpenAI from "openai";
+import { buildSystemPrompt } from "@/lib/prompts";
 
 vi.mock("openai", () => ({
   default: vi.fn(),
 }));
 
+vi.mock("@/lib/prompts", () => ({
+  buildSystemPrompt: vi.fn(),
+}));
+
 const openAIConstructor = vi.mocked(OpenAI);
+const buildSystemPromptMock = vi.mocked(buildSystemPrompt);
 
 const createRequest = (body: unknown) =>
   new Request("http://localhost/api/chat", {
@@ -43,6 +49,7 @@ describe("POST /api/chat", () => {
     vi.clearAllMocks();
     vi.resetModules();
     delete process.env.OPENAI_API_KEY;
+    buildSystemPromptMock.mockReturnValue("mocked system prompt");
   });
 
   afterEach(() => {
@@ -131,9 +138,47 @@ describe("POST /api/chat", () => {
     expect(payload.stream).toBe(true);
     expect(payload.temperature).toBe(0.7);
     expect(payload.messages).toHaveLength(21);
-    expect(payload.messages[0]).toMatchObject({ role: "system" });
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined);
+    expect(payload.messages[0]).toEqual({ role: "system", content: "mocked system prompt" });
     expect(payload.messages[1]).toEqual({ role: "user", content: "message-3" });
     expect(payload.messages.at(-1)).toEqual({ role: "assistant", content: "message-22" });
+  });
+
+  it("passes phase and projectName to the prompt builder", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    const create = vi.fn().mockResolvedValue(
+      createAsyncIterableStream([{ choices: [{ delta: { content: "ready" } }] }]),
+    );
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/chat/route");
+    const response = await POST(
+      createRequest({
+        messages: [{ sender: "user", content: "Help me launch" }],
+        phase: "launch",
+        projectName: "Orbit",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("launch", "Orbit");
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].messages[0]).toEqual({
+      role: "system",
+      content: "mocked system prompt",
+    });
   });
 
   it("sends an error chunk if streaming fails mid-response", async () => {

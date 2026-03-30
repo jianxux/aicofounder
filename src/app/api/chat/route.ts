@@ -1,8 +1,6 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-const SYSTEM_MESSAGE =
-  "You are an AI cofounder — a sharp, critical thinking partner for building startups. You challenge assumptions, ask tough questions, suggest concrete next steps, and help validate ideas with data and research. Be direct, specific, and constructive. Avoid platitudes. If an idea has holes, say so clearly and suggest how to fix them.";
+import { buildSystemPrompt } from "@/lib/prompts";
 
 type RequestMessage = {
   sender: "user" | "assistant";
@@ -11,6 +9,8 @@ type RequestMessage = {
 
 type ChatRequestBody = {
   messages?: RequestMessage[];
+  phase?: string;
+  projectName?: string;
 };
 
 type OpenAIChatMessage = {
@@ -41,7 +41,7 @@ type StreamingOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { messages }: ChatRequestBody = await request.json();
+    const { messages, phase = "", projectName }: ChatRequestBody = await request.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const streamingOpenAI = openai as unknown as StreamingOpenAIClient;
 
     const requestMessages: OpenAIChatMessage[] = [
-      { role: "system", content: SYSTEM_MESSAGE },
+      { role: "system", content: buildSystemPrompt(phase, projectName) },
       ...messages.slice(-20).map((message) => ({
         role: message.sender === "user" ? ("user" as const) : ("assistant" as const),
         content: message.content,

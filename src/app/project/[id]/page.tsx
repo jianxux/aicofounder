@@ -95,7 +95,11 @@ export default function ProjectWorkspacePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({
+          messages: nextMessages,
+          phase: activePhaseId,
+          projectName: currentProject.name,
+        }),
         signal: controller.signal,
       });
 
