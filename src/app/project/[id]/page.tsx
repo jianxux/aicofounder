@@ -8,10 +8,12 @@ import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
 import ResearchReport from "@/components/ResearchReport";
 import UltraplanReport from "@/components/UltraplanReport";
+import { useRealtimeProject } from "@/hooks/useRealtimeProject";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
+import { fetchProjectById } from "@/lib/supabase-projects";
 import { UltraplanResult } from "@/lib/ultraplan";
 import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
 
@@ -37,6 +39,7 @@ export default function ProjectWorkspacePage() {
   const [researchReport, setResearchReport] = useState<ResearchReportData | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -88,11 +91,43 @@ export default function ProjectWorkspacePage() {
     };
   }, []);
 
+  useRealtimeProject(projectId, () => {
+    if (savingRef.current) {
+      return;
+    }
+
+    void (async () => {
+      const remoteProject = await fetchProjectById(projectId);
+
+      if (!remoteProject) {
+        return;
+      }
+
+      const normalizedProject = {
+        ...remoteProject,
+        sections: remoteProject.sections ?? [],
+        documents: remoteProject.documents ?? [],
+        websiteBuilders: remoteProject.websiteBuilders ?? [],
+      };
+
+      projectRef.current = normalizedProject;
+      setProject(normalizedProject);
+      setActivePhaseId((currentPhaseId) =>
+        normalizedProject.phases.some((phase) => phase.id === currentPhaseId)
+          ? currentPhaseId
+          : normalizedProject.phases[0]?.id ?? "getting-started",
+      );
+    })();
+  });
+
   const persistProject = (nextProject: Project) => {
     const updated = { ...nextProject, updatedAt: new Date().toISOString() };
     projectRef.current = updated;
     setProject(updated);
-    void saveProject(updated);
+    savingRef.current = true;
+    void saveProject(updated).finally(() => {
+      savingRef.current = false;
+    });
   };
 
   const activePhase = useMemo(
