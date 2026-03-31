@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { validateEnv } from "@/lib/env";
 import {
   buildResearchPrompt,
   buildSynthesisPrompt,
@@ -48,12 +49,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
-    }
+    const env = validateEnv();
 
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: env.OPENAI_API_KEY,
     });
     const researchOpenAI = openai as unknown as ResearchOpenAIClient;
 
@@ -124,7 +123,11 @@ export async function POST(request: Request) {
       researchQuestion: normalizedQuestion,
       generatedAt: new Date().toISOString(),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Missing required environment variables:")) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
     return NextResponse.json({ error: "Failed to get AI response" }, { status: 500 });
   }
 }

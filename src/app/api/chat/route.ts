@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { validateEnv } from "@/lib/env";
 import { buildSystemPrompt } from "@/lib/prompts";
 
 type RequestMessage = {
@@ -47,12 +48,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
-    }
+    const env = validateEnv();
 
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: env.OPENAI_API_KEY,
     });
     const streamingOpenAI = openai as unknown as StreamingOpenAIClient;
 
@@ -106,7 +105,11 @@ export async function POST(request: Request) {
         "Content-Type": "text/event-stream",
       },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Missing required environment variables:")) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
     return NextResponse.json({ error: "Failed to get AI response" }, { status: 500 });
   }
 }

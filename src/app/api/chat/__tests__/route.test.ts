@@ -49,11 +49,15 @@ describe("POST /api/chat", () => {
     vi.clearAllMocks();
     vi.resetModules();
     delete process.env.OPENAI_API_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     buildSystemPromptMock.mockReturnValue("mocked system prompt");
   });
 
   afterEach(() => {
     delete process.env.OPENAI_API_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   });
 
   it("returns 400 for empty messages", async () => {
@@ -84,7 +88,10 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "OpenAI API key not configured" });
+    await expect(response.json()).resolves.toEqual({
+      error:
+        "Missing required environment variables: OPENAI_API_KEY. Set them in your local .env file or Vercel project settings.",
+    });
     expect(openAIConstructor).not.toHaveBeenCalled();
   });
 
