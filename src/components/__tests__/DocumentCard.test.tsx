@@ -176,8 +176,6 @@ describe("DocumentCard", () => {
     expect(card).toHaveStyle({
       left: "100px",
       top: "200px",
-      transform: "scale(1.2)",
-      transformOrigin: "top left",
     });
   });
 

@@ -74,11 +74,27 @@ function CanvasStateHarness({
 
 describe("Canvas", () => {
   const getZoomOutButton = () => screen.getByRole("button", { name: "-" });
+  const getBoard = () => screen.getByTestId("canvas-board");
+  const getSurface = () => screen.getByTestId("canvas-surface");
 
   const getZoomInButton = () =>
     screen
       .getAllByRole("button", { name: "+" })
       .find((button) => !button.className.includes("bg-stone-950"));
+
+  const mockBoardRect = (board: Element) => {
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 900,
+      bottom: 1200,
+      width: 900,
+      height: 1200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+  };
 
   beforeEach(() => {
     Object.defineProperty(globalThis, "crypto", {
@@ -372,7 +388,7 @@ describe("Canvas", () => {
   });
 
   it("renders the canvas board container div", () => {
-    const { container } = render(
+    render(
       <Canvas
         notes={createNotes()}
         documents={[]}
@@ -381,11 +397,7 @@ describe("Canvas", () => {
       />,
     );
 
-    const boardContainer = Array.from(container.querySelectorAll("div")).find((element) =>
-      element.className.includes("absolute inset-0 overflow-auto rounded-[28px]"),
-    );
-
-    expect(boardContainer).toBeInTheDocument();
+    expect(getBoard()).toBeInTheDocument();
   });
 
   it("calls onChangeNotes with a patched note when a sticky note title changes", () => {
@@ -418,7 +430,7 @@ describe("Canvas", () => {
   it("updates note coordinates after dragging from the sticky note handle", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(
+    render(
       <Canvas
         notes={notes}
         documents={[]}
@@ -427,21 +439,8 @@ describe("Canvas", () => {
       />,
     );
 
-    const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
-
-    expect(board).not.toBeNull();
-
-    vi.spyOn(board!, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      right: 900,
-      bottom: 1200,
-      width: 900,
-      height: 1200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
+    const board = getBoard();
+    mockBoardRect(board);
 
     const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
 
@@ -470,7 +469,7 @@ describe("Canvas", () => {
   it("clamps dragged note coordinates to a minimum of 12", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(
+    render(
       <Canvas
         notes={notes}
         documents={[]}
@@ -479,21 +478,8 @@ describe("Canvas", () => {
       />,
     );
 
-    const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
-
-    expect(board).not.toBeNull();
-
-    vi.spyOn(board!, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      right: 900,
-      bottom: 1200,
-      width: 900,
-      height: 1200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
+    const board = getBoard();
+    mockBoardRect(board);
 
     const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
 
@@ -522,7 +508,7 @@ describe("Canvas", () => {
   it("stops responding to mousemove after the drag mouseup cleanup runs", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(
+    render(
       <Canvas
         notes={notes}
         documents={[]}
@@ -531,21 +517,8 @@ describe("Canvas", () => {
       />,
     );
 
-    const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
-
-    expect(board).not.toBeNull();
-
-    vi.spyOn(board!, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      right: 900,
-      bottom: 1200,
-      width: 900,
-      height: 1200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    });
+    const board = getBoard();
+    mockBoardRect(board);
 
     const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
 
@@ -608,7 +581,110 @@ describe("Canvas", () => {
 
     const toolbar = screen.getByText("100%").parentElement;
 
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(10);
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(11);
+  });
+
+  it("updates pan offset when the board receives wheel events", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    const board = getBoard();
+
+    fireEvent.wheel(board, { deltaY: 120 });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(0px, -120px) scale(1)" });
+
+    fireEvent.wheel(board, { shiftKey: true, deltaY: 50 });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(-50px, -120px) scale(1)" });
+  });
+
+  it("resets zoom and pan when Reset view is clicked", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    fireEvent.click(getZoomInButton()!);
+    fireEvent.wheel(getBoard(), { deltaY: 80, shiftKey: true });
+
+    expect(screen.getByText("110%")).toBeInTheDocument();
+    expect(getSurface()).toHaveStyle({ transform: "translate(-72.72727272727272px, 0px) scale(1.1)" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset view" }));
+
+    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(getSurface()).toHaveStyle({ transform: "translate(0px, 0px) scale(1)" });
+  });
+
+  it("pans the canvas when middle-click dragging on the board", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    const board = getBoard();
+
+    fireEvent.mouseDown(board, { button: 1, clientX: 100, clientY: 120 });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 160, clientY: 210 }));
+    });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(60px, 90px) scale(1)" });
+    expect(board).toHaveClass("cursor-grabbing");
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+  });
+
+  it("pans the canvas when space plus left-drag is used on the board", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    const board = getBoard();
+
+    fireEvent.keyDown(window, { code: "Space" });
+    expect(board).toHaveClass("cursor-grab");
+
+    fireEvent.mouseDown(board, { button: 0, clientX: 80, clientY: 90 });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 130, clientY: 150 }));
+    });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(50px, 60px) scale(1)" });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+
+    fireEvent.keyUp(window, { code: "Space" });
+    expect(board).toHaveClass("cursor-default");
+  });
+
+  it("keeps item dragging correct when the canvas has a non-zero pan offset", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    const board = getBoard();
+    mockBoardRect(board);
+
+    fireEvent.wheel(board, { shiftKey: true, deltaY: -40 });
+    fireEvent.wheel(board, { deltaY: -30 });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(40px, 30px) scale(1)" });
+
+    const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
+
+    expect(dragHandle).not.toBeNull();
+
+    fireEvent.mouseDown(dragHandle!, { button: 0, clientX: 170, clientY: 280 });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 250, clientY: 390 }));
+    });
+
+    expect(screen.getByDisplayValue("Launch plan").parentElement?.parentElement).toHaveStyle({
+      left: "200px",
+      top: "350px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
   });
 
   it("calls onChangeDocuments with an added document when the Doc button is clicked", () => {

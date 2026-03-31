@@ -6,7 +6,7 @@ import type { NoteColor, SectionData } from "@/lib/types";
 
 type SectionProps = {
   section: SectionData;
-  zoom: number;
+  zoom?: number;
   onChange: (id: string, patch: Partial<SectionData>) => void;
   onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
   onDelete?: (id: string) => void;
@@ -40,7 +40,7 @@ const COLOR_MAP: Record<NoteColor, { background: string; border: string; text: s
   },
 };
 
-export default function Section({ section, zoom, onChange, onDragStart, onDelete }: SectionProps) {
+export default function Section({ section, onChange, onDragStart, onDelete }: SectionProps) {
   const colors = COLOR_MAP[section.color] ?? COLOR_MAP.yellow;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(section.title);
@@ -58,10 +58,10 @@ export default function Section({ section, zoom, onChange, onDragStart, onDelete
     <div
       className={`absolute rounded-3xl border-2 border-dashed ${colors.border} ${colors.background} shadow-sm`}
       style={{
-        left: section.x * zoom,
-        top: section.y * zoom,
-        width: section.width * zoom,
-        height: section.height * zoom,
+        left: section.x,
+        top: section.y,
+        width: section.width,
+        height: section.height,
       }}
     >
       <div

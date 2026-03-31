@@ -42,8 +42,6 @@ describe("StickyNote", () => {
     expect(container.firstChild).toHaveStyle({
       left: "48px",
       top: "96px",
-      transform: "scale(1.5)",
-      transformOrigin: "top left",
     });
   });
 

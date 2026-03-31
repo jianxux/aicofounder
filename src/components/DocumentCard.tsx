@@ -7,13 +7,13 @@ import type { DocumentCardData } from "@/lib/types";
 
 type DocumentCardProps = {
   document: DocumentCardData;
-  zoom: number;
+  zoom?: number;
   onChange: (id: string, patch: Partial<DocumentCardData>) => void;
   onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
   onDelete?: (id: string) => void;
 };
 
-export default function DocumentCard({ document, zoom, onChange, onDragStart, onDelete }: DocumentCardProps) {
+export default function DocumentCard({ document, onChange, onDragStart, onDelete }: DocumentCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
@@ -22,8 +22,6 @@ export default function DocumentCard({ document, zoom, onChange, onDragStart, on
       style={{
         left: document.x,
         top: document.y,
-        transform: `scale(${zoom})`,
-        transformOrigin: "top left",
       }}
     >
       <div

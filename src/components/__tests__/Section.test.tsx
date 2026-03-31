@@ -68,10 +68,10 @@ describe("Section", () => {
     );
 
     expect(container.firstChild).toHaveStyle({
-      left: "60px",
-      top: "120px",
-      width: "300px",
-      height: "210px",
+      left: "40px",
+      top: "80px",
+      width: "200px",
+      height: "140px",
     });
   });
 

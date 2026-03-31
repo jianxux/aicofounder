@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import DocumentCard from "@/components/DocumentCard";
 import Section from "@/components/Section";
@@ -21,6 +21,13 @@ type DragState = {
   type: "note" | "document" | "section";
   offsetX: number;
   offsetY: number;
+} | null;
+
+type PanDragState = {
+  startX: number;
+  startY: number;
+  originPanX: number;
+  originPanY: number;
 } | null;
 
 const NOTE_COLORS: Array<{ color: NoteColor; bgClass: string }> = [
@@ -74,11 +81,15 @@ export default function Canvas({
 }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
   const [dragState, setDragState] = useState<DragState>(null);
+  const [panDragState, setPanDragState] = useState<PanDragState>(null);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [selectedColor, setSelectedColor] = useState<NoteColor>("yellow");
 
   useEffect(() => {
-    if (!dragState) {
+    if (!dragState && !panDragState) {
       return;
     }
 
@@ -89,9 +100,19 @@ export default function Canvas({
         return;
       }
 
+      if (panDragState) {
+        setPanX(panDragState.originPanX + (event.clientX - panDragState.startX) / zoom);
+        setPanY(panDragState.originPanY + (event.clientY - panDragState.startY) / zoom);
+        return;
+      }
+
+      if (!dragState) {
+        return;
+      }
+
       const rect = board.getBoundingClientRect();
-      const nextX = Math.max(12, (event.clientX - rect.left - dragState.offsetX) / zoom);
-      const nextY = Math.max(12, (event.clientY - rect.top - dragState.offsetY) / zoom);
+      const nextX = Math.max(12, (event.clientX - rect.left - dragState.offsetX) / zoom - panX);
+      const nextY = Math.max(12, (event.clientY - rect.top - dragState.offsetY) / zoom - panY);
 
       if (dragState.type === "note") {
         onChangeNotes(
@@ -138,6 +159,7 @@ export default function Canvas({
 
     const handleUp = () => {
       setDragState(null);
+      setPanDragState(null);
     };
 
     window.addEventListener("mousemove", handleMove);
@@ -147,13 +169,56 @@ export default function Canvas({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [documents, dragState, notes, onChangeDocuments, onChangeNotes, onChangeSections, sections, zoom]);
+  }, [documents, dragState, notes, onChangeDocuments, onChangeNotes, onChangeSections, panDragState, panX, panY, sections, zoom]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        const target = event.target as HTMLElement | null;
+        const tagName = target?.tagName;
+        const isEditableTarget =
+          tagName === "INPUT" || tagName === "TEXTAREA" || target?.isContentEditable === true;
+
+        if (!isEditableTarget) {
+          event.preventDefault();
+        }
+
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        setIsSpacePressed(false);
+      }
+    };
+
+    const handleBlur = () => {
+      setIsSpacePressed(false);
+      setPanDragState(null);
+      setDragState(null);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
 
   const handleDragStart = (
     type: "note" | "document" | "section",
     itemId: string,
     event: ReactMouseEvent<HTMLDivElement>,
   ) => {
+    if (event.button !== 0 || isSpacePressed) {
+      return;
+    }
+
     const board = boardRef.current;
 
     if (!board) {
@@ -175,9 +240,46 @@ export default function Canvas({
     setDragState({
       itemId,
       type,
-      offsetX: event.clientX - rect.left - item.x * zoom,
-      offsetY: event.clientY - rect.top - item.y * zoom,
+      offsetX: event.clientX - rect.left - (item.x + panX) * zoom,
+      offsetY: event.clientY - rect.top - (item.y + panY) * zoom,
     });
+  };
+
+  const startPan = (clientX: number, clientY: number) => {
+    setPanDragState({
+      startX: clientX,
+      startY: clientY,
+      originPanX: panX,
+      originPanY: panY,
+    });
+  };
+
+  const handleBoardMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const tagName = target?.tagName;
+    const isEditableTarget =
+      tagName === "INPUT" || tagName === "TEXTAREA" || target?.isContentEditable === true;
+
+    if (event.button === 1) {
+      event.preventDefault();
+      startPan(event.clientX, event.clientY);
+      return;
+    }
+
+    if (event.button === 0 && isSpacePressed && !isEditableTarget) {
+      event.preventDefault();
+      startPan(event.clientX, event.clientY);
+    }
+  };
+
+  const handleWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const horizontalDelta = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+    const verticalDelta = event.deltaX ? event.deltaY : event.shiftKey ? 0 : event.deltaY;
+
+    setPanX((current) => current - horizontalDelta / zoom);
+    setPanY((current) => current - verticalDelta / zoom);
   };
 
   const handleNoteChange = (noteId: string, patch: Partial<StickyNoteData>) => {
@@ -222,14 +324,25 @@ export default function Canvas({
     <div className="relative h-full min-h-[520px] overflow-hidden rounded-[28px] border border-stone-200 bg-[#faf7f2] shadow-sm">
       <div
         ref={boardRef}
-        className="absolute inset-0 overflow-auto rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.85),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,0.55),_rgba(250,247,242,1))]"
+        data-testid="canvas-board"
+        onMouseDown={handleBoardMouseDown}
+        onWheel={handleWheel}
+        className={`absolute inset-0 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.85),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,0.55),_rgba(250,247,242,1))] ${
+          panDragState ? "cursor-grabbing" : isSpacePressed ? "cursor-grab" : "cursor-default"
+        }`}
       >
-        <div className="relative h-[1200px] min-w-[900px]">
+        <div
+          data-testid="canvas-surface"
+          className="relative min-h-[2400px] min-w-[2400px]"
+          style={{
+            transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+            transformOrigin: "0 0",
+          }}
+        >
           {sections.map((section) => (
             <Section
               key={section.id}
               section={section}
-              zoom={zoom}
               onChange={handleSectionChange}
               onDelete={deleteSection}
               onDragStart={(sectionId, event) => handleDragStart("section", sectionId, event)}
@@ -239,7 +352,6 @@ export default function Canvas({
             <StickyNote
               key={note.id}
               note={note}
-              zoom={zoom}
               onChange={handleNoteChange}
               onDelete={deleteNote}
               onDragStart={(noteId, event) => handleDragStart("note", noteId, event)}
@@ -249,7 +361,6 @@ export default function Canvas({
             <DocumentCard
               key={document.id}
               document={document}
-              zoom={zoom}
               onChange={handleDocumentChange}
               onDelete={deleteDocument}
               onDragStart={(documentId, event) => handleDragStart("document", documentId, event)}
@@ -301,6 +412,17 @@ export default function Canvas({
           -
         </button>
         <div className="min-w-14 text-center text-sm font-medium text-stone-600">{Math.round(zoom * 100)}%</div>
+        <button
+          type="button"
+          onClick={() => {
+            setPanX(0);
+            setPanY(0);
+            setZoom(1);
+          }}
+          className="rounded-full border border-stone-200 px-3 py-2 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Reset view
+        </button>
         <button
           type="button"
           onClick={() => setZoom((current) => Math.min(1.4, Number((current + 0.1).toFixed(1))))}

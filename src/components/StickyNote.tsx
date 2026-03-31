@@ -5,7 +5,7 @@ import type { NoteColor, StickyNoteData } from "@/lib/types";
 
 type StickyNoteProps = {
   note: StickyNoteData;
-  zoom: number;
+  zoom?: number;
   onChange: (noteId: string, patch: Partial<StickyNoteData>) => void;
   onDragStart: (noteId: string, event: MouseEvent<HTMLDivElement>) => void;
   onDelete?: (noteId: string) => void;
@@ -42,7 +42,7 @@ const COLOR_MAP: Record<
   },
 };
 
-export default function StickyNote({ note, zoom, onChange, onDragStart, onDelete }: StickyNoteProps) {
+export default function StickyNote({ note, onChange, onDragStart, onDelete }: StickyNoteProps) {
   const colors = COLOR_MAP[note.color] ?? COLOR_MAP.yellow;
 
   return (
@@ -51,8 +51,6 @@ export default function StickyNote({ note, zoom, onChange, onDragStart, onDelete
       style={{
         left: note.x,
         top: note.y,
-        transform: `scale(${zoom})`,
-        transformOrigin: "top left",
       }}
     >
       <div
