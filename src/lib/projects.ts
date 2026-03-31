@@ -1,4 +1,5 @@
 import { Project } from "@/lib/types";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 const STORAGE_KEY = "aicofounder.projects";
 
@@ -147,4 +148,41 @@ export function createAndStoreProject() {
 
 export function getProjectById(id: string) {
   return getStoredProjects().find((project) => project.id === id) ?? null;
+}
+
+export async function getProjects(): Promise<Project[]> {
+  if (!isSupabaseConfigured()) {
+    return Promise.resolve(getStoredProjects());
+  }
+
+  const { fetchProjects } = await import("@/lib/supabase-projects");
+  return fetchProjects();
+}
+
+export async function getProject(id: string): Promise<Project | null> {
+  if (!isSupabaseConfigured()) {
+    return Promise.resolve(getProjectById(id));
+  }
+
+  const { fetchProjectById } = await import("@/lib/supabase-projects");
+  return fetchProjectById(id);
+}
+
+export async function saveProject(project: Project): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    upsertProject(project);
+    return Promise.resolve();
+  }
+
+  const { saveProjectToSupabase } = await import("@/lib/supabase-projects");
+  await saveProjectToSupabase(project);
+}
+
+export async function createProject(): Promise<Project> {
+  if (!isSupabaseConfigured()) {
+    return Promise.resolve(createAndStoreProject());
+  }
+
+  const { createSupabaseProject } = await import("@/lib/supabase-projects");
+  return createSupabaseProject();
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
-import { createAndStoreProject, getStoredProjects } from "@/lib/projects";
+import { createProject as createProjectMock, getProjects } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
 vi.mock("next/link", () => ({
@@ -21,8 +21,8 @@ vi.mock("@/components/AuthButton", () => ({
 }));
 
 vi.mock("@/lib/projects", () => ({
-  getStoredProjects: vi.fn(),
-  createAndStoreProject: vi.fn(),
+  getProjects: vi.fn(),
+  createProject: vi.fn(),
 }));
 
 const createProject = (overrides: Partial<Project> = {}): Project => ({
@@ -82,7 +82,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(getStoredProjects).mockReturnValue([]);
+    vi.mocked(getProjects).mockResolvedValue([]);
 
     setHref = vi.fn((value: string) => {
       locationHref = value;
@@ -145,12 +145,12 @@ describe("DashboardPage", () => {
   });
 
   it("renders only the + card when getStoredProjects returns an empty list", async () => {
-    vi.mocked(getStoredProjects).mockReturnValue([]);
+    vi.mocked(getProjects).mockResolvedValue([]);
 
     renderPage();
 
     await waitFor(() => {
-      expect(getStoredProjects).toHaveBeenCalledTimes(1);
+      expect(getProjects).toHaveBeenCalledTimes(1);
     });
 
     expect(screen.getByRole("heading", { name: "New Project" })).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("DashboardPage", () => {
 
   it("renders project cards showing phase, name, description, note count, and formatted updated date", async () => {
     const project = createProject();
-    vi.mocked(getStoredProjects).mockReturnValue([project]);
+    vi.mocked(getProjects).mockResolvedValue([project]);
 
     renderPage();
 
@@ -172,7 +172,7 @@ describe("DashboardPage", () => {
 
   it("renders project cards as links to the project detail page", async () => {
     const project = createProject({ id: "project-42", name: "Signal Tracker" });
-    vi.mocked(getStoredProjects).mockReturnValue([project]);
+    vi.mocked(getProjects).mockResolvedValue([project]);
 
     renderPage();
 
@@ -182,29 +182,33 @@ describe("DashboardPage", () => {
     );
   });
 
-  it("clicking the header New Project button creates a project and redirects to its page", () => {
-    vi.mocked(createAndStoreProject).mockReturnValue(createProject({ id: "new-project-header" }));
+  it("clicking the header New Project button creates a project and redirects to its page", async () => {
+    vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-header" }));
 
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "New Project" }));
 
-    expect(createAndStoreProject).toHaveBeenCalledTimes(1);
-    expect(setHref).toHaveBeenCalledWith("/project/new-project-header");
-    expect(window.location.href).toBe("/project/new-project-header");
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+      expect(setHref).toHaveBeenCalledWith("/project/new-project-header");
+      expect(window.location.href).toBe("/project/new-project-header");
+    });
   });
 
-  it("clicking the + card creates a project and redirects to its page", () => {
-    vi.mocked(createAndStoreProject).mockReturnValue(createProject({ id: "new-project-card" }));
+  it("clicking the + card creates a project and redirects to its page", async () => {
+    vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-card" }));
 
     renderPage();
 
     const createCard = screen.getByRole("heading", { name: "New Project" }).closest("button");
     fireEvent.click(createCard!);
 
-    expect(createAndStoreProject).toHaveBeenCalledTimes(1);
-    expect(setHref).toHaveBeenCalledWith("/project/new-project-card");
-    expect(window.location.href).toBe("/project/new-project-card");
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+      expect(setHref).toHaveBeenCalledWith("/project/new-project-card");
+      expect(window.location.href).toBe("/project/new-project-card");
+    });
   });
 
   it("renders multiple project cards in the project grid", async () => {
@@ -226,7 +230,7 @@ describe("DashboardPage", () => {
       }),
     ];
 
-    vi.mocked(getStoredProjects).mockReturnValue(projects);
+    vi.mocked(getProjects).mockResolvedValue(projects);
 
     renderPage();
 
@@ -248,7 +252,7 @@ describe("DashboardPage", () => {
       updatedAt: "2025-01-15T20:00:00.000Z",
     });
 
-    vi.mocked(getStoredProjects).mockReturnValue([project]);
+    vi.mocked(getProjects).mockResolvedValue([project]);
 
     renderPage();
 

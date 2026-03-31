@@ -10,7 +10,7 @@ import ResearchReport from "@/components/ResearchReport";
 import UltraplanReport from "@/components/UltraplanReport";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
-import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
+import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { UltraplanResult } from "@/lib/ultraplan";
 import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
@@ -39,27 +39,47 @@ export default function ProjectWorkspacePage() {
   const projectRef = useRef<Project | null>(null);
 
   useEffect(() => {
-    const storedProject = getProjectById(projectId);
+    let isMounted = true;
 
-    if (storedProject) {
-      const normalizedProject = {
-        ...storedProject,
-        sections: storedProject.sections ?? [],
-        documents: storedProject.documents ?? [],
-        websiteBuilders: storedProject.websiteBuilders ?? [],
-      };
-      projectRef.current = normalizedProject;
-      setProject(normalizedProject);
-      setActivePhaseId(normalizedProject.phases[0]?.id ?? "getting-started");
-      return;
-    }
+    const loadProject = async () => {
+      const storedProject = await getProject(projectId);
 
-    const fallbackProject = createProjectRecord();
-    const recoveredProject = { ...fallbackProject, id: projectId, updatedAt: new Date().toISOString() };
-    upsertProject(recoveredProject);
-    projectRef.current = recoveredProject;
-    setProject(recoveredProject);
-    setActivePhaseId(recoveredProject.phases[0]?.id ?? "getting-started");
+      if (storedProject) {
+        const normalizedProject = {
+          ...storedProject,
+          sections: storedProject.sections ?? [],
+          documents: storedProject.documents ?? [],
+          websiteBuilders: storedProject.websiteBuilders ?? [],
+        };
+
+        if (!isMounted) {
+          return;
+        }
+
+        projectRef.current = normalizedProject;
+        setProject(normalizedProject);
+        setActivePhaseId(normalizedProject.phases[0]?.id ?? "getting-started");
+        return;
+      }
+
+      const fallbackProject = createProjectRecord();
+      const recoveredProject = { ...fallbackProject, id: projectId, updatedAt: new Date().toISOString() };
+      upsertProject(recoveredProject);
+
+      if (!isMounted) {
+        return;
+      }
+
+      projectRef.current = recoveredProject;
+      setProject(recoveredProject);
+      setActivePhaseId(recoveredProject.phases[0]?.id ?? "getting-started");
+    };
+
+    void loadProject();
+
+    return () => {
+      isMounted = false;
+    };
   }, [projectId]);
 
   useEffect(() => {
@@ -72,7 +92,7 @@ export default function ProjectWorkspacePage() {
     const updated = { ...nextProject, updatedAt: new Date().toISOString() };
     projectRef.current = updated;
     setProject(updated);
-    upsertProject(updated);
+    void saveProject(updated);
   };
 
   const activePhase = useMemo(

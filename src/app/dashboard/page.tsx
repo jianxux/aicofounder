@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
-import { createAndStoreProject, getStoredProjects } from "@/lib/projects";
+import { createProject, getProjects } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 function formatDate(value: string) {
@@ -18,11 +18,11 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    setProjects(getStoredProjects());
+    getProjects().then(setProjects);
   }, []);
 
-  const createProject = () => {
-    const project = createAndStoreProject();
+  const handleCreateProject = async () => {
+    const project = await createProject();
     window.location.href = `/project/${project.id}`;
   };
 
@@ -52,7 +52,7 @@ export default function DashboardPage() {
           </div>
           <button
             type="button"
-            onClick={createProject}
+            onClick={() => void handleCreateProject()}
             className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
           >
             New Project
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
             type="button"
-            onClick={createProject}
+            onClick={() => void handleCreateProject()}
             className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-dashed border-stone-300 bg-white/70 p-7 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-stone-500 hover:bg-white"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-950 text-2xl text-white transition group-hover:bg-stone-800">
