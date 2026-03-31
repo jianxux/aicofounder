@@ -30,7 +30,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Delete notes
 - [x] Canvas pan and scroll
 - [x] Mobile responsive workspace (stack panels)
-- [ ] Website builder component
+- [x] Website builder component
 
 ## Phase 4: Persistence & Auth
 - [ ] Supabase database schema (projects, messages, canvas_items, phases)
