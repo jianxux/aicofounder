@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
-import { createProject, getProjects } from "@/lib/projects";
+import OnboardingModal from "@/components/OnboardingModal";
+import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
+
+const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -16,9 +19,15 @@ function formatDate(value: string) {
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    getProjects().then(setProjects);
+    getProjects().then((loadedProjects) => {
+      setProjects(loadedProjects);
+      setShowOnboarding(
+        loadedProjects.length === 0 && window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true",
+      );
+    });
   }, []);
 
   const handleCreateProject = async () => {
@@ -26,8 +35,33 @@ export default function DashboardPage() {
     window.location.href = `/project/${project.id}`;
   };
 
+  const handleSkipOnboarding = () => {
+    window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
+    setShowOnboarding(false);
+  };
+
+  const handleCompleteOnboarding = async (name: string, description: string) => {
+    const project = await createProject();
+    const nextProject = {
+      ...project,
+      name,
+      description,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveProject(nextProject);
+    setShowOnboarding(false);
+    window.location.href = `/project/${project.id}`;
+  };
+
   return (
     <main className="min-h-screen bg-[#faf7f2]">
+      <OnboardingModal
+        open={showOnboarding}
+        onComplete={(name, description) => void handleCompleteOnboarding(name, description)}
+        onSkip={handleSkipOnboarding}
+      />
+
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-8">
         <Link href="/" className="inline-flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-950 text-lg font-semibold text-white shadow-sm">

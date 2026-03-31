@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
-import { createProject as createProjectMock, getProjects } from "@/lib/projects";
+import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
 vi.mock("next/link", () => ({
@@ -23,6 +23,7 @@ vi.mock("@/components/AuthButton", () => ({
 vi.mock("@/lib/projects", () => ({
   getProjects: vi.fn(),
   createProject: vi.fn(),
+  saveProject: vi.fn(),
 }));
 
 const createProject = (overrides: Partial<Project> = {}): Project => ({
@@ -81,8 +82,10 @@ describe("DashboardPage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(saveProject).mockResolvedValue();
 
     setHref = vi.fn((value: string) => {
       locationHref = value;
@@ -102,6 +105,8 @@ describe("DashboardPage", () => {
   });
 
   it("renders page header with AI Cofounder branding and Your projects subtext", () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
     renderPage();
 
     expect(screen.getByText("AI Cofounder")).toBeInTheDocument();
@@ -113,6 +118,8 @@ describe("DashboardPage", () => {
   });
 
   it("renders workspace heading Your Projects and description paragraph", () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
     renderPage();
 
     expect(screen.getByRole("heading", { name: "Your Projects" })).toBeInTheDocument();
@@ -124,12 +131,16 @@ describe("DashboardPage", () => {
   });
 
   it("renders the header New Project button", () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
     renderPage();
 
     expect(screen.getByRole("button", { name: "New Project" })).toBeInTheDocument();
   });
 
   it("renders the + create-new card with New Project heading and description", () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
     renderPage();
 
     const cardHeading = screen.getByRole("heading", { name: "New Project" });
@@ -146,6 +157,7 @@ describe("DashboardPage", () => {
 
   it("renders only the + card when getStoredProjects returns an empty list", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
 
     renderPage();
 
@@ -183,6 +195,7 @@ describe("DashboardPage", () => {
   });
 
   it("clicking the header New Project button creates a project and redirects to its page", async () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
     vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-header" }));
 
     renderPage();
@@ -197,6 +210,7 @@ describe("DashboardPage", () => {
   });
 
   it("clicking the + card creates a project and redirects to its page", async () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
     vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-card" }));
 
     renderPage();
@@ -240,6 +254,8 @@ describe("DashboardPage", () => {
   });
 
   it("passes redirectTo=/dashboard to AuthButton", () => {
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
     renderPage();
 
     expect(screen.getByTestId("auth-button")).toHaveAttribute("data-redirect-to", "/dashboard");
@@ -257,5 +273,55 @@ describe("DashboardPage", () => {
     renderPage();
 
     expect(await screen.findByText("Updated Jan 15, 2025")).toBeInTheDocument();
+  });
+
+  it("shows onboarding when there are no projects and it has not been dismissed", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+  });
+
+  it("skips onboarding by setting localStorage and closing the modal", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Skip" }));
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("onboarding-dismissed")).toBe("true");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("completes onboarding by creating, saving, and redirecting to the new project", async () => {
+    const createdProject = createProject({ id: "guided-project", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockResolvedValue(createdProject);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
+    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
+    fireEvent.change(screen.getByLabelText("What problem are you solving?"), {
+      target: { value: "Research is fragmented across tools." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+      expect(saveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "guided-project",
+          name: "Signal Engine",
+          description: "Research is fragmented across tools.",
+        }),
+      );
+      expect(setHref).toHaveBeenCalledWith("/project/guided-project");
+    });
   });
 });
