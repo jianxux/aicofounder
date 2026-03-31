@@ -13,7 +13,7 @@ import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/li
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { UltraplanResult } from "@/lib/ultraplan";
-import { ChatMessage, Project, StickyNoteData } from "@/lib/types";
+import { ChatMessage, DocumentCardData, Project, StickyNoteData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -41,9 +41,10 @@ export default function ProjectWorkspacePage() {
     const storedProject = getProjectById(projectId);
 
     if (storedProject) {
-      projectRef.current = storedProject;
-      setProject(storedProject);
-      setActivePhaseId(storedProject.phases[0]?.id ?? "getting-started");
+      const normalizedProject = { ...storedProject, documents: storedProject.documents ?? [] };
+      projectRef.current = normalizedProject;
+      setProject(normalizedProject);
+      setActivePhaseId(normalizedProject.phases[0]?.id ?? "getting-started");
       return;
     }
 
@@ -225,6 +226,14 @@ export default function ProjectWorkspacePage() {
     }
 
     persistProject({ ...project, notes });
+  };
+
+  const handleDocumentsChange = (documents: DocumentCardData[]) => {
+    if (!project) {
+      return;
+    }
+
+    persistProject({ ...project, documents });
   };
 
   const handleBrainstorm = async () => {
@@ -519,7 +528,12 @@ export default function ProjectWorkspacePage() {
             {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
-              <Canvas notes={project.notes} onChangeNotes={handleNotesChange} />
+              <Canvas
+                notes={project.notes}
+                documents={project.documents ?? []}
+                onChangeNotes={handleNotesChange}
+                onChangeDocuments={handleDocumentsChange}
+              />
             </div>
           </div>
         </div>

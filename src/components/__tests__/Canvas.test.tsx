@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Canvas from "@/components/Canvas";
-import type { StickyNoteData } from "@/lib/types";
+import type { DocumentCardData, StickyNoteData } from "@/lib/types";
 
 const createNote = (overrides: Partial<StickyNoteData> = {}): StickyNoteData => ({
   id: "note-1",
@@ -25,6 +25,15 @@ const createNotes = (): StickyNoteData[] => [
     y: 180,
   }),
 ];
+
+const createDocument = (overrides: Partial<DocumentCardData> = {}): DocumentCardData => ({
+  id: "doc-1",
+  title: "My Document",
+  content: "# Hello\n\nSome **bold** text",
+  x: 100,
+  y: 200,
+  ...overrides,
+});
 
 describe("Canvas", () => {
   const getZoomOutButton = () => screen.getByRole("button", { name: "-" });
@@ -48,14 +57,28 @@ describe("Canvas", () => {
   });
 
   it("renders all provided sticky notes", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     expect(screen.getByDisplayValue("Launch plan")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Research")).toBeInTheDocument();
   });
 
   it("shows the default zoom level text", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("100%")).toBeInTheDocument();
   });
@@ -64,7 +87,14 @@ describe("Canvas", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
 
-    render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const addButton = screen
       .getAllByRole("button", { name: "+" })
@@ -90,7 +120,14 @@ describe("Canvas", () => {
   });
 
   it("renders the full color picker with yellow selected by default", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const yellowButton = screen.getByRole("button", { name: "Select yellow note color" });
 
@@ -102,7 +139,14 @@ describe("Canvas", () => {
   });
 
   it("updates the selected color when a color circle is clicked", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const yellowButton = screen.getByRole("button", { name: "Select yellow note color" });
     const pinkButton = screen.getByRole("button", { name: "Select pink note color" });
@@ -117,7 +161,14 @@ describe("Canvas", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
 
-    render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Select blue note color" }));
 
@@ -153,7 +204,14 @@ describe("Canvas", () => {
 
     const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1234567890);
 
-    render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const addButton = screen
       .getAllByRole("button", { name: "+" })
@@ -180,7 +238,14 @@ describe("Canvas", () => {
   });
 
   it("updates the zoom display to 90% when zooming out", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     fireEvent.click(getZoomOutButton());
 
@@ -188,7 +253,14 @@ describe("Canvas", () => {
   });
 
   it("updates the zoom display to 110% when zooming in", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const zoomInButton = getZoomInButton();
 
@@ -200,7 +272,14 @@ describe("Canvas", () => {
   });
 
   it("does not zoom out below 80%", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const zoomOutButton = getZoomOutButton();
 
@@ -215,7 +294,14 @@ describe("Canvas", () => {
   });
 
   it("does not zoom in above 140%", () => {
-    render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const zoomInButton = getZoomInButton();
 
@@ -232,7 +318,14 @@ describe("Canvas", () => {
   });
 
   it("renders the canvas board container div", () => {
-    const { container } = render(<Canvas notes={createNotes()} onChangeNotes={vi.fn()} />);
+    const { container } = render(
+      <Canvas
+        notes={createNotes()}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const boardContainer = Array.from(container.querySelectorAll("div")).find((element) =>
       element.className.includes("absolute inset-0 overflow-auto rounded-[28px]"),
@@ -245,7 +338,14 @@ describe("Canvas", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
 
-    render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     fireEvent.change(screen.getByDisplayValue("Launch plan"), {
       target: { value: "Updated launch plan" },
@@ -264,7 +364,14 @@ describe("Canvas", () => {
   it("updates note coordinates after dragging from the sticky note handle", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    const { container } = render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
 
@@ -309,7 +416,14 @@ describe("Canvas", () => {
   it("clamps dragged note coordinates to a minimum of 12", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    const { container } = render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
 
@@ -354,7 +468,14 @@ describe("Canvas", () => {
   it("stops responding to mousemove after the drag mouseup cleanup runs", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { container } = render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    const { container } = render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const board = container.querySelector(".absolute.inset-0.overflow-auto") as HTMLDivElement | null;
 
@@ -398,13 +519,27 @@ describe("Canvas", () => {
   it("does not crash if a note handle is removed before a drag can start", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
-    const { rerender } = render(<Canvas notes={notes} onChangeNotes={onChangeNotes} />);
+    const { rerender } = render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
 
     expect(dragHandle).not.toBeNull();
 
-    rerender(<Canvas notes={[]} onChangeNotes={onChangeNotes} />);
+    rerender(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByDisplayValue("Launch plan")).not.toBeInTheDocument();
     expect(() => fireEvent.mouseDown(dragHandle!, { clientX: 140, clientY: 260 })).not.toThrow();
@@ -412,13 +547,71 @@ describe("Canvas", () => {
   });
 
   it("renders an empty canvas without notes while keeping the toolbar available", () => {
-    render(<Canvas notes={[]} onChangeNotes={vi.fn()} />);
+    render(<Canvas notes={[]} documents={[]} onChangeNotes={vi.fn()} onChangeDocuments={vi.fn()} />);
 
     expect(screen.queryAllByRole("textbox")).toHaveLength(0);
     expect(screen.getByText("100%")).toBeInTheDocument();
 
     const toolbar = screen.getByText("100%").parentElement;
 
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(8);
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(9);
+  });
+
+  it("calls onChangeDocuments with an added document when the Doc button is clicked", () => {
+    const onChangeDocuments = vi.fn();
+
+    render(<Canvas notes={[]} documents={[]} onChangeNotes={vi.fn()} onChangeDocuments={onChangeDocuments} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Doc" }));
+
+    expect(onChangeDocuments).toHaveBeenCalledTimes(1);
+    expect(onChangeDocuments).toHaveBeenCalledWith([
+      {
+        id: "mock-uuid-1",
+        title: "New Document",
+        content: "# Getting Started\n\nWrite your ideas here...",
+        x: 220,
+        y: 220,
+      },
+    ]);
+  });
+
+  it("renders document cards on the canvas", () => {
+    render(
+      <Canvas
+        notes={[]}
+        documents={[createDocument()]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("My Document")).toBeInTheDocument();
+  });
+
+  it("calls onChangeDocuments with patched document when title changes", () => {
+    const document = createDocument();
+    const onChangeDocuments = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[document]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={onChangeDocuments}
+      />,
+    );
+
+    fireEvent.change(screen.getByDisplayValue("My Document"), {
+      target: { value: "Updated document title" },
+    });
+
+    expect(onChangeDocuments).toHaveBeenCalledTimes(1);
+    expect(onChangeDocuments).toHaveBeenCalledWith([
+      {
+        ...document,
+        title: "Updated document title",
+      },
+    ]);
   });
 });

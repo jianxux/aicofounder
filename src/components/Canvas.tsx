@@ -2,16 +2,20 @@
 
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import DocumentCard from "@/components/DocumentCard";
 import StickyNote from "@/components/StickyNote";
-import type { NoteColor, StickyNoteData } from "@/lib/types";
+import type { DocumentCardData, NoteColor, StickyNoteData } from "@/lib/types";
 
 type CanvasProps = {
   notes: StickyNoteData[];
+  documents: DocumentCardData[];
   onChangeNotes: (notes: StickyNoteData[]) => void;
+  onChangeDocuments: (documents: DocumentCardData[]) => void;
 };
 
 type DragState = {
-  noteId: string;
+  itemId: string;
+  type: "note" | "document";
   offsetX: number;
   offsetY: number;
 } | null;
@@ -35,7 +39,17 @@ function createNote(color: NoteColor) {
   };
 }
 
-export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
+function createDocument() {
+  return {
+    id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`,
+    title: "New Document",
+    content: "# Getting Started\n\nWrite your ideas here...",
+    x: 220,
+    y: 220,
+  };
+}
+
+export default function Canvas({ notes, documents, onChangeNotes, onChangeDocuments }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [dragState, setDragState] = useState<DragState>(null);
@@ -57,15 +71,30 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
       const nextX = Math.max(12, (event.clientX - rect.left - dragState.offsetX) / zoom);
       const nextY = Math.max(12, (event.clientY - rect.top - dragState.offsetY) / zoom);
 
-      onChangeNotes(
-        notes.map((note) =>
-          note.id === dragState.noteId
+      if (dragState.type === "note") {
+        onChangeNotes(
+          notes.map((note) =>
+            note.id === dragState.itemId
+              ? {
+                  ...note,
+                  x: nextX,
+                  y: nextY,
+                }
+              : note,
+          ),
+        );
+        return;
+      }
+
+      onChangeDocuments(
+        documents.map((document) =>
+          document.id === dragState.itemId
             ? {
-                ...note,
+                ...document,
                 x: nextX,
                 y: nextY,
               }
-            : note,
+            : document,
         ),
       );
     };
@@ -81,9 +110,9 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [dragState, notes, onChangeNotes, zoom]);
+  }, [documents, dragState, notes, onChangeDocuments, onChangeNotes, zoom]);
 
-  const handleDragStart = (noteId: string, event: ReactMouseEvent<HTMLDivElement>) => {
+  const handleDragStart = (type: "note" | "document", itemId: string, event: ReactMouseEvent<HTMLDivElement>) => {
     const board = boardRef.current;
 
     if (!board) {
@@ -91,16 +120,18 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
     }
 
     const rect = board.getBoundingClientRect();
-    const note = notes.find((entry) => entry.id === noteId);
+    const item =
+      type === "note" ? notes.find((entry) => entry.id === itemId) : documents.find((entry) => entry.id === itemId);
 
-    if (!note) {
+    if (!item) {
       return;
     }
 
     setDragState({
-      noteId,
-      offsetX: event.clientX - rect.left - note.x * zoom,
-      offsetY: event.clientY - rect.top - note.y * zoom,
+      itemId,
+      type,
+      offsetX: event.clientX - rect.left - item.x * zoom,
+      offsetY: event.clientY - rect.top - item.y * zoom,
     });
   };
 
@@ -108,8 +139,18 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
     onChangeNotes(notes.map((note) => (note.id === noteId ? { ...note, ...patch } : note)));
   };
 
+  const handleDocumentChange = (documentId: string, patch: Partial<DocumentCardData>) => {
+    onChangeDocuments(
+      documents.map((document) => (document.id === documentId ? { ...document, ...patch } : document)),
+    );
+  };
+
   const addNote = () => {
     onChangeNotes([...notes, createNote(selectedColor)]);
+  };
+
+  const addDocument = () => {
+    onChangeDocuments([...documents, createDocument()]);
   };
 
   return (
@@ -125,7 +166,16 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
               note={note}
               zoom={zoom}
               onChange={handleNoteChange}
-              onDragStart={handleDragStart}
+              onDragStart={(noteId, event) => handleDragStart("note", noteId, event)}
+            />
+          ))}
+          {documents.map((document) => (
+            <DocumentCard
+              key={document.id}
+              document={document}
+              zoom={zoom}
+              onChange={handleDocumentChange}
+              onDragStart={(documentId, event) => handleDragStart("document", documentId, event)}
             />
           ))}
         </div>
@@ -151,6 +201,13 @@ export default function Canvas({ notes, onChangeNotes }: CanvasProps) {
           className="rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
         >
           +
+        </button>
+        <button
+          type="button"
+          onClick={addDocument}
+          className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Doc
         </button>
         <button
           type="button"

@@ -19,6 +19,14 @@ describe("lib/types guards", () => {
     y: 240,
   };
 
+  const documentCard: types.DocumentCardData = {
+    id: "doc-1",
+    title: "My Document",
+    content: "# Hello\n\nSome **bold** text",
+    x: 100,
+    y: 200,
+  };
+
   const phaseTask: types.PhaseTask = {
     id: "task-1",
     label: "Define scope",
@@ -38,6 +46,7 @@ describe("lib/types guards", () => {
     phase: phase.id,
     updatedAt: "2025-01-01T00:00:00.000Z",
     notes: [stickyNote],
+    documents: [documentCard],
     messages: [chatMessage],
     phases: [phase],
   };
@@ -50,6 +59,10 @@ describe("lib/types guards", () => {
   it("accepts a valid StickyNoteData object", () => {
     expect(types.isStickyNoteData(stickyNote)).toBe(true);
     expect(types.isNoteColor(stickyNote.color)).toBe(true);
+  });
+
+  it("accepts a valid DocumentCardData object", () => {
+    expect(types.isDocumentCardData(documentCard)).toBe(true);
   });
 
   it.each(["yellow", "blue", "green", "pink", "purple"] as const)(
@@ -72,6 +85,7 @@ describe("lib/types guards", () => {
   it("rejects invalid validation patterns", () => {
     expect(types.isChatMessage({ ...chatMessage, sender: "system" })).toBe(false);
     expect(types.isStickyNoteData({ ...stickyNote, x: "120" })).toBe(false);
+    expect(types.isDocumentCardData({ ...documentCard, y: "200" })).toBe(false);
     expect(types.isPhaseTask({ ...phaseTask, done: "no" })).toBe(false);
     expect(types.isPhase({ ...phase, tasks: [{ ...phaseTask, done: "no" }] })).toBe(false);
     expect(types.isProject({ ...project, notes: [{ ...stickyNote, color: "blue" }] })).toBe(true);
@@ -88,6 +102,7 @@ describe("lib/types guards", () => {
     nonRecordValues.forEach((value) => {
       expect(types.isChatMessage(value)).toBe(false);
       expect(types.isStickyNoteData(value)).toBe(false);
+      expect(types.isDocumentCardData(value)).toBe(false);
       expect(types.isPhaseTask(value)).toBe(false);
       expect(types.isPhase(value)).toBe(false);
       expect(types.isProject(value)).toBe(false);
@@ -97,6 +112,7 @@ describe("lib/types guards", () => {
   it("rejects empty objects in each object type guard", () => {
     expect(types.isChatMessage({})).toBe(false);
     expect(types.isStickyNoteData({})).toBe(false);
+    expect(types.isDocumentCardData({})).toBe(false);
     expect(types.isPhaseTask({})).toBe(false);
     expect(types.isPhase({})).toBe(false);
     expect(types.isProject({})).toBe(false);
@@ -110,12 +126,18 @@ describe("lib/types guards", () => {
     expect(types.isPhase({ id: phase.id, title: phase.title, tasks: {} })).toBe(false);
   });
 
-  it("rejects Project when notes, messages, or phases are not arrays", () => {
+  it("rejects Project when notes, documents, messages, or phases are not arrays", () => {
     expect(types.isProject({ ...project, notes: null })).toBe(false);
     expect(types.isProject({ ...project, notes: undefined })).toBe(false);
     expect(types.isProject({ ...project, notes: 123 })).toBe(false);
     expect(types.isProject({ ...project, notes: "notes" })).toBe(false);
     expect(types.isProject({ ...project, notes: {} })).toBe(false);
+
+    expect(types.isProject({ ...project, documents: null })).toBe(false);
+    expect(types.isProject({ ...project, documents: undefined })).toBe(false);
+    expect(types.isProject({ ...project, documents: 123 })).toBe(false);
+    expect(types.isProject({ ...project, documents: "documents" })).toBe(false);
+    expect(types.isProject({ ...project, documents: {} })).toBe(false);
 
     expect(types.isProject({ ...project, messages: null })).toBe(false);
     expect(types.isProject({ ...project, messages: undefined })).toBe(false);
@@ -130,11 +152,12 @@ describe("lib/types guards", () => {
     expect(types.isProject({ ...project, phases: {} })).toBe(false);
   });
 
-  it("accepts Project with empty notes, messages, and phases arrays", () => {
+  it("accepts Project with empty notes, documents, messages, and phases arrays", () => {
     expect(
       types.isProject({
         ...project,
         notes: [],
+        documents: [],
         messages: [],
         phases: [],
       }),

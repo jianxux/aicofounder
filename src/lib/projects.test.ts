@@ -27,6 +27,15 @@ function makeProject(overrides: Partial<Project> = {}): Project {
         y: 72,
       },
     ],
+    documents: [
+      {
+        id: "doc-1",
+        title: "Document",
+        content: "# Notes",
+        x: 120,
+        y: 140,
+      },
+    ],
     messages: [
       {
         id: "message-1",
@@ -70,6 +79,7 @@ describe("lib/projects", () => {
 
       expect(project.notes).toHaveLength(2);
       expect(project.notes.map((note) => note.title)).toEqual(["Idea", "Problem statement"]);
+      expect(project.documents).toEqual([]);
 
       expect(project.messages).toHaveLength(1);
       expect(project.messages[0]).toMatchObject({

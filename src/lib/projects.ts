@@ -88,6 +88,7 @@ export function createProjectRecord(): Project {
     phase: "Getting started",
     updatedAt: nowIso(),
     notes: createStarterNotes(),
+    documents: [],
     messages: [
       {
         id: createId(),

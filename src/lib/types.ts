@@ -18,6 +18,14 @@ export type StickyNoteData = {
   y: number;
 };
 
+export type DocumentCardData = {
+  id: string;
+  title: string;
+  content: string;
+  x: number;
+  y: number;
+};
+
 export type PhaseTask = {
   id: string;
   label: string;
@@ -37,6 +45,7 @@ export type Project = {
   phase: string;
   updatedAt: string;
   notes: StickyNoteData[];
+  documents: DocumentCardData[];
   messages: ChatMessage[];
   phases: Phase[];
 };
@@ -82,6 +91,20 @@ export const isStickyNoteData = (value: unknown): value is StickyNoteData => {
   );
 };
 
+export const isDocumentCardData = (value: unknown): value is DocumentCardData => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.content === "string" &&
+    typeof value.x === "number" &&
+    typeof value.y === "number"
+  );
+};
+
 export const isPhaseTask = (value: unknown): value is PhaseTask => {
   if (!isRecord(value)) {
     return false;
@@ -110,6 +133,7 @@ export const isProject = (value: unknown): value is Project => {
   if (
     !isRecord(value) ||
     !Array.isArray(value.notes) ||
+    !Array.isArray(value.documents) ||
     !Array.isArray(value.messages) ||
     !Array.isArray(value.phases)
   ) {
@@ -123,6 +147,7 @@ export const isProject = (value: unknown): value is Project => {
     typeof value.phase === "string" &&
     typeof value.updatedAt === "string" &&
     value.notes.every(isStickyNoteData) &&
+    value.documents.every(isDocumentCardData) &&
     value.messages.every(isChatMessage) &&
     value.phases.every(isPhase)
   );
