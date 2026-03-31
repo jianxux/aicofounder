@@ -10,9 +10,10 @@ type DocumentCardProps = {
   zoom: number;
   onChange: (id: string, patch: Partial<DocumentCardData>) => void;
   onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDelete?: (id: string) => void;
 };
 
-export default function DocumentCard({ document, zoom, onChange, onDragStart }: DocumentCardProps) {
+export default function DocumentCard({ document, zoom, onChange, onDragStart, onDelete }: DocumentCardProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   return (
@@ -27,13 +28,27 @@ export default function DocumentCard({ document, zoom, onChange, onDragStart }: 
     >
       <div
         onMouseDown={(event) => onDragStart(document.id, event)}
-        className="cursor-grab rounded-t-2xl border-b border-stone-200 bg-stone-100 px-4 py-3 active:cursor-grabbing"
+        className="relative cursor-grab rounded-t-2xl border-b border-stone-200 bg-stone-100 px-4 py-3 active:cursor-grabbing"
       >
         <input
           value={document.title}
           onChange={(event) => onChange(document.id, { title: event.target.value })}
-          className="w-full border-none bg-transparent text-sm font-semibold text-stone-900 outline-none"
+          className="w-full border-none bg-transparent pr-8 text-sm font-semibold text-stone-900 outline-none"
         />
+        {onDelete ? (
+          <button
+            type="button"
+            aria-label="Delete document"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(document.id);
+            }}
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs text-stone-400 hover:text-red-500"
+          >
+            ×
+          </button>
+        ) : null}
       </div>
       <div className="min-h-40 rounded-b-2xl px-4 py-3">
         {isEditing ? (

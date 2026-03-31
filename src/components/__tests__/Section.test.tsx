@@ -216,6 +216,57 @@ describe("Section", () => {
     expect(onDragStart).not.toHaveBeenCalled();
   });
 
+  it("renders a delete button when onDelete is provided", () => {
+    render(
+      <Section
+        section={createSection()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete section" })).toBeInTheDocument();
+  });
+
+  it("calls onDelete with the section id when the delete button is clicked", () => {
+    const onDelete = vi.fn();
+
+    render(
+      <Section
+        section={createSection()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={onDelete}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete section" }));
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith("section-1");
+  });
+
+  it("stops propagation on the delete button mouseDown", () => {
+    const onDragStart = vi.fn();
+
+    render(
+      <Section
+        section={createSection()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={onDragStart}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete section" }));
+
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
   it("falls back to yellow classes for an unknown color", () => {
     const invalidSection = { ...createSection(), color: "orange" } as unknown as SectionData;
     const { container } = render(

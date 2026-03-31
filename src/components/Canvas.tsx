@@ -194,6 +194,18 @@ export default function Canvas({
     onChangeSections(sections.map((section) => (section.id === sectionId ? { ...section, ...patch } : section)));
   };
 
+  const deleteNote = (noteId: string) => {
+    onChangeNotes(notes.filter((note) => note.id !== noteId));
+  };
+
+  const deleteDocument = (documentId: string) => {
+    onChangeDocuments(documents.filter((document) => document.id !== documentId));
+  };
+
+  const deleteSection = (sectionId: string) => {
+    onChangeSections(sections.filter((section) => section.id !== sectionId));
+  };
+
   const addNote = () => {
     onChangeNotes([...notes, createNote(selectedColor)]);
   };
@@ -219,6 +231,7 @@ export default function Canvas({
               section={section}
               zoom={zoom}
               onChange={handleSectionChange}
+              onDelete={deleteSection}
               onDragStart={(sectionId, event) => handleDragStart("section", sectionId, event)}
             />
           ))}
@@ -228,6 +241,7 @@ export default function Canvas({
               note={note}
               zoom={zoom}
               onChange={handleNoteChange}
+              onDelete={deleteNote}
               onDragStart={(noteId, event) => handleDragStart("note", noteId, event)}
             />
           ))}
@@ -237,6 +251,7 @@ export default function Canvas({
               document={document}
               zoom={zoom}
               onChange={handleDocumentChange}
+              onDelete={deleteDocument}
               onDragStart={(documentId, event) => handleDragStart("document", documentId, event)}
             />
           ))}

@@ -115,6 +115,57 @@ describe("DocumentCard", () => {
     expect(onDragStart.mock.calls[0]?.[0]).toBe("doc-1");
   });
 
+  it("renders a delete button when onDelete is provided", () => {
+    render(
+      <DocumentCard
+        document={createDocument()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete document" })).toBeInTheDocument();
+  });
+
+  it("calls onDelete with the document id when the delete button is clicked", () => {
+    const onDelete = vi.fn();
+
+    render(
+      <DocumentCard
+        document={createDocument()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={onDelete}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete document" }));
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith("doc-1");
+  });
+
+  it("stops propagation from the delete button mouseDown", () => {
+    const onDragStart = vi.fn();
+
+    render(
+      <DocumentCard
+        document={createDocument()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={onDragStart}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete document" }));
+
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
   it("applies zoom transform and position styles", () => {
     const { container } = render(
       <DocumentCard document={createDocument()} zoom={1.2} onChange={vi.fn()} onDragStart={vi.fn()} />,

@@ -8,6 +8,7 @@ type StickyNoteProps = {
   zoom: number;
   onChange: (noteId: string, patch: Partial<StickyNoteData>) => void;
   onDragStart: (noteId: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDelete?: (noteId: string) => void;
 };
 
 const COLOR_MAP: Record<
@@ -41,7 +42,7 @@ const COLOR_MAP: Record<
   },
 };
 
-export default function StickyNote({ note, zoom, onChange, onDragStart }: StickyNoteProps) {
+export default function StickyNote({ note, zoom, onChange, onDragStart, onDelete }: StickyNoteProps) {
   const colors = COLOR_MAP[note.color] ?? COLOR_MAP.yellow;
 
   return (
@@ -56,13 +57,27 @@ export default function StickyNote({ note, zoom, onChange, onDragStart }: Sticky
     >
       <div
         onMouseDown={(event) => onDragStart(note.id, event)}
-        className={`cursor-grab rounded-t-2xl border-b ${colors.borderColor} ${colors.headerBg} px-4 py-3 active:cursor-grabbing`}
+        className={`relative cursor-grab rounded-t-2xl border-b ${colors.borderColor} ${colors.headerBg} px-4 py-3 active:cursor-grabbing`}
       >
         <input
           value={note.title}
           onChange={(event) => onChange(note.id, { title: event.target.value })}
-          className="w-full border-none bg-transparent text-sm font-semibold text-stone-900 outline-none"
+          className="w-full border-none bg-transparent pr-8 text-sm font-semibold text-stone-900 outline-none"
         />
+        {onDelete ? (
+          <button
+            type="button"
+            aria-label="Delete note"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(note.id);
+            }}
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs text-stone-400 hover:text-red-500"
+          >
+            ×
+          </button>
+        ) : null}
       </div>
       <textarea
         value={note.content}

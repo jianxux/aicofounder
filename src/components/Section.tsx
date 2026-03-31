@@ -9,6 +9,7 @@ type SectionProps = {
   zoom: number;
   onChange: (id: string, patch: Partial<SectionData>) => void;
   onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDelete?: (id: string) => void;
 };
 
 const COLOR_MAP: Record<NoteColor, { background: string; border: string; text: string }> = {
@@ -39,7 +40,7 @@ const COLOR_MAP: Record<NoteColor, { background: string; border: string; text: s
   },
 };
 
-export default function Section({ section, zoom, onChange, onDragStart }: SectionProps) {
+export default function Section({ section, zoom, onChange, onDragStart, onDelete }: SectionProps) {
   const colors = COLOR_MAP[section.color] ?? COLOR_MAP.yellow;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(section.title);
@@ -65,7 +66,7 @@ export default function Section({ section, zoom, onChange, onDragStart }: Sectio
     >
       <div
         onMouseDown={(event) => onDragStart(section.id, event)}
-        className={`flex h-11 cursor-grab items-center rounded-t-3xl px-4 active:cursor-grabbing ${colors.text}`}
+        className={`relative flex h-11 cursor-grab items-center rounded-t-3xl px-4 active:cursor-grabbing ${colors.text}`}
       >
         {isEditing ? (
           <input
@@ -85,18 +86,32 @@ export default function Section({ section, zoom, onChange, onDragStart }: Sectio
             }}
             onMouseDown={(event) => event.stopPropagation()}
             autoFocus
-            className="w-full border-none bg-transparent text-sm font-semibold outline-none"
+            className="w-full border-none bg-transparent pr-8 text-sm font-semibold outline-none"
           />
         ) : (
           <button
             type="button"
             onClick={() => setIsEditing(true)}
             onMouseDown={(event) => event.stopPropagation()}
-            className="truncate bg-transparent text-left text-sm font-semibold outline-none"
+            className="truncate bg-transparent pr-8 text-left text-sm font-semibold outline-none"
           >
             {section.title}
           </button>
         )}
+        {onDelete ? (
+          <button
+            type="button"
+            aria-label="Delete section"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(section.id);
+            }}
+            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs text-stone-400 hover:text-red-500"
+          >
+            ×
+          </button>
+        ) : null}
       </div>
     </div>
   );

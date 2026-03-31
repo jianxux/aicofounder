@@ -110,6 +110,57 @@ describe("StickyNote", () => {
     expect(onDragStart.mock.calls[0]?.[1].type).toBe("mousedown");
   });
 
+  it("renders a delete button when onDelete is provided", () => {
+    render(
+      <StickyNote
+        note={createNote()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete note" })).toBeInTheDocument();
+  });
+
+  it("calls onDelete with the note id when the delete button is clicked", () => {
+    const onDelete = vi.fn();
+
+    render(
+      <StickyNote
+        note={createNote()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={onDelete}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith("note-1");
+  });
+
+  it("stops propagation from the delete button mouseDown", () => {
+    const onDragStart = vi.fn();
+
+    render(
+      <StickyNote
+        note={createNote()}
+        zoom={1}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={onDragStart}
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete note" }));
+
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
   it("renders empty title and content values", () => {
     render(
       <StickyNote

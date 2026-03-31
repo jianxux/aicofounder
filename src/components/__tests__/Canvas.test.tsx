@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Canvas from "@/components/Canvas";
@@ -46,6 +47,31 @@ const createSection = (overrides: Partial<SectionData> = {}): SectionData => ({
   ...overrides,
 });
 
+function CanvasStateHarness({
+  initialNotes = [],
+  initialDocuments = [],
+  initialSections = [],
+}: {
+  initialNotes?: StickyNoteData[];
+  initialDocuments?: DocumentCardData[];
+  initialSections?: SectionData[];
+}) {
+  const [notes, setNotes] = useState(initialNotes);
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [sections, setSections] = useState(initialSections);
+
+  return (
+    <Canvas
+      notes={notes}
+      documents={documents}
+      sections={sections}
+      onChangeNotes={setNotes}
+      onChangeDocuments={setDocuments}
+      onChangeSections={setSections}
+    />
+  );
+}
+
 describe("Canvas", () => {
   const getZoomOutButton = () => screen.getByRole("button", { name: "-" });
 
@@ -79,6 +105,23 @@ describe("Canvas", () => {
 
     expect(screen.getByDisplayValue("Launch plan")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Research")).toBeInTheDocument();
+  });
+
+  it("renders delete buttons for notes, documents, and sections", () => {
+    render(
+      <Canvas
+        notes={[createNote()]}
+        documents={[createDocument()]}
+        sections={[createSection()]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeSections={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Delete note" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete document" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete section" })).toBeInTheDocument();
   });
 
   it("shows the default zoom level text", () => {
@@ -626,6 +669,64 @@ describe("Canvas", () => {
     ]);
   });
 
+  it("calls onChangeNotes with the filtered list when deleting a note", () => {
+    const notes = createNotes();
+    const onChangeNotes = vi.fn();
+
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete note" })[0]!);
+
+    expect(onChangeNotes).toHaveBeenCalledWith([notes[1]]);
+  });
+
+  it("removes a note from the rendered canvas after deletion", () => {
+    render(<CanvasStateHarness initialNotes={createNotes()} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete note" })[0]!);
+
+    expect(screen.queryByDisplayValue("Launch plan")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Research")).toBeInTheDocument();
+  });
+
+  it("calls onChangeDocuments with the filtered list when deleting a document", () => {
+    const documents = [createDocument(), createDocument({ id: "doc-2", title: "Second doc" })];
+    const onChangeDocuments = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={documents}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={onChangeDocuments}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete document" })[0]!);
+
+    expect(onChangeDocuments).toHaveBeenCalledWith([documents[1]]);
+  });
+
+  it("removes a document from the rendered canvas after deletion", () => {
+    render(
+      <CanvasStateHarness
+        initialDocuments={[createDocument(), createDocument({ id: "doc-2", title: "Second doc" })]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete document" })[0]!);
+
+    expect(screen.queryByDisplayValue("My Document")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Second doc")).toBeInTheDocument();
+  });
+
   it("renders the Section button in the toolbar", () => {
     render(<Canvas notes={[]} documents={[]} onChangeNotes={vi.fn()} onChangeDocuments={vi.fn()} />);
 
@@ -677,6 +778,39 @@ describe("Canvas", () => {
     );
 
     expect(screen.getByRole("button", { name: "Research Cluster" })).toBeInTheDocument();
+  });
+
+  it("calls onChangeSections with the filtered list when deleting a section", () => {
+    const sections = [createSection(), createSection({ id: "section-2", title: "Second section" })];
+    const onChangeSections = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        sections={sections}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeSections={onChangeSections}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete section" })[0]!);
+
+    expect(onChangeSections).toHaveBeenCalledWith([sections[1]]);
+  });
+
+  it("removes a section from the rendered canvas after deletion", () => {
+    render(
+      <CanvasStateHarness
+        initialSections={[createSection(), createSection({ id: "section-2", title: "Second section" })]}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete section" })[0]!);
+
+    expect(screen.queryByRole("button", { name: "Research Cluster" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Second section" })).toBeInTheDocument();
   });
 
   it("works without a sections prop for backward compatibility", () => {
