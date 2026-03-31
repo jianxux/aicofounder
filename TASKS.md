@@ -35,6 +35,6 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 ## Phase 4: Persistence & Auth
 - [x] Supabase database schema (projects, messages, canvas_items, phases)
 - [x] Migrate from localStorage to Supabase
-- [ ] Real-time sync
+- [x] Real-time sync
 - [ ] User onboarding flow
 - [ ] Vercel deployment config
