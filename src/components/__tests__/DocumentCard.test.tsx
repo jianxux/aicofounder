@@ -66,7 +66,7 @@ describe("DocumentCard", () => {
     const textarea = container.querySelector("textarea");
 
     expect(textarea).toBeInTheDocument();
-    fireEvent.blur(textarea);
+    fireEvent.blur(textarea!);
 
     expect(screen.getByTestId("markdown-content")).toHaveTextContent("Hello");
   });
@@ -95,7 +95,7 @@ describe("DocumentCard", () => {
     const textarea = container.querySelector("textarea");
 
     expect(textarea).toBeInTheDocument();
-    fireEvent.change(textarea, {
+    fireEvent.change(textarea!, {
       target: { value: "# Updated\n\nNew content" },
     });
 

@@ -13,7 +13,7 @@ import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/li
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { UltraplanResult } from "@/lib/ultraplan";
-import { ChatMessage, DocumentCardData, Project, StickyNoteData } from "@/lib/types";
+import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -41,7 +41,11 @@ export default function ProjectWorkspacePage() {
     const storedProject = getProjectById(projectId);
 
     if (storedProject) {
-      const normalizedProject = { ...storedProject, documents: storedProject.documents ?? [] };
+      const normalizedProject = {
+        ...storedProject,
+        sections: storedProject.sections ?? [],
+        documents: storedProject.documents ?? [],
+      };
       projectRef.current = normalizedProject;
       setProject(normalizedProject);
       setActivePhaseId(normalizedProject.phases[0]?.id ?? "getting-started");
@@ -234,6 +238,14 @@ export default function ProjectWorkspacePage() {
     }
 
     persistProject({ ...project, documents });
+  };
+
+  const handleSectionsChange = (sections: SectionData[]) => {
+    if (!project) {
+      return;
+    }
+
+    persistProject({ ...project, sections });
   };
 
   const handleBrainstorm = async () => {
@@ -530,8 +542,10 @@ export default function ProjectWorkspacePage() {
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
               <Canvas
                 notes={project.notes}
+                sections={project.sections ?? []}
                 documents={project.documents ?? []}
                 onChangeNotes={handleNotesChange}
+                onChangeSections={handleSectionsChange}
                 onChangeDocuments={handleDocumentsChange}
               />
             </div>

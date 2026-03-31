@@ -27,6 +27,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
         y: 72,
       },
     ],
+    sections: [],
     documents: [
       {
         id: "doc-1",

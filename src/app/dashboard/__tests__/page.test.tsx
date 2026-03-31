@@ -49,6 +49,7 @@ const createProject = (overrides: Partial<Project> = {}): Project => ({
       y: 180,
     },
   ],
+  sections: [],
   messages: [
     {
       id: "message-1",

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Canvas from "@/components/Canvas";
-import type { DocumentCardData, StickyNoteData } from "@/lib/types";
+import type { DocumentCardData, SectionData, StickyNoteData } from "@/lib/types";
 
 const createNote = (overrides: Partial<StickyNoteData> = {}): StickyNoteData => ({
   id: "note-1",
@@ -32,6 +32,17 @@ const createDocument = (overrides: Partial<DocumentCardData> = {}): DocumentCard
   content: "# Hello\n\nSome **bold** text",
   x: 100,
   y: 200,
+  ...overrides,
+});
+
+const createSection = (overrides: Partial<SectionData> = {}): SectionData => ({
+  id: "section-1",
+  title: "Research Cluster",
+  color: "yellow",
+  x: 140,
+  y: 160,
+  width: 320,
+  height: 220,
   ...overrides,
 });
 
@@ -554,7 +565,7 @@ describe("Canvas", () => {
 
     const toolbar = screen.getByText("100%").parentElement;
 
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(9);
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(10);
   });
 
   it("calls onChangeDocuments with an added document when the Doc button is clicked", () => {
@@ -613,5 +624,67 @@ describe("Canvas", () => {
         title: "Updated document title",
       },
     ]);
+  });
+
+  it("renders the Section button in the toolbar", () => {
+    render(<Canvas notes={[]} documents={[]} onChangeNotes={vi.fn()} onChangeDocuments={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Section" })).toBeInTheDocument();
+  });
+
+  it("clicking the Section button calls onChangeSections with a new section added", () => {
+    const sections = [createSection()];
+    const onChangeSections = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        sections={sections}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeSections={onChangeSections}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Section" }));
+
+    expect(onChangeSections).toHaveBeenCalledTimes(1);
+    expect(onChangeSections).toHaveBeenCalledWith([
+      ...sections,
+      {
+        id: "mock-uuid-1",
+        title: "New section",
+        color: "yellow",
+        x: 140,
+        y: 140,
+        width: 300,
+        height: 200,
+      },
+    ]);
+  });
+
+  it("renders section components when sections are provided", () => {
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        sections={[createSection()]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeSections={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Research Cluster" })).toBeInTheDocument();
+  });
+
+  it("works without a sections prop for backward compatibility", () => {
+    expect(() =>
+      render(<Canvas notes={[]} documents={[]} onChangeNotes={vi.fn()} onChangeDocuments={vi.fn()} />),
+    ).not.toThrow();
+
+    expect(screen.queryByRole("button", { name: "Research Cluster" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Section" })).toBeInTheDocument();
   });
 });

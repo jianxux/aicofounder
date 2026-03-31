@@ -153,7 +153,7 @@ describe("StickyNote", () => {
   );
 
   it("falls back to yellow classes for a missing or invalid color", () => {
-    const invalidNote = { ...createNote(), color: "orange" } as StickyNoteData;
+    const invalidNote = { ...createNote(), color: "orange" } as unknown as StickyNoteData;
     const { container } = render(
       <StickyNote
         note={invalidNote}

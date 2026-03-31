@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import * as types from "@/lib/types";
 
 describe("lib/types guards", () => {
@@ -17,6 +18,16 @@ describe("lib/types guards", () => {
     color: "yellow",
     x: 120,
     y: 240,
+  };
+
+  const sectionData: types.SectionData = {
+    id: "section-1",
+    title: "Research",
+    color: "yellow",
+    x: 100,
+    y: 120,
+    width: 320,
+    height: 220,
   };
 
   const documentCard: types.DocumentCardData = {
@@ -46,6 +57,7 @@ describe("lib/types guards", () => {
     phase: phase.id,
     updatedAt: "2025-01-01T00:00:00.000Z",
     notes: [stickyNote],
+    sections: [sectionData],
     documents: [documentCard],
     messages: [chatMessage],
     phases: [phase],
@@ -106,6 +118,7 @@ describe("lib/types guards", () => {
       expect(types.isPhaseTask(value)).toBe(false);
       expect(types.isPhase(value)).toBe(false);
       expect(types.isProject(value)).toBe(false);
+      expect(types.isSectionData(value)).toBe(false);
     });
   });
 
@@ -116,6 +129,7 @@ describe("lib/types guards", () => {
     expect(types.isPhaseTask({})).toBe(false);
     expect(types.isPhase({})).toBe(false);
     expect(types.isProject({})).toBe(false);
+    expect(types.isSectionData({})).toBe(false);
   });
 
   it("rejects Phase when tasks is not an array", () => {
@@ -157,10 +171,33 @@ describe("lib/types guards", () => {
       types.isProject({
         ...project,
         notes: [],
+        sections: [],
         documents: [],
         messages: [],
         phases: [],
       }),
     ).toBe(true);
+  });
+
+  // Section-specific tests
+  it("accepts a valid SectionData", () => {
+    expect(types.isSectionData(sectionData)).toBe(true);
+  });
+
+  it("rejects SectionData with missing width/height", () => {
+    expect(types.isSectionData({ id: "s1", title: "T", color: "yellow", x: 0, y: 0 })).toBe(false);
+  });
+
+  it("rejects SectionData with invalid color", () => {
+    expect(types.isSectionData({ ...sectionData, color: "orange" })).toBe(false);
+  });
+
+  it("accepts Project with undefined sections (backward compat)", () => {
+    const { sections, ...legacyProject } = project;
+    expect(types.isProject(legacyProject)).toBe(true);
+  });
+
+  it("rejects Project with invalid sections array", () => {
+    expect(types.isProject({ ...project, sections: [{ id: "bad" }] })).toBe(false);
   });
 });

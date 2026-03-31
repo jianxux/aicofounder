@@ -18,6 +18,16 @@ export type StickyNoteData = {
   y: number;
 };
 
+export type SectionData = {
+  id: string;
+  title: string;
+  color: NoteColor;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type DocumentCardData = {
   id: string;
   title: string;
@@ -45,6 +55,7 @@ export type Project = {
   phase: string;
   updatedAt: string;
   notes: StickyNoteData[];
+  sections: SectionData[];
   documents: DocumentCardData[];
   messages: ChatMessage[];
   phases: Phase[];
@@ -88,6 +99,22 @@ export const isStickyNoteData = (value: unknown): value is StickyNoteData => {
     isNoteColor(value.color) &&
     typeof value.x === "number" &&
     typeof value.y === "number"
+  );
+};
+
+export const isSectionData = (value: unknown): value is SectionData => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    isNoteColor(value.color) &&
+    typeof value.x === "number" &&
+    typeof value.y === "number" &&
+    typeof value.width === "number" &&
+    typeof value.height === "number"
   );
 };
 
@@ -147,6 +174,7 @@ export const isProject = (value: unknown): value is Project => {
     typeof value.phase === "string" &&
     typeof value.updatedAt === "string" &&
     value.notes.every(isStickyNoteData) &&
+    (value.sections == null || (Array.isArray(value.sections) && value.sections.every(isSectionData))) &&
     value.documents.every(isDocumentCardData) &&
     value.messages.every(isChatMessage) &&
     value.phases.every(isPhase)
