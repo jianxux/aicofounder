@@ -38,6 +38,22 @@ describe("lib/types guards", () => {
     y: 200,
   };
 
+  const websiteBlock: types.WebsiteBlock = {
+    id: "block-1",
+    type: "hero",
+    heading: "Build trust fast",
+    body: "Explain what you do in one line.",
+    buttonText: "Get started",
+  };
+
+  const websiteBuilder: types.WebsiteBuilderData = {
+    id: "website-1",
+    title: "Acme AI",
+    blocks: [websiteBlock],
+    x: 160,
+    y: 280,
+  };
+
   const phaseTask: types.PhaseTask = {
     id: "task-1",
     label: "Define scope",
@@ -75,6 +91,65 @@ describe("lib/types guards", () => {
 
   it("accepts a valid DocumentCardData object", () => {
     expect(types.isDocumentCardData(documentCard)).toBe(true);
+  });
+
+  it.each(["hero", "features", "cta", "text"] as const)(
+    "accepts %s as a valid website block type",
+    (type) => {
+      expect(types.isWebsiteBlockType(type)).toBe(true);
+    },
+  );
+
+  it.each(["", "Hero", "grid", null, undefined, 123, {}, []])(
+    "rejects %o as an invalid website block type",
+    (value) => {
+      expect(types.isWebsiteBlockType(value)).toBe(false);
+    },
+  );
+
+  it("accepts a valid WebsiteBlock", () => {
+    expect(types.isWebsiteBlock(websiteBlock)).toBe(true);
+  });
+
+  it("accepts a WebsiteBlock without buttonText", () => {
+    expect(types.isWebsiteBlock({ ...websiteBlock, buttonText: undefined })).toBe(true);
+  });
+
+  it("rejects WebsiteBlock with missing required fields", () => {
+    expect(types.isWebsiteBlock({ type: "hero", heading: "Heading", body: "Body" })).toBe(false);
+    expect(types.isWebsiteBlock({ id: "block-1", heading: "Heading", body: "Body" })).toBe(false);
+    expect(types.isWebsiteBlock({ id: "block-1", type: "hero", body: "Body" })).toBe(false);
+    expect(types.isWebsiteBlock({ id: "block-1", type: "hero", heading: "Heading" })).toBe(false);
+  });
+
+  it("rejects WebsiteBlock with wrong field types", () => {
+    expect(types.isWebsiteBlock({ ...websiteBlock, id: 1 })).toBe(false);
+    expect(types.isWebsiteBlock({ ...websiteBlock, type: "grid" })).toBe(false);
+    expect(types.isWebsiteBlock({ ...websiteBlock, heading: 123 })).toBe(false);
+    expect(types.isWebsiteBlock({ ...websiteBlock, body: false })).toBe(false);
+    expect(types.isWebsiteBlock({ ...websiteBlock, buttonText: 123 })).toBe(false);
+  });
+
+  it("accepts a valid WebsiteBuilderData object", () => {
+    expect(types.isWebsiteBuilderData(websiteBuilder)).toBe(true);
+  });
+
+  it("accepts WebsiteBuilderData with an empty blocks array", () => {
+    expect(types.isWebsiteBuilderData({ ...websiteBuilder, blocks: [] })).toBe(true);
+  });
+
+  it("rejects WebsiteBuilderData with missing fields", () => {
+    expect(types.isWebsiteBuilderData({ title: "Acme AI", blocks: [], x: 0, y: 0 })).toBe(false);
+    expect(types.isWebsiteBuilderData({ id: "website-1", blocks: [], x: 0, y: 0 })).toBe(false);
+    expect(types.isWebsiteBuilderData({ id: "website-1", title: "Acme AI", x: 0, y: 0 })).toBe(false);
+    expect(types.isWebsiteBuilderData({ id: "website-1", title: "Acme AI", blocks: [] })).toBe(false);
+  });
+
+  it("rejects WebsiteBuilderData with an invalid blocks array", () => {
+    expect(types.isWebsiteBuilderData({ ...websiteBuilder, blocks: null })).toBe(false);
+    expect(types.isWebsiteBuilderData({ ...websiteBuilder, blocks: undefined })).toBe(false);
+    expect(types.isWebsiteBuilderData({ ...websiteBuilder, blocks: "blocks" })).toBe(false);
+    expect(types.isWebsiteBuilderData({ ...websiteBuilder, blocks: [{ id: "bad" }] })).toBe(false);
   });
 
   it.each(["yellow", "blue", "green", "pink", "purple"] as const)(
@@ -115,6 +190,8 @@ describe("lib/types guards", () => {
       expect(types.isChatMessage(value)).toBe(false);
       expect(types.isStickyNoteData(value)).toBe(false);
       expect(types.isDocumentCardData(value)).toBe(false);
+      expect(types.isWebsiteBlock(value)).toBe(false);
+      expect(types.isWebsiteBuilderData(value)).toBe(false);
       expect(types.isPhaseTask(value)).toBe(false);
       expect(types.isPhase(value)).toBe(false);
       expect(types.isProject(value)).toBe(false);
@@ -126,6 +203,8 @@ describe("lib/types guards", () => {
     expect(types.isChatMessage({})).toBe(false);
     expect(types.isStickyNoteData({})).toBe(false);
     expect(types.isDocumentCardData({})).toBe(false);
+    expect(types.isWebsiteBlock({})).toBe(false);
+    expect(types.isWebsiteBuilderData({})).toBe(false);
     expect(types.isPhaseTask({})).toBe(false);
     expect(types.isPhase({})).toBe(false);
     expect(types.isProject({})).toBe(false);

@@ -5,20 +5,29 @@ import { useEffect, useRef, useState } from "react";
 import DocumentCard from "@/components/DocumentCard";
 import Section from "@/components/Section";
 import StickyNote from "@/components/StickyNote";
-import type { DocumentCardData, NoteColor, SectionData, StickyNoteData } from "@/lib/types";
+import WebsiteBuilder from "@/components/WebsiteBuilder";
+import type {
+  DocumentCardData,
+  NoteColor,
+  SectionData,
+  StickyNoteData,
+  WebsiteBuilderData,
+} from "@/lib/types";
 
 type CanvasProps = {
   notes: StickyNoteData[];
   documents: DocumentCardData[];
   sections?: SectionData[];
+  websiteBuilders?: WebsiteBuilderData[];
   onChangeNotes: (notes: StickyNoteData[]) => void;
   onChangeDocuments: (documents: DocumentCardData[]) => void;
   onChangeSections?: (sections: SectionData[]) => void;
+  onChangeWebsiteBuilders?: (websiteBuilders: WebsiteBuilderData[]) => void;
 };
 
 type DragState = {
   itemId: string;
-  type: "note" | "document" | "section";
+  type: "note" | "document" | "section" | "website";
   offsetX: number;
   offsetY: number;
 } | null;
@@ -71,13 +80,33 @@ function createSection(color: NoteColor): SectionData {
   };
 }
 
+function createWebsiteBuilder(): WebsiteBuilderData {
+  return {
+    id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`,
+    title: "Startup landing page",
+    blocks: [
+      {
+        id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-hero`,
+        type: "hero",
+        heading: "Explain your startup in one sentence",
+        body: "Describe the customer, the problem, and the outcome your product creates.",
+        buttonText: "Join the waitlist",
+      },
+    ],
+    x: 260,
+    y: 260,
+  };
+}
+
 export default function Canvas({
   notes,
   documents,
   sections = [],
+  websiteBuilders = [],
   onChangeNotes,
   onChangeDocuments,
   onChangeSections = () => undefined,
+  onChangeWebsiteBuilders = () => undefined,
 }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
@@ -149,6 +178,21 @@ export default function Canvas({
         return;
       }
 
+      if (dragState.type === "website") {
+        onChangeWebsiteBuilders(
+          websiteBuilders.map((websiteBuilder) =>
+            websiteBuilder.id === dragState.itemId
+              ? {
+                  ...websiteBuilder,
+                  x: nextX,
+                  y: nextY,
+                }
+              : websiteBuilder,
+          ),
+        );
+        return;
+      }
+
       onChangeDocuments(
         documents.map((document) =>
           document.id === dragState.itemId
@@ -181,7 +225,21 @@ export default function Canvas({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [documents, dragState, notes, onChangeDocuments, onChangeNotes, onChangeSections, panDragState, panX, panY, sections, zoom]);
+  }, [
+    documents,
+    dragState,
+    notes,
+    onChangeDocuments,
+    onChangeNotes,
+    onChangeSections,
+    onChangeWebsiteBuilders,
+    panDragState,
+    panX,
+    panY,
+    sections,
+    websiteBuilders,
+    zoom,
+  ]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -224,7 +282,7 @@ export default function Canvas({
   }, []);
 
   const handleDragStart = (
-    type: "note" | "document" | "section",
+    type: "note" | "document" | "section" | "website",
     itemId: string,
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
@@ -244,6 +302,8 @@ export default function Canvas({
         ? notes.find((entry) => entry.id === itemId)
         : type === "section"
           ? sections.find((entry) => entry.id === itemId)
+          : type === "website"
+            ? websiteBuilders.find((entry) => entry.id === itemId)
           : documents.find((entry) => entry.id === itemId);
 
     if (!item) {
@@ -319,6 +379,14 @@ export default function Canvas({
     onChangeSections(sections.map((section) => (section.id === sectionId ? { ...section, ...patch } : section)));
   };
 
+  const handleWebsiteBuilderChange = (websiteBuilderId: string, patch: Partial<WebsiteBuilderData>) => {
+    onChangeWebsiteBuilders(
+      websiteBuilders.map((websiteBuilder) =>
+        websiteBuilder.id === websiteBuilderId ? { ...websiteBuilder, ...patch } : websiteBuilder,
+      ),
+    );
+  };
+
   const deleteNote = (noteId: string) => {
     onChangeNotes(notes.filter((note) => note.id !== noteId));
   };
@@ -331,6 +399,10 @@ export default function Canvas({
     onChangeSections(sections.filter((section) => section.id !== sectionId));
   };
 
+  const deleteWebsiteBuilder = (websiteBuilderId: string) => {
+    onChangeWebsiteBuilders(websiteBuilders.filter((websiteBuilder) => websiteBuilder.id !== websiteBuilderId));
+  };
+
   const addNote = () => {
     onChangeNotes([...notes, createNote(selectedColor)]);
   };
@@ -341,6 +413,10 @@ export default function Canvas({
 
   const addSection = () => {
     onChangeSections([...sections, createSection(selectedColor)]);
+  };
+
+  const addWebsiteBuilder = () => {
+    onChangeWebsiteBuilders([...websiteBuilders, createWebsiteBuilder()]);
   };
 
   return (
@@ -389,6 +465,15 @@ export default function Canvas({
               onDragStart={(documentId, event) => handleDragStart("document", documentId, event)}
             />
           ))}
+          {websiteBuilders.map((websiteBuilder) => (
+            <WebsiteBuilder
+              key={websiteBuilder.id}
+              websiteBuilder={websiteBuilder}
+              onChange={handleWebsiteBuilderChange}
+              onDelete={deleteWebsiteBuilder}
+              onDragStart={(websiteBuilderId, event) => handleDragStart("website", websiteBuilderId, event)}
+            />
+          ))}
         </div>
       </div>
 
@@ -426,6 +511,13 @@ export default function Canvas({
           className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
         >
           Section
+        </button>
+        <button
+          type="button"
+          onClick={addWebsiteBuilder}
+          className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Website
         </button>
         <button
           type="button"

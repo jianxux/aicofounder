@@ -13,7 +13,7 @@ import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/li
 import { createProjectRecord, getProjectById, upsertProject } from "@/lib/projects";
 import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { UltraplanResult } from "@/lib/ultraplan";
-import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData } from "@/lib/types";
+import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -46,6 +46,7 @@ export default function ProjectWorkspacePage() {
         ...storedProject,
         sections: storedProject.sections ?? [],
         documents: storedProject.documents ?? [],
+        websiteBuilders: storedProject.websiteBuilders ?? [],
       };
       projectRef.current = normalizedProject;
       setProject(normalizedProject);
@@ -247,6 +248,14 @@ export default function ProjectWorkspacePage() {
     }
 
     persistProject({ ...project, sections });
+  };
+
+  const handleWebsiteBuildersChange = (websiteBuilders: WebsiteBuilderData[]) => {
+    if (!project) {
+      return;
+    }
+
+    persistProject({ ...project, websiteBuilders });
   };
 
   const handleBrainstorm = async () => {
@@ -572,9 +581,11 @@ export default function ProjectWorkspacePage() {
                 notes={project.notes}
                 sections={project.sections ?? []}
                 documents={project.documents ?? []}
+                websiteBuilders={project.websiteBuilders ?? []}
                 onChangeNotes={handleNotesChange}
                 onChangeSections={handleSectionsChange}
                 onChangeDocuments={handleDocumentsChange}
+                onChangeWebsiteBuilders={handleWebsiteBuildersChange}
               />
             </div>
           </div>
@@ -606,9 +617,11 @@ export default function ProjectWorkspacePage() {
                   notes={project.notes}
                   sections={project.sections ?? []}
                   documents={project.documents ?? []}
+                  websiteBuilders={project.websiteBuilders ?? []}
                   onChangeNotes={handleNotesChange}
                   onChangeSections={handleSectionsChange}
                   onChangeDocuments={handleDocumentsChange}
+                  onChangeWebsiteBuilders={handleWebsiteBuildersChange}
                 />
               </div>
             </div>

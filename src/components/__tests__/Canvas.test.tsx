@@ -583,7 +583,7 @@ describe("Canvas", () => {
 
     const toolbar = screen.getByText("100%").parentElement;
 
-    expect(toolbar?.querySelectorAll("button")).toHaveLength(11);
+    expect(toolbar?.querySelectorAll("button")).toHaveLength(12);
   });
 
   it("updates pan offset when the board receives wheel events", () => {

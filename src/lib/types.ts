@@ -36,6 +36,24 @@ export type DocumentCardData = {
   y: number;
 };
 
+export type WebsiteBlockType = "hero" | "features" | "cta" | "text";
+
+export type WebsiteBlock = {
+  id: string;
+  type: WebsiteBlockType;
+  heading: string;
+  body: string;
+  buttonText?: string;
+};
+
+export type WebsiteBuilderData = {
+  id: string;
+  title: string;
+  blocks: WebsiteBlock[];
+  x: number;
+  y: number;
+};
+
 export type PhaseTask = {
   id: string;
   label: string;
@@ -55,8 +73,9 @@ export type Project = {
   phase: string;
   updatedAt: string;
   notes: StickyNoteData[];
-  sections: SectionData[];
+  sections?: SectionData[];
   documents: DocumentCardData[];
+  websiteBuilders?: WebsiteBuilderData[];
   messages: ChatMessage[];
   phases: Phase[];
 };
@@ -132,6 +151,37 @@ export const isDocumentCardData = (value: unknown): value is DocumentCardData =>
   );
 };
 
+export const isWebsiteBlockType = (value: unknown): value is WebsiteBlockType =>
+  value === "hero" || value === "features" || value === "cta" || value === "text";
+
+export const isWebsiteBlock = (value: unknown): value is WebsiteBlock => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isWebsiteBlockType(value.type) &&
+    typeof value.heading === "string" &&
+    typeof value.body === "string" &&
+    (value.buttonText === undefined || typeof value.buttonText === "string")
+  );
+};
+
+export const isWebsiteBuilderData = (value: unknown): value is WebsiteBuilderData => {
+  if (!isRecord(value) || !Array.isArray(value.blocks)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    value.blocks.every(isWebsiteBlock) &&
+    typeof value.x === "number" &&
+    typeof value.y === "number"
+  );
+};
+
 export const isPhaseTask = (value: unknown): value is PhaseTask => {
   if (!isRecord(value)) {
     return false;
@@ -176,6 +226,8 @@ export const isProject = (value: unknown): value is Project => {
     value.notes.every(isStickyNoteData) &&
     (value.sections == null || (Array.isArray(value.sections) && value.sections.every(isSectionData))) &&
     value.documents.every(isDocumentCardData) &&
+    (value.websiteBuilders == null ||
+      (Array.isArray(value.websiteBuilders) && value.websiteBuilders.every(isWebsiteBuilderData))) &&
     value.messages.every(isChatMessage) &&
     value.phases.every(isPhase)
   );

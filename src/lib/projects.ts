@@ -90,6 +90,7 @@ export function createProjectRecord(): Project {
     notes: createStarterNotes(),
     sections: [],
     documents: [],
+    websiteBuilders: [],
     messages: [
       {
         id: createId(),
