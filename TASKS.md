@@ -37,4 +37,4 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Migrate from localStorage to Supabase
 - [x] Real-time sync
 - [x] User onboarding flow
-- [ ] Vercel deployment config
+- [x] Vercel deployment config
