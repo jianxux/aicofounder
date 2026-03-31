@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { PointerEvent } from "react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import type { DocumentCardData } from "@/lib/types";
@@ -9,7 +9,7 @@ type DocumentCardProps = {
   document: DocumentCardData;
   zoom?: number;
   onChange: (id: string, patch: Partial<DocumentCardData>) => void;
-  onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDragStart: (id: string, event: PointerEvent<HTMLDivElement>) => void;
   onDelete?: (id: string) => void;
 };
 
@@ -25,7 +25,7 @@ export default function DocumentCard({ document, onChange, onDragStart, onDelete
       }}
     >
       <div
-        onMouseDown={(event) => onDragStart(document.id, event)}
+        onPointerDown={(event) => onDragStart(document.id, event)}
         className="relative cursor-grab rounded-t-2xl border-b border-stone-200 bg-stone-100 px-4 py-3 active:cursor-grabbing"
       >
         <input
@@ -37,7 +37,7 @@ export default function DocumentCard({ document, onChange, onDragStart, onDelete
           <button
             type="button"
             aria-label="Delete document"
-            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               onDelete(document.id);

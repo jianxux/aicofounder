@@ -192,14 +192,14 @@ describe("Section", () => {
 
     expect(titleBar).not.toBeNull();
 
-    fireEvent.mouseDown(titleBar!);
+    fireEvent.pointerDown(titleBar!);
 
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(onDragStart.mock.calls[0]?.[0]).toBe("section-1");
-    expect(onDragStart.mock.calls[0]?.[1].type).toBe("mousedown");
+    expect(onDragStart.mock.calls[0]?.[1].type).toBe("pointerdown");
   });
 
-  it("stops propagation on the edit button mouseDown", () => {
+  it("stops propagation on the edit button pointerDown", () => {
     const onDragStart = vi.fn();
 
     render(
@@ -211,7 +211,7 @@ describe("Section", () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole("button", { name: "Research Cluster" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Research Cluster" }));
 
     expect(onDragStart).not.toHaveBeenCalled();
   });
@@ -249,7 +249,7 @@ describe("Section", () => {
     expect(onDelete).toHaveBeenCalledWith("section-1");
   });
 
-  it("stops propagation on the delete button mouseDown", () => {
+  it("stops propagation on the delete button pointerDown", () => {
     const onDragStart = vi.fn();
 
     render(
@@ -262,7 +262,7 @@ describe("Section", () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete section" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Delete section" }));
 
     expect(onDragStart).not.toHaveBeenCalled();
   });

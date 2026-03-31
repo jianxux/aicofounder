@@ -446,10 +446,10 @@ describe("Canvas", () => {
 
     expect(dragHandle).not.toBeNull();
 
-    fireEvent.mouseDown(dragHandle!, { clientX: 140, clientY: 260 });
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 220, clientY: 340 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 220, clientY: 340 }));
     });
 
     expect(onChangeNotes).toHaveBeenCalledWith([
@@ -462,7 +462,7 @@ describe("Canvas", () => {
     ]);
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
   });
 
@@ -485,10 +485,10 @@ describe("Canvas", () => {
 
     expect(dragHandle).not.toBeNull();
 
-    fireEvent.mouseDown(dragHandle!, { clientX: 140, clientY: 260 });
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 1, clientY: 1 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1, clientY: 1 }));
     });
 
     expect(onChangeNotes).toHaveBeenCalledWith([
@@ -501,7 +501,7 @@ describe("Canvas", () => {
     ]);
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
   });
 
@@ -524,20 +524,20 @@ describe("Canvas", () => {
 
     expect(dragHandle).not.toBeNull();
 
-    fireEvent.mouseDown(dragHandle!, { clientX: 140, clientY: 260 });
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 180, clientY: 300 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 180, clientY: 300 }));
     });
 
     expect(onChangeNotes).toHaveBeenCalledTimes(1);
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 260, clientY: 360 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 260, clientY: 360 }));
     });
 
     expect(onChangeNotes).toHaveBeenCalledTimes(1);
@@ -569,7 +569,9 @@ describe("Canvas", () => {
     );
 
     expect(screen.queryByDisplayValue("Launch plan")).not.toBeInTheDocument();
-    expect(() => fireEvent.mouseDown(dragHandle!, { clientX: 140, clientY: 260 })).not.toThrow();
+    expect(() =>
+      fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 }),
+    ).not.toThrow();
     expect(onChangeNotes).not.toHaveBeenCalled();
   });
 
@@ -618,17 +620,17 @@ describe("Canvas", () => {
 
     const board = getBoard();
 
-    fireEvent.mouseDown(board, { button: 1, clientX: 100, clientY: 120 });
+    fireEvent.pointerDown(board, { pointerId: 1, button: 1, clientX: 100, clientY: 120 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 160, clientY: 210 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 160, clientY: 210 }));
     });
 
     expect(getSurface()).toHaveStyle({ transform: "translate(60px, 90px) scale(1)" });
     expect(board).toHaveClass("cursor-grabbing");
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
   });
 
@@ -640,16 +642,16 @@ describe("Canvas", () => {
     fireEvent.keyDown(window, { code: "Space" });
     expect(board).toHaveClass("cursor-grab");
 
-    fireEvent.mouseDown(board, { button: 0, clientX: 80, clientY: 90 });
+    fireEvent.pointerDown(board, { pointerId: 1, button: 0, clientX: 80, clientY: 90 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 130, clientY: 150 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 130, clientY: 150 }));
     });
 
     expect(getSurface()).toHaveStyle({ transform: "translate(50px, 60px) scale(1)" });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
 
     fireEvent.keyUp(window, { code: "Space" });
@@ -671,10 +673,10 @@ describe("Canvas", () => {
 
     expect(dragHandle).not.toBeNull();
 
-    fireEvent.mouseDown(dragHandle!, { button: 0, clientX: 170, clientY: 280 });
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, button: 0, clientX: 170, clientY: 280 });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 250, clientY: 390 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 250, clientY: 390 }));
     });
 
     expect(screen.getByDisplayValue("Launch plan").parentElement?.parentElement).toHaveStyle({
@@ -683,7 +685,7 @@ describe("Canvas", () => {
     });
 
     act(() => {
-      window.dispatchEvent(new MouseEvent("mouseup"));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
     });
   });
 

@@ -29,6 +29,7 @@ export default function ProjectWorkspacePage() {
   const router = useRouter();
   const projectId = params.id;
   const [project, setProject] = useState<Project | null>(null);
+  const [activePanel, setActivePanel] = useState<"chat" | "canvas">("chat");
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null);
@@ -521,7 +522,34 @@ export default function ProjectWorkspacePage() {
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
+        <div className="md:hidden">
+          <div className="inline-flex gap-2 rounded-full bg-stone-100 p-1">
+            <button
+              type="button"
+              onClick={() => setActivePanel("chat")}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                activePanel === "chat"
+                  ? "bg-stone-950 text-white"
+                  : "bg-transparent text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePanel("canvas")}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                activePanel === "canvas"
+                  ? "bg-stone-950 text-white"
+                  : "bg-transparent text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              Canvas
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden gap-4 md:grid md:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
           <ChatPanel
             messages={project.messages}
             phases={project.phases}
@@ -550,6 +578,41 @@ export default function ProjectWorkspacePage() {
               />
             </div>
           </div>
+        </div>
+
+        <div className="md:hidden">
+          {activePanel === "chat" ? (
+            <ChatPanel
+              className="min-h-[calc(100vh-13rem)]"
+              messages={project.messages}
+              phases={project.phases}
+              activePhaseId={activePhaseId}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              onRemind={handleRemind}
+              onBrainstorm={handleBrainstorm}
+              onResearch={handleResearch}
+              onUltraplan={handleUltraplan}
+              onToggleTask={handleToggleTask}
+              onSetActivePhase={handleSetActivePhase}
+            />
+          ) : (
+            <div className="flex flex-col gap-4">
+              {researchReport ? <ResearchReport report={researchReport} /> : null}
+              {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
+              {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
+              <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
+                <Canvas
+                  notes={project.notes}
+                  sections={project.sections ?? []}
+                  documents={project.documents ?? []}
+                  onChangeNotes={handleNotesChange}
+                  onChangeSections={handleSectionsChange}
+                  onChangeDocuments={handleDocumentsChange}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

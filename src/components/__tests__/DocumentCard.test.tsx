@@ -102,14 +102,14 @@ describe("DocumentCard", () => {
     expect(onChange).toHaveBeenCalledWith("doc-1", { content: "# Updated\n\nNew content" });
   });
 
-  it("calls onDragStart when header is mousedown", () => {
+  it("calls onDragStart when header is pointerdown", () => {
     const onDragStart = vi.fn();
 
     render(
       <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={onDragStart} />,
     );
 
-    fireEvent.mouseDown(screen.getByDisplayValue("My Document").parentElement as HTMLDivElement);
+    fireEvent.pointerDown(screen.getByDisplayValue("My Document").parentElement as HTMLDivElement);
 
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(onDragStart.mock.calls[0]?.[0]).toBe("doc-1");
@@ -148,7 +148,7 @@ describe("DocumentCard", () => {
     expect(onDelete).toHaveBeenCalledWith("doc-1");
   });
 
-  it("stops propagation from the delete button mouseDown", () => {
+  it("stops propagation from the delete button pointerDown", () => {
     const onDragStart = vi.fn();
 
     render(
@@ -161,7 +161,7 @@ describe("DocumentCard", () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete document" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Delete document" }));
 
     expect(onDragStart).not.toHaveBeenCalled();
   });

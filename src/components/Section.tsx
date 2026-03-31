@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { PointerEvent } from "react";
 import { useEffect, useState } from "react";
 import type { NoteColor, SectionData } from "@/lib/types";
 
@@ -8,7 +8,7 @@ type SectionProps = {
   section: SectionData;
   zoom?: number;
   onChange: (id: string, patch: Partial<SectionData>) => void;
-  onDragStart: (id: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDragStart: (id: string, event: PointerEvent<HTMLDivElement>) => void;
   onDelete?: (id: string) => void;
 };
 
@@ -65,7 +65,7 @@ export default function Section({ section, onChange, onDragStart, onDelete }: Se
       }}
     >
       <div
-        onMouseDown={(event) => onDragStart(section.id, event)}
+        onPointerDown={(event) => onDragStart(section.id, event)}
         className={`relative flex h-11 cursor-grab items-center rounded-t-3xl px-4 active:cursor-grabbing ${colors.text}`}
       >
         {isEditing ? (
@@ -84,7 +84,7 @@ export default function Section({ section, onChange, onDragStart, onDelete }: Se
                 setIsEditing(false);
               }
             }}
-            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             autoFocus
             className="w-full border-none bg-transparent pr-8 text-sm font-semibold outline-none"
           />
@@ -92,7 +92,7 @@ export default function Section({ section, onChange, onDragStart, onDelete }: Se
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             className="truncate bg-transparent pr-8 text-left text-sm font-semibold outline-none"
           >
             {section.title}
@@ -102,7 +102,7 @@ export default function Section({ section, onChange, onDragStart, onDelete }: Se
           <button
             type="button"
             aria-label="Delete section"
-            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               onDelete(section.id);

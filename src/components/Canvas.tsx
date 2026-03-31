@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent as ReactMouseEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import DocumentCard from "@/components/DocumentCard";
 import Section from "@/components/Section";
@@ -80,6 +80,7 @@ export default function Canvas({
   onChangeSections = () => undefined,
 }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -93,7 +94,11 @@ export default function Canvas({
       return;
     }
 
-    const handleMove = (event: MouseEvent) => {
+    const handleMove = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) {
+        return;
+      }
+
       const board = boardRef.current;
 
       if (!board) {
@@ -157,17 +162,24 @@ export default function Canvas({
       );
     };
 
-    const handleUp = () => {
+    const handleUp = (event: PointerEvent) => {
+      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) {
+        return;
+      }
+
+      activePointerIdRef.current = null;
       setDragState(null);
       setPanDragState(null);
     };
 
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
 
     return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
     };
   }, [documents, dragState, notes, onChangeDocuments, onChangeNotes, onChangeSections, panDragState, panX, panY, sections, zoom]);
 
@@ -195,6 +207,7 @@ export default function Canvas({
 
     const handleBlur = () => {
       setIsSpacePressed(false);
+      activePointerIdRef.current = null;
       setPanDragState(null);
       setDragState(null);
     };
@@ -213,7 +226,7 @@ export default function Canvas({
   const handleDragStart = (
     type: "note" | "document" | "section",
     itemId: string,
-    event: ReactMouseEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLDivElement>,
   ) => {
     if (event.button !== 0 || isSpacePressed) {
       return;
@@ -237,6 +250,8 @@ export default function Canvas({
       return;
     }
 
+    activePointerIdRef.current = event.pointerId;
+
     setDragState({
       itemId,
       type,
@@ -254,20 +269,28 @@ export default function Canvas({
     });
   };
 
-  const handleBoardMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+  const handleBoardPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
     const tagName = target?.tagName;
     const isEditableTarget =
       tagName === "INPUT" || tagName === "TEXTAREA" || target?.isContentEditable === true;
 
+    if (event.pointerType === "touch" && !isEditableTarget) {
+      activePointerIdRef.current = event.pointerId;
+      startPan(event.clientX, event.clientY);
+      return;
+    }
+
     if (event.button === 1) {
       event.preventDefault();
+      activePointerIdRef.current = event.pointerId;
       startPan(event.clientX, event.clientY);
       return;
     }
 
     if (event.button === 0 && isSpacePressed && !isEditableTarget) {
       event.preventDefault();
+      activePointerIdRef.current = event.pointerId;
       startPan(event.clientX, event.clientY);
     }
   };
@@ -321,13 +344,13 @@ export default function Canvas({
   };
 
   return (
-    <div className="relative h-full min-h-[520px] overflow-hidden rounded-[28px] border border-stone-200 bg-[#faf7f2] shadow-sm">
+    <div className="relative h-full min-h-[400px] overflow-hidden rounded-[28px] border border-stone-200 bg-[#faf7f2] shadow-sm md:min-h-[520px]">
       <div
         ref={boardRef}
         data-testid="canvas-board"
-        onMouseDown={handleBoardMouseDown}
+        onPointerDown={handleBoardPointerDown}
         onWheel={handleWheel}
-        className={`absolute inset-0 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.85),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,0.55),_rgba(250,247,242,1))] ${
+        className={`absolute inset-0 overflow-hidden rounded-[28px] touch-none bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.85),_transparent_36%),linear-gradient(180deg,_rgba(255,255,255,0.55),_rgba(250,247,242,1))] ${
           panDragState ? "cursor-grabbing" : isSpacePressed ? "cursor-grab" : "cursor-default"
         }`}
       >

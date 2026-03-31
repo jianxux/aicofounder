@@ -85,7 +85,7 @@ describe("StickyNote", () => {
     expect(onChange).toHaveBeenCalledWith("note-1", { content: "New note body" });
   });
 
-  it("calls onDragStart with the note id and mouse event when the header is pressed", () => {
+  it("calls onDragStart with the note id and pointer event when the header is pressed", () => {
     const onDragStart = vi.fn();
 
     render(
@@ -101,11 +101,11 @@ describe("StickyNote", () => {
 
     expect(header).not.toBeNull();
 
-    fireEvent.mouseDown(header!);
+    fireEvent.pointerDown(header!);
 
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(onDragStart.mock.calls[0]?.[0]).toBe("note-1");
-    expect(onDragStart.mock.calls[0]?.[1].type).toBe("mousedown");
+    expect(onDragStart.mock.calls[0]?.[1].type).toBe("pointerdown");
   });
 
   it("renders a delete button when onDelete is provided", () => {
@@ -141,7 +141,7 @@ describe("StickyNote", () => {
     expect(onDelete).toHaveBeenCalledWith("note-1");
   });
 
-  it("stops propagation from the delete button mouseDown", () => {
+  it("stops propagation from the delete button pointerDown", () => {
     const onDragStart = vi.fn();
 
     render(
@@ -154,7 +154,7 @@ describe("StickyNote", () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole("button", { name: "Delete note" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Delete note" }));
 
     expect(onDragStart).not.toHaveBeenCalled();
   });

@@ -16,6 +16,7 @@ type ChatPanelProps = {
   onUltraplan?: () => void;
   onToggleTask: (phaseId: string, taskId: string) => void;
   onSetActivePhase: (phaseId: string) => void;
+  className?: string;
 };
 
 export default function ChatPanel({
@@ -30,6 +31,7 @@ export default function ChatPanel({
   onUltraplan,
   onToggleTask,
   onSetActivePhase,
+  className,
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [collapsed, setCollapsed] = useState(false);
@@ -51,7 +53,11 @@ export default function ChatPanel({
   };
 
   return (
-    <div className="flex h-full min-h-[720px] flex-col rounded-[28px] border border-stone-200 bg-white shadow-sm">
+    <div
+      className={`flex h-full min-h-[720px] w-full flex-col rounded-[28px] border border-stone-200 bg-white shadow-sm ${
+        className ?? ""
+      }`}
+    >
       <div className="border-b border-stone-200 px-6 py-5">
         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">AI Cofounder</div>
         <h2 className="mt-2 text-2xl font-semibold text-stone-900">Research and build your product</h2>

@@ -1,13 +1,13 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import type { PointerEvent } from "react";
 import type { NoteColor, StickyNoteData } from "@/lib/types";
 
 type StickyNoteProps = {
   note: StickyNoteData;
   zoom?: number;
   onChange: (noteId: string, patch: Partial<StickyNoteData>) => void;
-  onDragStart: (noteId: string, event: MouseEvent<HTMLDivElement>) => void;
+  onDragStart: (noteId: string, event: PointerEvent<HTMLDivElement>) => void;
   onDelete?: (noteId: string) => void;
 };
 
@@ -54,7 +54,7 @@ export default function StickyNote({ note, onChange, onDragStart, onDelete }: St
       }}
     >
       <div
-        onMouseDown={(event) => onDragStart(note.id, event)}
+        onPointerDown={(event) => onDragStart(note.id, event)}
         className={`relative cursor-grab rounded-t-2xl border-b ${colors.borderColor} ${colors.headerBg} px-4 py-3 active:cursor-grabbing`}
       >
         <input
@@ -66,7 +66,7 @@ export default function StickyNote({ note, onChange, onDragStart, onDelete }: St
           <button
             type="button"
             aria-label="Delete note"
-            onMouseDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
               onDelete(note.id);
