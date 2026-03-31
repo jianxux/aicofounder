@@ -25,7 +25,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 
 ## Phase 3: Canvas & UX
 - [x] Multiple note colors (yellow, blue, green, pink, purple)
-- [ ] Document cards on canvas (rich markdown)
+- [x] Document cards on canvas (rich markdown)
 - [ ] Sections for grouping canvas items
 - [ ] Delete notes
 - [ ] Canvas pan and scroll
