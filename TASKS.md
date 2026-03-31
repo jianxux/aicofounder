@@ -29,7 +29,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Sections for grouping canvas items
 - [x] Delete notes
 - [x] Canvas pan and scroll
-- [ ] Mobile responsive workspace (stack panels)
+- [x] Mobile responsive workspace (stack panels)
 - [ ] Website builder component
 
 ## Phase 4: Persistence & Auth
