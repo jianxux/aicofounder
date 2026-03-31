@@ -33,7 +33,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Website builder component
 
 ## Phase 4: Persistence & Auth
-- [ ] Supabase database schema (projects, messages, canvas_items, phases)
+- [x] Supabase database schema (projects, messages, canvas_items, phases)
 - [ ] Migrate from localStorage to Supabase
 - [ ] Real-time sync
 - [ ] User onboarding flow
