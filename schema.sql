@@ -16,8 +16,7 @@ create index if not exists events_session_id_idx on public.events (session_id);
 
 alter table public.events enable row level security;
 
-grant insert on public.events to anon, authenticated;
-grant select on public.events to authenticated;
+grant insert, select on public.events to anon, authenticated;
 
 drop policy if exists "Anyone can insert analytics events" on public.events;
 create policy "Anyone can insert analytics events"
@@ -32,3 +31,10 @@ on public.events
 for select
 to authenticated
 using (user_id = auth.uid());
+
+drop policy if exists "Anyone can read analytics events" on public.events;
+create policy "Anyone can read analytics events"
+on public.events
+for select
+to anon, authenticated
+using (true);

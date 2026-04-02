@@ -155,6 +155,7 @@ export default function AnalyticsPage() {
 
     const loadEvents = async () => {
       setLoading(true);
+      // Public dashboard reads use the Supabase anon-key REST headers inside fetchAnalyticsEvents.
       const nextEvents = await fetchAnalyticsEvents(range);
 
       if (active) {
