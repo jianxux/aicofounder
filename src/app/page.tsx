@@ -55,7 +55,7 @@ export default function LandingPage() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="rounded-3xl border border-stone-300 bg-stone-50 p-8 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-3xl border border-stone-300 bg-stone-100 p-8 shadow transition hover:-translate-y-0.5 hover:shadow-lg"
             >
               <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-lg text-stone-900">
                 {feature.title.charAt(0)}
@@ -66,7 +66,7 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <div className="mt-20 rounded-[36px] border border-stone-300 bg-stone-50 px-8 py-12 shadow-sm lg:px-12">
+        <div className="mt-20 rounded-[36px] border border-stone-300 bg-stone-100 px-8 py-12 shadow lg:px-12">
           <div className="max-w-3xl">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Founders say</div>
             <blockquote
