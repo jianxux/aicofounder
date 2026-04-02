@@ -18,7 +18,12 @@ export default function Navbar({ showAuth = true, redirectTo = "/dashboard" }: N
           <div className="text-sm font-medium text-stone-800">Research and build with AI</div>
         </div>
       </Link>
-      {showAuth ? <AuthButton redirectTo={redirectTo} /> : null}
+      <div className="flex items-center gap-4">
+        <Link href="/analytics" className="text-sm font-medium text-stone-500 transition hover:text-stone-800">
+          Analytics
+        </Link>
+        {showAuth ? <AuthButton redirectTo={redirectTo} /> : null}
+      </div>
     </header>
   );
 }

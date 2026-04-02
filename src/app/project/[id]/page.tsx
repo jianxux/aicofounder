@@ -9,6 +9,7 @@ import Canvas from "@/components/Canvas";
 import ResearchReport from "@/components/ResearchReport";
 import UltraplanReport from "@/components/UltraplanReport";
 import { useRealtimeProject } from "@/hooks/useRealtimeProject";
+import { trackEvent } from "@/lib/analytics";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
@@ -42,6 +43,11 @@ export default function ProjectWorkspacePage() {
   const savingRef = useRef(false);
 
   useEffect(() => {
+    void trackEvent("workspace_view", {
+      page: `/project/${projectId}`,
+      project_id: projectId,
+    });
+
     let isMounted = true;
 
     const loadProject = async () => {
@@ -149,6 +155,13 @@ export default function ProjectWorkspacePage() {
     if (!currentProject) {
       return;
     }
+
+    void trackEvent("message_sent", {
+      page: `/project/${projectId}`,
+      project_id: projectId,
+      message_length: content.length,
+      phase_id: activePhaseId,
+    });
 
     const userMessage = createMessage("user", content);
     const assistantMessage = createMessage("assistant", "");
@@ -311,6 +324,25 @@ export default function ProjectWorkspacePage() {
     }
 
     persistProject({ ...project, websiteBuilders });
+  };
+
+  const handleNoteCreated = (note: StickyNoteData) => {
+    void trackEvent("note_created", {
+      page: `/project/${projectId}`,
+      project_id: projectId,
+      note_id: note.id,
+      color: note.color,
+    });
+  };
+
+  const handleNoteDragged = (note: StickyNoteData) => {
+    void trackEvent("note_dragged", {
+      page: `/project/${projectId}`,
+      project_id: projectId,
+      note_id: note.id,
+      x: Math.round(note.x),
+      y: Math.round(note.y),
+    });
   };
 
   const handleBrainstorm = async () => {
@@ -641,6 +673,8 @@ export default function ProjectWorkspacePage() {
                 onChangeSections={handleSectionsChange}
                 onChangeDocuments={handleDocumentsChange}
                 onChangeWebsiteBuilders={handleWebsiteBuildersChange}
+                onNoteCreated={handleNoteCreated}
+                onNoteDragged={handleNoteDragged}
               />
             </div>
           </div>
@@ -677,6 +711,8 @@ export default function ProjectWorkspacePage() {
                   onChangeSections={handleSectionsChange}
                   onChangeDocuments={handleDocumentsChange}
                   onChangeWebsiteBuilders={handleWebsiteBuildersChange}
+                  onNoteCreated={handleNoteCreated}
+                  onNoteDragged={handleNoteDragged}
                 />
               </div>
             </div>

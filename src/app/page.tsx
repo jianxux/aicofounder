@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import { trackEvent } from "@/lib/analytics";
 
 const features = [
   {
@@ -35,6 +39,13 @@ const features = [
 ];
 
 export default function LandingPage() {
+  useEffect(() => {
+    void trackEvent("page_view", {
+      page: "/",
+      source: "landing",
+    });
+  }, []);
+
   return (
     <main style={{ minHeight: "100vh", background: "#ffffff", color: "#1c1917" }}>
       <Navbar />
@@ -78,6 +89,12 @@ export default function LandingPage() {
         <div style={{ marginTop: 36, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
           <Link
             href="/dashboard"
+            onClick={() =>
+              void trackEvent("cta_click", {
+                page: "/",
+                button: "hero_get_started_free",
+              })
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -94,6 +111,12 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/dashboard"
+            onClick={() =>
+              void trackEvent("cta_click", {
+                page: "/",
+                button: "hero_see_workspace",
+              })
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -213,6 +236,12 @@ export default function LandingPage() {
           </div>
           <Link
             href="/dashboard"
+            onClick={() =>
+              void trackEvent("cta_click", {
+                page: "/",
+                button: "footer_get_started",
+              })
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",

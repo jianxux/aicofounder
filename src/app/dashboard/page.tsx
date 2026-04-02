@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import OnboardingModal from "@/components/OnboardingModal";
+import { trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
@@ -22,6 +23,10 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    void trackEvent("dashboard_view", {
+      page: "/dashboard",
+    });
+
     getProjects().then((loadedProjects) => {
       setProjects(loadedProjects);
       setShowOnboarding(
@@ -32,6 +37,11 @@ export default function DashboardPage() {
 
   const handleCreateProject = async () => {
     const project = await createProject();
+    void trackEvent("project_created", {
+      page: "/dashboard",
+      project_id: project.id,
+      source: "dashboard",
+    });
     window.location.href = `/project/${project.id}`;
   };
 
@@ -50,6 +60,11 @@ export default function DashboardPage() {
     };
 
     await saveProject(nextProject);
+    void trackEvent("project_created", {
+      page: "/dashboard",
+      project_id: project.id,
+      source: "onboarding",
+    });
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
   };

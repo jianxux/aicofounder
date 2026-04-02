@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { trackEvent } from "@/lib/analytics";
 import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 
 type AuthButtonProps = {
@@ -52,6 +53,13 @@ export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProp
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === "SIGNED_IN" && session?.user) {
+        void trackEvent("login_success", {
+          provider: "google",
+          user_id: session.user.id,
+        });
+      }
+
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -68,6 +76,11 @@ export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProp
     }
 
     const origin = window.location.origin;
+    void trackEvent("login_attempt", {
+      provider: "google",
+      redirect_to: redirectTo,
+    });
+
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

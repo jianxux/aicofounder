@@ -23,6 +23,8 @@ type CanvasProps = {
   onChangeDocuments: (documents: DocumentCardData[]) => void;
   onChangeSections?: (sections: SectionData[]) => void;
   onChangeWebsiteBuilders?: (websiteBuilders: WebsiteBuilderData[]) => void;
+  onNoteCreated?: (note: StickyNoteData) => void;
+  onNoteDragged?: (note: StickyNoteData) => void;
 };
 
 type DragState = {
@@ -107,6 +109,8 @@ export default function Canvas({
   onChangeDocuments,
   onChangeSections = () => undefined,
   onChangeWebsiteBuilders = () => undefined,
+  onNoteCreated = () => undefined,
+  onNoteDragged = () => undefined,
 }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
@@ -117,6 +121,7 @@ export default function Canvas({
   const [panDragState, setPanDragState] = useState<PanDragState>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [selectedColor, setSelectedColor] = useState<NoteColor>("yellow");
+  const didDragRef = useRef(false);
 
   useEffect(() => {
     if (!dragState && !panDragState) {
@@ -149,6 +154,7 @@ export default function Canvas({
       const nextY = Math.max(12, (event.clientY - rect.top - dragState.offsetY) / zoom - panY);
 
       if (dragState.type === "note") {
+        didDragRef.current = true;
         onChangeNotes(
           notes.map((note) =>
             note.id === dragState.itemId
@@ -212,6 +218,16 @@ export default function Canvas({
       }
 
       activePointerIdRef.current = null;
+
+      if (dragState?.type === "note" && didDragRef.current) {
+        const note = notes.find((entry) => entry.id === dragState.itemId);
+
+        if (note) {
+          onNoteDragged(note);
+        }
+      }
+
+      didDragRef.current = false;
       setDragState(null);
       setPanDragState(null);
     };
@@ -233,6 +249,7 @@ export default function Canvas({
     onChangeNotes,
     onChangeSections,
     onChangeWebsiteBuilders,
+    onNoteDragged,
     panDragState,
     panX,
     panY,
@@ -311,6 +328,7 @@ export default function Canvas({
     }
 
     activePointerIdRef.current = event.pointerId;
+    didDragRef.current = false;
 
     setDragState({
       itemId,
@@ -404,7 +422,9 @@ export default function Canvas({
   };
 
   const addNote = () => {
-    onChangeNotes([...notes, createNote(selectedColor)]);
+    const note = createNote(selectedColor);
+    onChangeNotes([...notes, note]);
+    onNoteCreated(note);
   };
 
   const addDocument = () => {
