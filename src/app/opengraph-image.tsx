@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import BrandGlyph from "@/components/BrandGlyph";
 
 export const size = {
   width: 1200,
@@ -71,23 +72,7 @@ export default function OpenGraphImage() {
                   boxShadow: "0 24px 50px rgba(15,23,42,0.3)",
                 }}
               >
-                <svg width="84" height="84" viewBox="0 0 64 64" fill="none">
-                  <path
-                    d="M17 47L29 18L41 47"
-                    stroke="#F7F3ED"
-                    strokeWidth="7"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path d="M22.5 34H35.5" stroke="#F7F3ED" strokeWidth="7" strokeLinecap="round" />
-                  <rect x="45" y="19" width="6" height="26" rx="3" fill="url(#accent)" />
-                  <defs>
-                    <linearGradient id="accent" x1="45" y1="19" x2="51" y2="45" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#E8C58B" />
-                      <stop offset="1" stopColor="#C89A56" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                <BrandGlyph width={84} height={84} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ fontSize: "26px", fontWeight: 600, letterSpacing: "-0.03em", color: "#F5F5F4" }}>
