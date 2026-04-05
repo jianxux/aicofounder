@@ -1,0 +1,20 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="#111827"/>
+  <rect x="2" y="2" width="60" height="60" rx="18" stroke="url(#brand-stroke)" stroke-width="2"/>
+  <path d="M19 42L31.5 28.5L45 18" stroke="#F8FAFC" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31.5 28.5L45 42" stroke="#CFFAFE" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M28 46L34.5 22L40 31H48L35 46H28Z" fill="url(#brand-core)"/>
+  <circle cx="19" cy="42" r="5.5" fill="#F8FAFC"/>
+  <circle cx="45" cy="18" r="5.5" fill="#FBBF24"/>
+  <circle cx="45" cy="42" r="5.5" fill="#34D399"/>
+  <defs>
+    <linearGradient id="brand-core" x1="28" y1="46" x2="46" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FB7185"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="brand-stroke" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+</svg>
