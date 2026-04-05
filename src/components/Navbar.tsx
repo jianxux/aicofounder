@@ -13,8 +13,8 @@ export default function Navbar({ showAuth = true, redirectTo = "/dashboard" }: N
       <Link href="/" className="inline-flex items-center gap-3">
         <BrandMark className="h-11 w-11 shrink-0" />
         <div>
-          <div className="text-sm uppercase tracking-[0.24em] text-stone-500">AI Cofounder</div>
-          <div className="text-sm font-medium text-stone-800">Research and build with AI</div>
+          <div className="text-base font-semibold tracking-[-0.02em] text-stone-900">AI Cofounder</div>
+          <div className="text-sm font-medium text-stone-500">Research and build with clarity</div>
         </div>
       </Link>
       <div className="flex items-center gap-4">

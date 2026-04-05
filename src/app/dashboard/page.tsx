@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
+import BrandMark from "@/components/BrandMark";
 import OnboardingModal from "@/components/OnboardingModal";
 import { trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
@@ -79,12 +80,10 @@ export default function DashboardPage() {
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 lg:px-8">
         <Link href="/" className="inline-flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-950 text-lg font-semibold text-white shadow-sm">
-            AI
-          </div>
+          <BrandMark className="h-11 w-11 shrink-0" />
           <div>
-            <div className="text-sm uppercase tracking-[0.24em] text-stone-500">AI Cofounder</div>
-            <div className="text-sm font-medium text-stone-800">Your projects</div>
+            <div className="text-base font-semibold tracking-[-0.02em] text-stone-900">AI Cofounder</div>
+            <div className="text-sm font-medium text-stone-500">Your projects</div>
           </div>
         </Link>
         <AuthButton redirectTo="/dashboard" />

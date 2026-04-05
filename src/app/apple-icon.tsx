@@ -17,7 +17,7 @@ export default function AppleIcon() {
           height: "100%",
           alignItems: "center",
           justifyContent: "center",
-          background: "#111827",
+          background: "linear-gradient(145deg, #18181b 0%, #09090b 100%)",
           borderRadius: 36,
           position: "relative",
           overflow: "hidden",
@@ -27,32 +27,17 @@ export default function AppleIcon() {
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(135deg, rgba(251,191,36,0.2), rgba(52,211,153,0.14) 60%, rgba(17,24,39,0))",
+            background: "linear-gradient(135deg, rgba(232,197,139,0.18), rgba(9,9,11,0) 58%)",
           }}
         />
         <svg width="124" height="124" viewBox="0 0 64 64" fill="none">
-          <path
-            d="M19 42L31.5 28.5L45 18"
-            stroke="#F8FAFC"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M31.5 28.5L45 42"
-            stroke="#CFFAFE"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path d="M28 46L34.5 22L40 31H48L35 46H28Z" fill="url(#core)" />
-          <circle cx="19" cy="42" r="5.5" fill="#F8FAFC" />
-          <circle cx="45" cy="18" r="5.5" fill="#FBBF24" />
-          <circle cx="45" cy="42" r="5.5" fill="#34D399" />
+          <path d="M17 47L29 18L41 47" stroke="#F7F3ED" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M22.5 34H35.5" stroke="#F7F3ED" strokeWidth="7" strokeLinecap="round" />
+          <rect x="45" y="19" width="6" height="26" rx="3" fill="url(#accent)" />
           <defs>
-            <linearGradient id="core" x1="28" y1="46" x2="46" y2="20" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#FB7185" />
-              <stop offset="1" stopColor="#FBBF24" />
+            <linearGradient id="accent" x1="45" y1="19" x2="51" y2="45" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#E8C58B" />
+              <stop offset="1" stopColor="#C89A56" />
             </linearGradient>
           </defs>
         </svg>
