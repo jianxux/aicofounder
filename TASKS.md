@@ -50,7 +50,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Add regression + integration tests for agent memory, compression, and retrieval behavior
 
 ### 5B. Auto Research
-- [ ] Research `karpathy/autoresearch` architecture and write adaptation spec for AI Cofounder use cases
+- [x] Research `karpathy/autoresearch` architecture and write adaptation spec for AI Cofounder use cases
 - [ ] Implement auto-research orchestration flow for customer idea research (query planning, multi-step browsing/search, synthesis)
 - [ ] Add UI entry point and report rendering for auto-research runs inside project workspace
 - [ ] Add citations/source collection and structured output for research sessions
