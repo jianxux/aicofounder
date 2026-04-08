@@ -47,7 +47,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Implement context compression pipeline so long chats can be summarized and reloaded into future agent turns safely
 - [x] Implement grep-style memory retrieval/search over stored memory/context with ranking heuristics and tests
 - [x] Integrate memory + compression + retrieval into customer Q&A and business brainstorming flows
-- [ ] Add regression + integration tests for agent memory, compression, and retrieval behavior
+- [x] Add regression + integration tests for agent memory, compression, and retrieval behavior
 
 ### 5B. Auto Research
 - [ ] Research `karpathy/autoresearch` architecture and write adaptation spec for AI Cofounder use cases

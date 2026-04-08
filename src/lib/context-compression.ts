@@ -179,6 +179,37 @@ const canonicalizeAnchor = (value: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const SIGNIFICANT_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "for",
+  "from",
+  "has",
+  "have",
+  "in",
+  "into",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "their",
+  "this",
+  "to",
+  "was",
+  "we",
+  "with",
+]);
+
 function extractConflictAnchors(value: string) {
   const anchors = new Set<string>();
   const subject = canonicalizeSubject(value);
@@ -211,6 +242,35 @@ function itemsConflict(left: string, right: string) {
 
   for (const anchor of leftAnchors) {
     if (rightAnchors.has(anchor)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function significantTokens(value: string) {
+  return new Set(
+    normalizeLine(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((token) => token.length > 2 && !SIGNIFICANT_WORDS.has(token)),
+  );
+}
+
+function itemsShareTopic(left: string, right: string) {
+  const leftTokens = significantTokens(left);
+  const rightTokens = significantTokens(right);
+  let overlap = 0;
+
+  for (const token of leftTokens) {
+    if (!rightTokens.has(token)) {
+      continue;
+    }
+
+    overlap += 1;
+    if (overlap >= 2) {
       return true;
     }
   }
@@ -552,6 +612,28 @@ function collectDurableMemoryIds(entries: readonly MemoryEntry[]) {
   return ids;
 }
 
+function collectDurableMemoryConflictBuckets(
+  entries: readonly MemoryEntry[],
+  maxItemsPerSection: number,
+): SummaryBuckets {
+  const maps = createItemMaps();
+
+  for (const entry of entries) {
+    if (entry.status !== "active") {
+      continue;
+    }
+
+    const bucket: keyof SummaryBuckets =
+      entry.kind === "decision" ? "decisions" : entry.kind === "constraint" ? "constraints" : "facts";
+
+    for (const clause of splitIntoClauses(entry.content)) {
+      addBucketItem(maps, bucket, clause);
+    }
+  }
+
+  return finalizeBuckets(maps, maxItemsPerSection);
+}
+
 function mergeBuckets(
   prior: SummaryBuckets,
   current: SummaryBuckets,
@@ -626,6 +708,30 @@ function evictConflictingBucketItems(
       const shouldEvict =
         (MERGEABLE_BUCKETS as readonly string[]).includes(key) &&
         newerMergeableItems.some((newerItem) => itemsConflict(item, newerItem));
+
+      if (!shouldEvict) {
+        addBucketItem(maps, key, item);
+      }
+    }
+  }
+
+  return finalizeBuckets(maps, maxItemsPerSection);
+}
+
+function evictDurableOverriddenBucketItems(
+  buckets: SummaryBuckets,
+  durableBuckets: SummaryBuckets,
+  maxItemsPerSection: number,
+): SummaryBuckets {
+  const maps = createItemMaps();
+
+  for (const key of Object.keys(buckets) as Array<keyof SummaryBuckets>) {
+    const durableItems = durableBuckets[key];
+
+    for (const item of buckets[key]) {
+      const shouldEvict =
+        (MERGEABLE_BUCKETS as readonly string[]).includes(key) &&
+        durableItems.some((durableItem) => itemsConflict(item, durableItem) || itemsShareTopic(item, durableItem));
 
       if (!shouldEvict) {
         addBucketItem(maps, key, item);
@@ -811,13 +917,18 @@ export function compressContext(input: CompressContextInput): CompressionResult 
     currentBuckets,
     options.maxSummaryItemsPerSection,
   );
-  const summaryBuckets = shouldKeepTail
+  const tailEvictedBuckets = shouldKeepTail
     ? evictConflictingBucketItems(
         mergedBuckets,
         collectConflictMaskBuckets(recentTail),
         options.maxSummaryItemsPerSection,
       )
     : mergedBuckets;
+  const summaryBuckets = evictDurableOverriddenBucketItems(
+    tailEvictedBuckets,
+    collectDurableMemoryConflictBuckets(durableMemoryEntries, options.maxSummaryItemsPerSection),
+    options.maxSummaryItemsPerSection,
+  );
   const summaryText = buildSummaryText(summaryBuckets);
   const recentTailLines = buildRecentTail(recentTail);
   const reloadContext = buildReloadContext(

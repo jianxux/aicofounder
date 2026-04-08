@@ -1,5 +1,5 @@
 import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
-import { compareMemoryEntries, compareMemorySummaries, normalizeMemoryText } from "@/lib/agent-memory";
+import { normalizeMemoryText } from "@/lib/agent-memory";
 import { compressContext } from "@/lib/context-compression";
 import { searchMemoryEntries, searchMemorySummaries } from "@/lib/memory-search";
 import type { SummaryLevel } from "@/lib/database.types";
@@ -88,7 +88,7 @@ function dedupeEntries(entries: readonly MemoryEntry[]) {
     deduped.push(entry);
   }
 
-  return deduped.sort(compareMemoryEntries).slice(0, DEFAULT_ENTRY_LIMIT);
+  return deduped.slice(0, DEFAULT_ENTRY_LIMIT);
 }
 
 function dedupeSummaries(summaries: readonly MemorySummary[]) {
@@ -115,7 +115,7 @@ function dedupeSummaries(summaries: readonly MemorySummary[]) {
   }
 
   return {
-    summaries: deduped.sort(compareMemorySummaries).slice(0, DEFAULT_SUMMARY_LIMIT),
+    summaries: deduped.slice(0, DEFAULT_SUMMARY_LIMIT),
     summaryLevel,
   };
 }
