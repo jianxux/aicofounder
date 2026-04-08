@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAgentMemoryStore } from "@/lib/agent-memory-store";
 import type { DbAgentSession, DbMemoryEntry, DbMemorySummary } from "@/lib/database.types";
+import { searchMemoryEntries, searchMemorySummaries } from "@/lib/memory-search";
 
 type Tables = {
   agent_sessions: DbAgentSession[];
@@ -547,6 +548,121 @@ describe("agent-memory-store", () => {
       "summary-0",
       "summary-3",
     ]);
+  });
+
+  it("searches project and session memory entries via the pure search module", async () => {
+    supabase.tables.memory_entries.push(
+      buildMemoryEntry({
+        id: "memory-1",
+        project_id: "project-1",
+        session_id: "session-1",
+        title: "ICP decision",
+        content: "Target course creators.",
+        tags: ["icp", "creators"],
+        status: "active",
+      }),
+      buildMemoryEntry({
+        id: "memory-2",
+        project_id: "project-1",
+        session_id: "session-2",
+        title: "Pricing note",
+        content: "Different topic.",
+        tags: ["pricing"],
+        status: "active",
+      }),
+      buildMemoryEntry({
+        id: "memory-3",
+        project_id: "project-1",
+        session_id: "session-1",
+        title: "Legacy ICP",
+        content: "Archived context.",
+        tags: ["icp"],
+        status: "archived",
+      }),
+    );
+
+    const store = createAgentMemoryStore(supabase);
+    const listedProjectEntries = await store.listMemoryEntriesByProject("project-1", {
+      statuses: ["active", "archived"],
+    });
+    const listedSessionEntries = await store.listMemoryEntriesBySession("session-1", {
+      statuses: ["active"],
+    });
+
+    const projectResults = await store.searchMemoryEntriesByProject("project-1", "icp creators", {
+      statuses: ["active", "archived"],
+      limit: 2,
+    });
+    const sessionResults = await store.searchMemoryEntriesBySession("session-1", "icp", {
+      statuses: ["active"],
+    });
+
+    expect(projectResults).toEqual(
+      searchMemoryEntries(listedProjectEntries, "icp creators", { limit: 2, projectId: "project-1" }),
+    );
+    expect(sessionResults).toEqual(searchMemoryEntries(listedSessionEntries, "icp", { sessionId: "session-1" }));
+    expect(projectResults.map((result) => result.entry.id)).toEqual(["memory-1", "memory-3"]);
+    expect(sessionResults.map((result) => result.entry.id)).toEqual(["memory-1"]);
+    expect(projectResults[0]).toMatchObject({
+      sourceType: "entry",
+      matchedTerms: ["creators", "icp"],
+    });
+    expect(projectResults[0]?.snippet).toContain("ICP decision");
+    expect(projectResults[0]?.reasons).toContain("all query terms matched");
+  });
+
+  it("searches summaries through existing list methods with project and session filters", async () => {
+    supabase.tables.memory_summaries.push(
+      buildMemorySummary({
+        id: "summary-1",
+        project_id: "project-1",
+        session_id: "session-1",
+        summary_level: "session",
+        content: "Churn insights from interviews.",
+      }),
+      buildMemorySummary({
+        id: "summary-2",
+        project_id: "project-1",
+        session_id: "session-2",
+        summary_level: "project",
+        content: "Broader project summary.",
+      }),
+      buildMemorySummary({
+        id: "summary-3",
+        project_id: "project-2",
+        session_id: "session-1",
+        summary_level: "session",
+        content: "Different project.",
+      }),
+    );
+
+    const store = createAgentMemoryStore(supabase);
+    const listedProjectSummaries = await store.listMemorySummariesByProject("project-1", {
+      sessionId: "session-1",
+    });
+    const listedSessionSummaries = await store.listMemorySummariesBySession("session-1");
+
+    const projectResults = await store.searchMemorySummariesByProject("project-1", "churn", {
+      sessionId: "session-1",
+    });
+    const sessionResults = await store.searchMemorySummariesBySession("session-1", "project", {
+      limit: 1,
+    });
+
+    expect(projectResults).toEqual(
+      searchMemorySummaries(listedProjectSummaries, "churn", { projectId: "project-1", sessionId: "session-1" }),
+    );
+    expect(sessionResults).toEqual(
+      searchMemorySummaries(listedSessionSummaries, "project", { limit: 1, sessionId: "session-1" }),
+    );
+    expect(projectResults.map((result) => result.summary.id)).toEqual(["summary-1"]);
+    expect(sessionResults.map((result) => result.summary.id)).toEqual(["summary-3"]);
+    expect(projectResults[0]).toMatchObject({
+      sourceType: "summary",
+      matchedTerms: ["churn"],
+    });
+    expect(projectResults[0]?.snippet).toContain("Churn insights");
+    expect(projectResults[0]?.reasons).toContain("exact phrase in summary content");
   });
 
   it("creates durable memory directly when no dedupe key is provided", async () => {

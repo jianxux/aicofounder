@@ -23,6 +23,13 @@ import type {
   UpdateMemoryEntryInput,
 } from "@/lib/agent-memory";
 import type { MemoryConfirmation, MemoryStatus } from "@/lib/database.types";
+import {
+  searchMemoryEntries,
+  searchMemorySummaries,
+  type MemoryEntrySearchResult,
+  type MemorySearchOptions,
+  type MemorySummarySearchResult,
+} from "@/lib/memory-search";
 
 type QueryResult<T> = Promise<{ data: T | null; error: Error | null }>;
 
@@ -62,6 +69,9 @@ type ListMemoryEntriesOptions = {
 type ListMemorySummariesOptions = {
   sessionId?: string;
 };
+
+type SearchMemoryEntriesOptions = ListMemoryEntriesOptions & MemorySearchOptions;
+type SearchMemorySummariesOptions = ListMemorySummariesOptions & MemorySearchOptions;
 
 async function expectSingle<Row extends TableRow>(promise: QueryResult<Row>): Promise<Row> {
   const { data, error } = await promise;
@@ -189,7 +199,7 @@ function isUniqueViolation(error: unknown) {
 }
 
 export function createAgentMemoryStore(supabase: SupabaseLike) {
-  return {
+  const store = {
     async getActiveMemoryEntriesByDedupe(projectId: string, dedupeKey: string): Promise<MemoryEntry[]> {
       const rows = await expectMany(
         supabase
@@ -283,6 +293,38 @@ export function createAgentMemoryStore(supabase: SupabaseLike) {
 
       const rows = await expectMany(query);
       return rows.map(mapDbMemoryEntry).sort(compareMemoryEntries);
+    },
+
+    async searchMemoryEntriesByProject(
+      projectId: string,
+      query: string,
+      options: SearchMemoryEntriesOptions = {},
+    ): Promise<MemoryEntrySearchResult[]> {
+      const entries = await store.listMemoryEntriesByProject(projectId, {
+        sessionId: options.sessionId,
+        statuses: options.statuses,
+      });
+
+      return searchMemoryEntries(entries, query, {
+        limit: options.limit,
+        projectId,
+        sessionId: options.sessionId,
+      });
+    },
+
+    async searchMemoryEntriesBySession(
+      sessionId: string,
+      query: string,
+      options: Omit<SearchMemoryEntriesOptions, "sessionId"> = {},
+    ): Promise<MemoryEntrySearchResult[]> {
+      const entries = await store.listMemoryEntriesBySession(sessionId, {
+        statuses: options.statuses,
+      });
+
+      return searchMemoryEntries(entries, query, {
+        limit: options.limit,
+        sessionId,
+      });
     },
 
     async upsertDurableMemory(input: CreateMemoryEntryInput): Promise<UpsertDurableMemoryResult> {
@@ -396,5 +438,35 @@ export function createAgentMemoryStore(supabase: SupabaseLike) {
 
       return rows.map(mapDbMemorySummary).sort(compareMemorySummaries);
     },
+
+    async searchMemorySummariesByProject(
+      projectId: string,
+      query: string,
+      options: SearchMemorySummariesOptions = {},
+    ): Promise<MemorySummarySearchResult[]> {
+      const summaries = await store.listMemorySummariesByProject(projectId, {
+        sessionId: options.sessionId,
+      });
+
+      return searchMemorySummaries(summaries, query, {
+        limit: options.limit,
+        projectId,
+        sessionId: options.sessionId,
+      });
+    },
+
+    async searchMemorySummariesBySession(
+      sessionId: string,
+      query: string,
+      options: MemorySearchOptions = {},
+    ): Promise<MemorySummarySearchResult[]> {
+      const summaries = await store.listMemorySummariesBySession(sessionId);
+      return searchMemorySummaries(summaries, query, {
+        limit: options.limit,
+        sessionId,
+      });
+    },
   };
+
+  return store;
 }
