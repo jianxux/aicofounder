@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OpenAI from "openai";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 import {
   buildResearchPrompt,
   buildSynthesisPrompt,
@@ -23,7 +24,12 @@ vi.mock("@/lib/research", async () => {
   };
 });
 
+vi.mock("@/lib/prompt-memory", () => ({
+  buildPromptMemory: vi.fn(),
+}));
+
 const openAIConstructor = vi.mocked(OpenAI);
+const buildPromptMemoryMock = vi.mocked(buildPromptMemory);
 const buildResearchPromptMock = vi.mocked(buildResearchPrompt);
 const buildSynthesisPromptMock = vi.mocked(buildSynthesisPrompt);
 const parseResearchResponseMock = vi.mocked(parseResearchResponse);
@@ -44,6 +50,16 @@ describe("POST /api/research", () => {
     delete process.env.OPENAI_API_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    buildPromptMemoryMock.mockReturnValue({
+      block: "",
+      metadata: {
+        query: "",
+        entryIds: [],
+        summaryIds: [],
+        summaryLevel: null,
+        reloadTokenEstimate: 0,
+      },
+    });
     buildResearchPromptMock.mockReturnValue("mocked research prompt");
     buildSynthesisPromptMock.mockReturnValue("mocked synthesis prompt");
   });
@@ -154,6 +170,11 @@ describe("POST /api/research", () => {
       researchQuestion: "What are the key opportunities and risks?",
     });
     expect(openAIConstructor).toHaveBeenCalledWith({ apiKey: "test-key" });
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant What are the key opportunities and risks?",
+      memoryEntries: undefined,
+      memorySummaries: undefined,
+    });
     expect(buildResearchPromptMock).toHaveBeenCalledTimes(RESEARCH_ANGLES.length);
     expect(buildResearchPromptMock).toHaveBeenNthCalledWith(
       1,
@@ -161,6 +182,7 @@ describe("POST /api/research", () => {
       "Orbit",
       "Startup research assistant",
       "What are the key opportunities and risks?",
+      "",
     );
     expect(parseResearchResponseMock).toHaveBeenCalledTimes(RESEARCH_ANGLES.length);
     expect(buildSynthesisPromptMock).toHaveBeenCalledWith(
@@ -229,5 +251,175 @@ describe("POST /api/research", () => {
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to parse response" });
     expect(buildSynthesisPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("passes memory payload through the helper and each prompt builder", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    buildPromptMemoryMock.mockReturnValue({
+      block: "Relevant memory context:\nSignal",
+      metadata: {
+        query: "Orbit Startup research assistant Risks",
+        entryIds: ["entry-1"],
+        summaryIds: ["summary-1"],
+        summaryLevel: "session",
+        reloadTokenEstimate: 9,
+      },
+    });
+
+    const create = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"market","title":"Market","angle":"A","findings":"F","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"technical","title":"Technical","angle":"B","findings":"G","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"competitive","title":"Competitive","angle":"C","findings":"H","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: "summary" } }],
+      });
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    parseResearchResponseMock
+      .mockReturnValueOnce({
+        id: "market",
+        title: "Market",
+        angle: "A",
+        findings: "F",
+        citations: [],
+      })
+      .mockReturnValueOnce({
+        id: "technical",
+        title: "Technical",
+        angle: "B",
+        findings: "G",
+        citations: [],
+      })
+      .mockReturnValueOnce({
+        id: "competitive",
+        title: "Competitive",
+        angle: "C",
+        findings: "H",
+        citations: [],
+      });
+
+    const { POST } = await import("@/app/api/research/route");
+    await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        researchQuestion: "Risks",
+        memoryEntries: [{ id: "entry-1" }],
+        memorySummaries: [{ id: "summary-1" }],
+      }),
+    );
+
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant Risks",
+      memoryEntries: [{ id: "entry-1" }],
+      memorySummaries: [{ id: "summary-1" }],
+    });
+    expect(buildResearchPromptMock).toHaveBeenCalledWith(
+      RESEARCH_ANGLES[0].angle,
+      "Orbit",
+      "Startup research assistant",
+      "Risks",
+      "Relevant memory context:\nSignal",
+    );
+  });
+
+  it("returns 500 when synthesis produces an empty summary", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    const create = vi
+      .fn()
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"market","title":"Market","angle":"A","findings":"F","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"technical","title":"Technical","angle":"B","findings":"G","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: '{"id":"competitive","title":"Competitive","angle":"C","findings":"H","citations":[]}' } }],
+      })
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: "   " } }],
+      });
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    parseResearchResponseMock
+      .mockReturnValueOnce({
+        id: "market",
+        title: "Market",
+        angle: "A",
+        findings: "F",
+        citations: [],
+      })
+      .mockReturnValueOnce({
+        id: "technical",
+        title: "Technical",
+        angle: "B",
+        findings: "G",
+        citations: [],
+      })
+      .mockReturnValueOnce({
+        id: "competitive",
+        title: "Competitive",
+        angle: "C",
+        findings: "H",
+        citations: [],
+      });
+
+    const { POST } = await import("@/app/api/research/route");
+    const response = await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to synthesize report" });
+  });
+
+  it("returns a generic 500 when request parsing throws unexpectedly", async () => {
+    const { POST } = await import("@/app/api/research/route");
+    const response = await POST(
+      new Request("http://localhost/api/research", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to get AI response" });
   });
 });

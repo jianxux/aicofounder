@@ -106,6 +106,7 @@ export function buildResearchPrompt(
   projectName: string,
   projectDescription: string,
   researchQuestion: string,
+  memoryContextBlock?: string,
 ): string {
   const promptSections = [
     "You are a deep research agent helping an AI cofounder produce a cited report section.",
@@ -122,6 +123,10 @@ export function buildResearchPrompt(
     "Include 3 to 5 citations. Each citation should capture one concrete claim from the findings and name the source clearly.",
     "Use URLs only when they are helpful and plausible. Omit the url field if no direct reference is available.",
   ];
+
+  if (memoryContextBlock?.trim()) {
+    promptSections.push(memoryContextBlock.trim());
+  }
 
   return promptSections.join(" ");
 }

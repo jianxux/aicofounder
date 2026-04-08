@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OpenAI from "openai";
 import { buildBrainstormPrompt, parseBrainstormResponse } from "@/lib/brainstorm";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 
 vi.mock("openai", () => ({
   default: vi.fn(),
@@ -12,8 +13,13 @@ vi.mock("@/lib/brainstorm", () => ({
   parseBrainstormResponse: vi.fn(),
 }));
 
+vi.mock("@/lib/prompt-memory", () => ({
+  buildPromptMemory: vi.fn(),
+}));
+
 const openAIConstructor = vi.mocked(OpenAI);
 const buildBrainstormPromptMock = vi.mocked(buildBrainstormPrompt);
+const buildPromptMemoryMock = vi.mocked(buildPromptMemory);
 const parseBrainstormResponseMock = vi.mocked(parseBrainstormResponse);
 
 const createRequest = (body: unknown) =>
@@ -32,6 +38,16 @@ describe("POST /api/brainstorm", () => {
     delete process.env.OPENAI_API_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    buildPromptMemoryMock.mockReturnValue({
+      block: "",
+      metadata: {
+        query: "",
+        entryIds: [],
+        summaryIds: [],
+        summaryLevel: null,
+        reloadTokenEstimate: 0,
+      },
+    });
     buildBrainstormPromptMock.mockReturnValue("mocked brainstorm prompt");
   });
 
@@ -117,10 +133,16 @@ describe("POST /api/brainstorm", () => {
       searchContext: "Checked r/SaaS",
     });
     expect(openAIConstructor).toHaveBeenCalledWith({ apiKey: "test-key" });
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant Validation",
+      memoryEntries: undefined,
+      memorySummaries: undefined,
+    });
     expect(buildBrainstormPromptMock).toHaveBeenCalledWith(
       "Orbit",
       "Startup research assistant",
       "Validation",
+      "",
     );
     expect(parseBrainstormResponseMock).toHaveBeenCalledWith(
       '{"painPoints":[],"summary":"Strong demand","searchContext":"Checked r/SaaS"}',
@@ -170,5 +192,84 @@ describe("POST /api/brainstorm", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to parse response" });
+  });
+
+  it("passes memory payload through the helper and prompt builder", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    buildPromptMemoryMock.mockReturnValue({
+      block: "Relevant memory context:\nSignal",
+      metadata: {
+        query: "Orbit Startup research assistant",
+        entryIds: ["entry-1"],
+        summaryIds: ["summary-1"],
+        summaryLevel: "session",
+        reloadTokenEstimate: 8,
+      },
+    });
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create: vi.fn().mockResolvedValue({
+                choices: [{ message: { content: '{"painPoints":[],"summary":"ok","searchContext":"ok"}' } }],
+              }),
+            },
+          },
+        } as never;
+      },
+    );
+    parseBrainstormResponseMock.mockReturnValue({ painPoints: [], summary: "ok", searchContext: "ok" });
+
+    const { POST } = await import("@/app/api/brainstorm/route");
+    await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        memoryEntries: [{ id: "entry-1" }],
+        memorySummaries: [{ id: "summary-1" }],
+      }),
+    );
+
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant",
+      memoryEntries: [{ id: "entry-1" }],
+      memorySummaries: [{ id: "summary-1" }],
+    });
+    expect(buildBrainstormPromptMock).toHaveBeenCalledWith(
+      "Orbit",
+      "Startup research assistant",
+      undefined,
+      "Relevant memory context:\nSignal",
+    );
+  });
+
+  it("returns a generic 500 when the OpenAI request fails", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create: vi.fn().mockRejectedValue("boom"),
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/brainstorm/route");
+    const response = await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to get AI response" });
   });
 });

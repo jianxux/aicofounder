@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OpenAI from "openai";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 import { buildSystemPrompt } from "@/lib/prompts";
 
 vi.mock("openai", () => ({
@@ -11,7 +12,12 @@ vi.mock("@/lib/prompts", () => ({
   buildSystemPrompt: vi.fn(),
 }));
 
+vi.mock("@/lib/prompt-memory", () => ({
+  buildPromptMemory: vi.fn(),
+}));
+
 const openAIConstructor = vi.mocked(OpenAI);
+const buildPromptMemoryMock = vi.mocked(buildPromptMemory);
 const buildSystemPromptMock = vi.mocked(buildSystemPrompt);
 
 const createRequest = (body: unknown) =>
@@ -51,6 +57,16 @@ describe("POST /api/chat", () => {
     delete process.env.OPENAI_API_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    buildPromptMemoryMock.mockReturnValue({
+      block: "",
+      metadata: {
+        query: "",
+        entryIds: [],
+        summaryIds: [],
+        summaryLevel: null,
+        reloadTokenEstimate: 0,
+      },
+    });
     buildSystemPromptMock.mockReturnValue("mocked system prompt");
   });
 
@@ -145,7 +161,15 @@ describe("POST /api/chat", () => {
     expect(payload.stream).toBe(true);
     expect(payload.temperature).toBe(0.7);
     expect(payload.messages).toHaveLength(21);
-    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined);
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      messages: Array.from({ length: 22 }, (_, index) => ({
+        sender: index % 2 === 0 ? "user" : "assistant",
+        content: `message-${index + 1}`,
+      })),
+      memoryEntries: undefined,
+      memorySummaries: undefined,
+    });
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "");
     expect(payload.messages[0]).toEqual({ role: "system", content: "mocked system prompt" });
     expect(payload.messages[1]).toEqual({ role: "user", content: "message-3" });
     expect(payload.messages.at(-1)).toEqual({ role: "assistant", content: "message-22" });
@@ -180,7 +204,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(buildSystemPromptMock).toHaveBeenCalledWith("launch", "Orbit");
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("launch", "Orbit", "");
     expect(create).toHaveBeenCalledTimes(1);
     expect(create.mock.calls[0][0].messages[0]).toEqual({
       role: "system",
@@ -223,6 +247,40 @@ describe("POST /api/chat", () => {
     );
   });
 
+  it("skips empty stream chunks and still terminates the SSE stream", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    const create = vi.fn().mockResolvedValue(
+      createAsyncIterableStream([
+        { choices: [{ delta: {} }] },
+        { choices: [{ delta: { content: "" } }] },
+        { choices: [{ delta: { content: "kept" } }] },
+      ]),
+    );
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/chat/route");
+    const response = await POST(
+      createRequest({
+        messages: [{ sender: "user", content: "Test" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe('data: {"content":"kept"}\n\n' + "data: [DONE]\n\n");
+  });
+
   it("returns 500 when the OpenAI client throws before streaming starts", async () => {
     process.env.OPENAI_API_KEY = "test-key";
 
@@ -247,5 +305,52 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to get AI response" });
+  });
+
+  it("passes memory payload through the helper and prompt builder", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    buildPromptMemoryMock.mockReturnValue({
+      block: "Relevant memory context:\nKey facts",
+      metadata: {
+        query: "launch",
+        entryIds: ["entry-1"],
+        summaryIds: ["summary-1"],
+        summaryLevel: "session",
+        reloadTokenEstimate: 12,
+      },
+    });
+
+    const create = vi.fn().mockResolvedValue(
+      createAsyncIterableStream([{ choices: [{ delta: { content: "ready" } }] }]),
+    );
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/chat/route");
+    await POST(
+      createRequest({
+        messages: [{ sender: "user", content: "Help me launch" }],
+        memoryEntries: [{ id: "entry-1" }],
+        memorySummaries: [{ id: "summary-1" }],
+      }),
+    );
+
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      messages: [{ sender: "user", content: "Help me launch" }],
+      memoryEntries: [{ id: "entry-1" }],
+      memorySummaries: [{ id: "summary-1" }],
+    });
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "Relevant memory context:\nKey facts");
   });
 });

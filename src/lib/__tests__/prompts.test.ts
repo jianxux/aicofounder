@@ -46,6 +46,13 @@ describe("buildSystemPrompt", () => {
     expect(buildSystemPrompt("build", "Orbit")).toContain("Reference Orbit naturally");
   });
 
+  it("includes memory context only when provided", () => {
+    expect(buildSystemPrompt("build", "Orbit", "Relevant memory context:\nKey facts")).toContain(
+      "Relevant memory context:\nKey facts",
+    );
+    expect(buildSystemPrompt("build", "Orbit", "   ")).not.toContain("Relevant memory context:");
+  });
+
   it("omits the project name guidance when not provided", () => {
     expect(buildSystemPrompt("build")).not.toContain("Reference ");
   });

@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
 import { validateEnv } from "@/lib/env";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 import {
   buildResearchPrompt,
   buildSynthesisPrompt,
@@ -12,6 +14,8 @@ type ResearchRequestBody = {
   projectName?: string;
   projectDescription?: string;
   researchQuestion?: string;
+  memoryEntries?: MemoryEntry[];
+  memorySummaries?: MemorySummary[];
 };
 
 type OpenAIChatMessage = {
@@ -39,7 +43,8 @@ type ResearchOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { projectName, projectDescription, researchQuestion }: ResearchRequestBody = await request.json();
+    const { projectName, projectDescription, researchQuestion, memoryEntries, memorySummaries }: ResearchRequestBody =
+      await request.json();
     const normalizedQuestion = researchQuestion?.trim() || "What are the key opportunities and risks?";
 
     if (!projectName?.trim() || !projectDescription?.trim()) {
@@ -56,6 +61,12 @@ export async function POST(request: Request) {
     });
     const researchOpenAI = openai as unknown as ResearchOpenAIClient;
 
+    const promptMemory = buildPromptMemory({
+      query: [projectName, projectDescription, normalizedQuestion].filter(Boolean).join(" "),
+      memoryEntries,
+      memorySummaries,
+    });
+
     const sectionResponses = await Promise.allSettled(
       RESEARCH_ANGLES.map(async (researchAngle) => {
         const completion = await researchOpenAI.chat.completions.create({
@@ -69,6 +80,7 @@ export async function POST(request: Request) {
                 projectName,
                 projectDescription,
                 normalizedQuestion,
+                promptMemory.block,
               ),
             },
             {

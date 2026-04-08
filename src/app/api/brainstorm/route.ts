@@ -1,12 +1,16 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
 import { buildBrainstormPrompt, parseBrainstormResponse } from "@/lib/brainstorm";
 import { validateEnv } from "@/lib/env";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 
 type BrainstormRequestBody = {
   projectName?: string;
   projectDescription?: string;
   focusArea?: string;
+  memoryEntries?: MemoryEntry[];
+  memorySummaries?: MemorySummary[];
 };
 
 type OpenAIChatMessage = {
@@ -34,7 +38,8 @@ type BrainstormOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { projectName, projectDescription, focusArea }: BrainstormRequestBody = await request.json();
+    const { projectName, projectDescription, focusArea, memoryEntries, memorySummaries }: BrainstormRequestBody =
+      await request.json();
 
     if (!projectName?.trim() || !projectDescription?.trim()) {
       return NextResponse.json(
@@ -50,13 +55,19 @@ export async function POST(request: Request) {
     });
     const brainstormOpenAI = openai as unknown as BrainstormOpenAIClient;
 
+    const promptMemory = buildPromptMemory({
+      query: [projectName, projectDescription, focusArea].filter(Boolean).join(" "),
+      memoryEntries,
+      memorySummaries,
+    });
+
     const completion = await brainstormOpenAI.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.7,
       messages: [
         {
           role: "system",
-          content: buildBrainstormPrompt(projectName, projectDescription, focusArea),
+          content: buildBrainstormPrompt(projectName, projectDescription, focusArea, promptMemory.block),
         },
         {
           role: "user",

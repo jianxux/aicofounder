@@ -20,6 +20,15 @@ describe("brainstorm helpers", () => {
     expect(prompt).toContain("Focus area: broad market pain point discovery.");
   });
 
+  it("includes memory context only when non-empty", () => {
+    expect(
+      buildBrainstormPrompt("Orbit", "AI workspace for startup research", "Discovery", "Relevant memory context:\nA"),
+    ).toContain("Relevant memory context:\nA");
+    expect(buildBrainstormPrompt("Orbit", "AI workspace for startup research", "Discovery", "   ")).not.toContain(
+      "Relevant memory context:",
+    );
+  });
+
   it("parses a valid JSON response", () => {
     const result = parseBrainstormResponse(`{
       "painPoints": [
@@ -72,6 +81,10 @@ describe("brainstorm helpers", () => {
 
   it("returns null for invalid JSON", () => {
     expect(parseBrainstormResponse("not json")).toBeNull();
+  });
+
+  it("returns null for a non-object JSON payload", () => {
+    expect(parseBrainstormResponse("[]")).toBeNull();
   });
 
   it("returns null for JSON that does not match the expected shape", () => {

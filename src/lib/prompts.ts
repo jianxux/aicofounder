@@ -42,7 +42,7 @@ const PHASE_PROMPTS: Record<string, string[]> = {
   ],
 };
 
-export function buildSystemPrompt(phase: string, projectName?: string): string {
+export function buildSystemPrompt(phase: string, projectName?: string, memoryContextBlock?: string): string {
   const promptSections = [...BASE_PROMPT_SECTIONS];
 
   if (projectName?.trim()) {
@@ -54,6 +54,10 @@ export function buildSystemPrompt(phase: string, projectName?: string): string {
 
   if (phaseSections) {
     promptSections.push(...phaseSections);
+  }
+
+  if (memoryContextBlock?.trim()) {
+    promptSections.push(memoryContextBlock.trim());
   }
 
   return promptSections.join(" ");

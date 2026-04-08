@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
 import { validateEnv } from "@/lib/env";
+import { buildPromptMemory } from "@/lib/prompt-memory";
 import { buildSystemPrompt } from "@/lib/prompts";
 
 type RequestMessage = {
@@ -12,6 +14,8 @@ type ChatRequestBody = {
   messages?: RequestMessage[];
   phase?: string;
   projectName?: string;
+  memoryEntries?: MemoryEntry[];
+  memorySummaries?: MemorySummary[];
 };
 
 type OpenAIChatMessage = {
@@ -42,7 +46,8 @@ type StreamingOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { messages, phase = "", projectName }: ChatRequestBody = await request.json();
+    const { messages, phase = "", projectName, memoryEntries, memorySummaries }: ChatRequestBody =
+      await request.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
@@ -55,8 +60,14 @@ export async function POST(request: Request) {
     });
     const streamingOpenAI = openai as unknown as StreamingOpenAIClient;
 
+    const promptMemory = buildPromptMemory({
+      messages,
+      memoryEntries,
+      memorySummaries,
+    });
+
     const requestMessages: OpenAIChatMessage[] = [
-      { role: "system", content: buildSystemPrompt(phase, projectName) },
+      { role: "system", content: buildSystemPrompt(phase, projectName, promptMemory.block) },
       ...messages.slice(-20).map((message) => ({
         role: message.sender === "user" ? ("user" as const) : ("assistant" as const),
         content: message.content,

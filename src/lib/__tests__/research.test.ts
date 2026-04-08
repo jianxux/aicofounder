@@ -31,6 +31,27 @@ describe("research helpers", () => {
     expect(prompt).toContain("Research question: What are the key opportunities and risks?.");
   });
 
+  it("includes memory context only when non-empty", () => {
+    expect(
+      buildResearchPrompt(
+        RESEARCH_ANGLES[0].angle,
+        "Orbit",
+        "AI workspace for startup research",
+        "Where is demand strongest?",
+        "Relevant memory context:\nB",
+      ),
+    ).toContain("Relevant memory context:\nB");
+    expect(
+      buildResearchPrompt(
+        RESEARCH_ANGLES[0].angle,
+        "Orbit",
+        "AI workspace for startup research",
+        "Where is demand strongest?",
+        "   ",
+      ),
+    ).not.toContain("Relevant memory context:");
+  });
+
   it("parses a valid JSON response", () => {
     const result = parseResearchResponse(`{
       "id": "market-section",
@@ -87,6 +108,10 @@ describe("research helpers", () => {
 
   it("returns null for invalid JSON", () => {
     expect(parseResearchResponse("not json")).toBeNull();
+  });
+
+  it("returns null for a non-object JSON payload", () => {
+    expect(parseResearchResponse("[]")).toBeNull();
   });
 
   it("returns null for JSON that does not match the expected shape", () => {

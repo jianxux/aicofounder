@@ -70,6 +70,7 @@ export function buildBrainstormPrompt(
   projectName: string,
   projectDescription: string,
   focusArea?: string,
+  memoryContextBlock?: string,
 ): string {
   const promptSections = [
     "You are a market researcher helping an AI cofounder identify real customer pain points.",
@@ -89,6 +90,10 @@ export function buildBrainstormPrompt(
     "The summary should synthesize the strongest patterns across the pain points.",
     "The searchContext should briefly describe which communities, themes, and user segments were investigated.",
   ];
+
+  if (memoryContextBlock?.trim()) {
+    promptSections.push(memoryContextBlock.trim());
+  }
 
   return promptSections.join(" ");
 }
