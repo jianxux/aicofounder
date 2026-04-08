@@ -103,6 +103,32 @@ describe("UltraplanReport", () => {
     });
   });
 
+  it("renders all severity color variants", () => {
+    const severities = [
+      { severity: 2, className: "bg-emerald-500" },
+      { severity: 3, className: "bg-amber-400" },
+      { severity: 5, className: "bg-rose-500" },
+    ] as const;
+
+    severities.forEach(({ severity, className }) => {
+      const { unmount } = render(
+        <UltraplanReport
+          result={{
+            ...createResult(),
+            blocker: {
+              ...createResult().blocker,
+              severity,
+            },
+          }}
+        />,
+      );
+
+      const dots = Array.from(screen.getByLabelText(`Severity ${severity} out of 5`).querySelectorAll("span"));
+      expect(dots[0]).toHaveClass(className);
+      unmount();
+    });
+  });
+
   it("renders all action cards with titles", () => {
     const result = createResult();
     renderUltraplanReport(result);
@@ -129,6 +155,39 @@ describe("UltraplanReport", () => {
       expect(effortBadges[index]).toHaveTextContent(`Effort: ${action.effort}`);
       expect(impactBadges[index]).toHaveTextContent(`Impact: ${action.impact}`);
     });
+  });
+
+  it("renders low, medium, and high badge color variants", () => {
+    render(
+      <UltraplanReport
+        result={{
+          ...createResult(),
+          actions: [
+            {
+              id: "action-low",
+              title: "Low effort action",
+              description: "Quick fix.",
+              effort: "low",
+              impact: "medium",
+              timelineHours: 1,
+            },
+            {
+              id: "action-high",
+              title: "High impact action",
+              description: "Harder fix.",
+              effort: "high",
+              impact: "low",
+              timelineHours: 8,
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Effort: low")).toHaveClass("bg-emerald-100", "text-emerald-700");
+    expect(screen.getByText("Impact: medium")).toHaveClass("bg-amber-100", "text-amber-700");
+    expect(screen.getByText("Effort: high")).toHaveClass("bg-rose-100", "text-rose-700");
+    expect(screen.getByText("Impact: low")).toHaveClass("bg-emerald-100", "text-emerald-700");
   });
 
   it("renders timeline hours", () => {

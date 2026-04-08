@@ -1,15 +1,6 @@
 import type { NextConfig } from "next";
 
-type NextConfigWithLegacyEslint = NextConfig & {
-  eslint?: {
-    ignoreDuringBuilds?: boolean;
-  };
-};
-
-const nextConfig: NextConfigWithLegacyEslint = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },

@@ -13,6 +13,13 @@ describe("brainstorm helpers", () => {
     expect(prompt).toContain("r/startups");
   });
 
+  it("falls back to default prompt values when optional inputs are blank", () => {
+    const prompt = buildBrainstormPrompt("   ", "Mapped pain points", "   ");
+
+    expect(prompt).toContain("Project name: Untitled project.");
+    expect(prompt).toContain("Focus area: broad market pain point discovery.");
+  });
+
   it("parses a valid JSON response", () => {
     const result = parseBrainstormResponse(`{
       "painPoints": [
@@ -80,5 +87,41 @@ describe("brainstorm helpers", () => {
         "searchContext": "bad"
       }`),
     ).toBeNull();
+  });
+
+  it("returns null when a pain point has invalid enum and quote values", () => {
+    expect(
+      parseBrainstormResponse(`{
+        "painPoints": [
+          {
+            "id": "pp-1",
+            "title": "Bad enums",
+            "description": "Invalid severity and quotes",
+            "source": "r/startups",
+            "severity": 6,
+            "frequency": "daily",
+            "quotes": ["valid", 123]
+          }
+        ],
+        "summary": "bad",
+        "searchContext": "bad"
+      }`),
+    ).toBeNull();
+  });
+
+  it("parses JSON embedded in surrounding text", () => {
+    const result = parseBrainstormResponse(`Here is the result:
+{
+  "painPoints": [],
+  "summary": "Embedded object",
+  "searchContext": "Found in wrapper text."
+}
+Thanks`);
+
+    expect(result).toEqual({
+      painPoints: [],
+      summary: "Embedded object",
+      searchContext: "Found in wrapper text.",
+    });
   });
 });

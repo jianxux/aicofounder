@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Canvas from "@/components/Canvas";
-import type { DocumentCardData, SectionData, StickyNoteData } from "@/lib/types";
+import type { DocumentCardData, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
 
 const createNote = (overrides: Partial<StickyNoteData> = {}): StickyNoteData => ({
   id: "note-1",
@@ -44,6 +44,23 @@ const createSection = (overrides: Partial<SectionData> = {}): SectionData => ({
   y: 160,
   width: 320,
   height: 220,
+  ...overrides,
+});
+
+const createWebsiteBuilder = (overrides: Partial<WebsiteBuilderData> = {}): WebsiteBuilderData => ({
+  id: "website-1",
+  title: "Landing Page",
+  blocks: [
+    {
+      id: "website-block-1",
+      type: "hero",
+      heading: "Ship faster",
+      body: "Launch with confidence.",
+      buttonText: "Start",
+    },
+  ],
+  x: 180,
+  y: 200,
   ...overrides,
 });
 
@@ -466,6 +483,60 @@ describe("Canvas", () => {
     });
   });
 
+  it("calls onNoteDragged after a note drag completes", () => {
+    const note = createNote();
+    const onNoteDragged = vi.fn();
+
+    render(
+      <Canvas
+        notes={[note]}
+        documents={[]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onNoteDragged={onNoteDragged}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
+
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 320 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+
+    expect(onNoteDragged).toHaveBeenCalledWith(note);
+  });
+
+  it("ignores pointer moves from a different pointer id while dragging", () => {
+    const notes = createNotes();
+    const onChangeNotes = vi.fn();
+
+    render(
+      <Canvas
+        notes={notes}
+        documents={[]}
+        onChangeNotes={onChangeNotes}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const dragHandle = screen.getByDisplayValue("Launch plan").parentElement;
+
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 140, clientY: 260 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 2, clientX: 220, clientY: 340 }));
+    });
+
+    expect(onChangeNotes).not.toHaveBeenCalled();
+  });
+
   it("clamps dragged note coordinates to a minimum of 12", () => {
     const notes = createNotes();
     const onChangeNotes = vi.fn();
@@ -708,6 +779,38 @@ describe("Canvas", () => {
     ]);
   });
 
+  it("updates document coordinates after dragging a document", () => {
+    const document = createDocument();
+    const onChangeDocuments = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[document]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={onChangeDocuments}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const dragHandle = screen.getByDisplayValue("My Document").parentElement;
+
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 120, clientY: 220 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 310 }));
+    });
+
+    expect(onChangeDocuments).toHaveBeenCalledWith([
+      {
+        ...document,
+        x: 180,
+        y: 290,
+      },
+    ]);
+  });
+
   it("renders document cards on the canvas", () => {
     render(
       <Canvas
@@ -878,6 +981,99 @@ describe("Canvas", () => {
     expect(onChangeSections).toHaveBeenCalledWith([sections[1]]);
   });
 
+  it("updates section coordinates after dragging a section", () => {
+    const section = createSection();
+    const onChangeSections = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        sections={[section]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeSections={onChangeSections}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const dragHandle = screen.getByRole("button", { name: "Research Cluster" }).parentElement;
+
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 160, clientY: 190 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 240, clientY: 280 }));
+    });
+
+    expect(onChangeSections).toHaveBeenCalledWith([
+      {
+        ...section,
+        x: 220,
+        y: 250,
+      },
+    ]);
+  });
+
+  it("adds, drags, and deletes website builders", () => {
+    const existingBuilder = createWebsiteBuilder();
+    const onChangeWebsiteBuilders = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        websiteBuilders={[existingBuilder]}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeWebsiteBuilders={onChangeWebsiteBuilders}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Landing Page")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Website" }));
+    expect(onChangeWebsiteBuilders).toHaveBeenCalledWith([
+      existingBuilder,
+      {
+        id: "mock-uuid-1",
+        title: "Startup landing page",
+        blocks: [
+          {
+            id: "mock-uuid-1",
+            type: "hero",
+            heading: "Explain your startup in one sentence",
+            body: "Describe the customer, the problem, and the outcome your product creates.",
+            buttonText: "Join the waitlist",
+          },
+        ],
+        x: 260,
+        y: 260,
+      },
+    ]);
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const dragHandle = screen.getByText("Website Builder").parentElement?.parentElement;
+
+    fireEvent.pointerDown(dragHandle!, { pointerId: 1, clientX: 200, clientY: 220 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 290, clientY: 330 }));
+    });
+
+    expect(onChangeWebsiteBuilders).toHaveBeenCalledWith([
+      {
+        ...existingBuilder,
+        x: 270,
+        y: 310,
+      },
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete website builder" }));
+    expect(onChangeWebsiteBuilders).toHaveBeenCalledWith([]);
+  });
+
   it("removes a section from the rendered canvas after deletion", () => {
     render(
       <CanvasStateHarness
@@ -889,6 +1085,20 @@ describe("Canvas", () => {
 
     expect(screen.queryByRole("button", { name: "Research Cluster" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Second section" })).toBeInTheDocument();
+  });
+
+  it("pans the canvas for touch pointer drags on non-editable targets", () => {
+    render(<CanvasStateHarness initialNotes={[createNote()]} />);
+
+    const board = getBoard();
+
+    fireEvent.pointerDown(board, { pointerId: 5, pointerType: "touch", clientX: 40, clientY: 50 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 5, clientX: 90, clientY: 120 }));
+    });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(50px, 70px) scale(1)" });
   });
 
   it("works without a sections prop for backward compatibility", () => {

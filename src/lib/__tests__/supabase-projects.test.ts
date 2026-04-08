@@ -512,6 +512,37 @@ describe("lib/supabase-projects", () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
+  it("fetchProjects falls back to localStorage when Supabase is unavailable or the user is signed out", async () => {
+    const fallbackProject = makeProject({ id: "local-only" });
+    localStorage.setItem("aicofounder.projects", JSON.stringify([fallbackProject]));
+
+    const missingSupabaseLoad = await loadModule({
+      createBrowserClient: vi.fn(() => null),
+    });
+    await expect(missingSupabaseLoad.module.fetchProjects()).resolves.toEqual([fallbackProject]);
+
+    const signedOutSupabase = createMockSupabase({}, [], {
+      data: { user: null },
+      error: null,
+    });
+    const signedOutLoad = await loadModule({
+      createBrowserClient: vi.fn(() => signedOutSupabase),
+    });
+    await expect(signedOutLoad.module.fetchProjects()).resolves.toEqual([fallbackProject]);
+  });
+
+  it("fetchProjects skips phase task fetching when no projects are returned", async () => {
+    const createBrowserClient = vi.fn(() =>
+      createMockSupabase({
+        projects: { order: { data: [], error: null } },
+      }),
+    );
+    const { module } = await loadModule({ createBrowserClient });
+
+    await expect(module.fetchProjects()).resolves.toEqual([]);
+    expect(createBrowserClient).toHaveBeenCalledTimes(1);
+  });
+
   it("fetchProjectById applies both eq filters, maps data, and fetches tasks", async () => {
     const projectRow = makeProjectRow("project-9");
     const phaseTasks = makePhaseTasks("project-9");
@@ -569,6 +600,25 @@ describe("lib/supabase-projects", () => {
       createBrowserClient: vi.fn(() => missingSupabase),
     });
     await expect(missingLoad.module.fetchProjectById("project-2")).resolves.toEqual(fallbackProject);
+  });
+
+  it("fetchProjectById falls back to localStorage when Supabase is unavailable or the user is signed out", async () => {
+    const fallbackProject = makeProject({ id: "project-3", name: "Offline Project" });
+    localStorage.setItem("aicofounder.projects", JSON.stringify([fallbackProject]));
+
+    const missingSupabaseLoad = await loadModule({
+      createBrowserClient: vi.fn(() => null),
+    });
+    await expect(missingSupabaseLoad.module.fetchProjectById("project-3")).resolves.toEqual(fallbackProject);
+
+    const signedOutSupabase = createMockSupabase({}, [], {
+      data: { user: null },
+      error: null,
+    });
+    const signedOutLoad = await loadModule({
+      createBrowserClient: vi.fn(() => signedOutSupabase),
+    });
+    await expect(signedOutLoad.module.fetchProjectById("project-3")).resolves.toEqual(fallbackProject);
   });
 
   it("saveProjectToSupabase writes mapped project, messages, canvas items, phases, and tasks", async () => {
@@ -770,6 +820,51 @@ describe("lib/supabase-projects", () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
+  it("saveProjectToSupabase stores locally when Supabase is unavailable or the user is signed out", async () => {
+    const project = makeProject({ id: "project-local-save" });
+
+    const missingSupabaseLoad = await loadModule({
+      createBrowserClient: vi.fn(() => null),
+    });
+    await missingSupabaseLoad.module.saveProjectToSupabase(project);
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([project]);
+
+    localStorage.clear();
+
+    const signedOutSupabase = createMockSupabase({}, [], {
+      data: { user: null },
+      error: null,
+    });
+    const signedOutLoad = await loadModule({
+      createBrowserClient: vi.fn(() => signedOutSupabase),
+    });
+    await signedOutLoad.module.saveProjectToSupabase(project);
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([project]);
+  });
+
+  it("saveProjectToSupabase skips insert calls for empty collections", async () => {
+    const project = makeProject({
+      messages: [],
+      notes: [],
+      sections: [],
+      documents: [],
+      websiteBuilders: [],
+      phases: [],
+    });
+    const operations: Operation[] = [];
+    const mockSupabase = createMockSupabase({}, operations);
+    const { module } = await loadModule({
+      createBrowserClient: vi.fn(() => mockSupabase),
+    });
+
+    await module.saveProjectToSupabase(project);
+
+    expect(operations.some((operation) => operation.method === "insert" && operation.table === "messages")).toBe(false);
+    expect(operations.some((operation) => operation.method === "insert" && operation.table === "canvas_items")).toBe(false);
+    expect(operations.some((operation) => operation.method === "insert" && operation.table === "phases")).toBe(false);
+    expect(operations.some((operation) => operation.method === "insert" && operation.table === "phase_tasks")).toBe(false);
+  });
+
   it("createSupabaseProject persists the created project through the save flow", async () => {
     const createdProject = makeProject({ id: "created-project" });
     const createProjectRecord = vi.fn(() => createdProject);
@@ -827,5 +922,28 @@ describe("lib/supabase-projects", () => {
 
     expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([fallbackProjects[0]]);
     expect(console.warn).toHaveBeenCalled();
+  });
+
+  it("deleteProjectFromSupabase removes the project locally when Supabase is unavailable or the user is signed out", async () => {
+    const fallbackProjects = [makeProject({ id: "keep" }), makeProject({ id: "remove" })];
+    localStorage.setItem("aicofounder.projects", JSON.stringify(fallbackProjects));
+
+    const missingSupabaseLoad = await loadModule({
+      createBrowserClient: vi.fn(() => null),
+    });
+    await missingSupabaseLoad.module.deleteProjectFromSupabase("remove");
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([fallbackProjects[0]]);
+
+    localStorage.setItem("aicofounder.projects", JSON.stringify(fallbackProjects));
+
+    const signedOutSupabase = createMockSupabase({}, [], {
+      data: { user: null },
+      error: null,
+    });
+    const signedOutLoad = await loadModule({
+      createBrowserClient: vi.fn(() => signedOutSupabase),
+    });
+    await signedOutLoad.module.deleteProjectFromSupabase("remove");
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([fallbackProjects[0]]);
   });
 });
