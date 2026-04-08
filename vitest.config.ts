@@ -1,8 +1,9 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({
+const config = defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
@@ -25,3 +26,5 @@ export default defineConfig({
     },
   },
 });
+
+export default config;

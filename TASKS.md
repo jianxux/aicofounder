@@ -44,7 +44,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 ### 5A. AI Agents / Memory Architecture
 - [x] Write technical spec for AI agents architecture inspired by `claude-code-sourcemap`: memory model, context compression, grep-based memory search, project/session scopes, and customer-facing Q&A flow
 - [x] Implement agent memory data model + persistence layer for long-term memory, short-term working memory, and compressed conversation summaries
-- [ ] Implement context compression pipeline so long chats can be summarized and reloaded into future agent turns safely
+- [x] Implement context compression pipeline so long chats can be summarized and reloaded into future agent turns safely
 - [x] Implement grep-style memory retrieval/search over stored memory/context with ranking heuristics and tests
 - [ ] Integrate memory + compression + retrieval into customer Q&A and business brainstorming flows
 - [ ] Add regression + integration tests for agent memory, compression, and retrieval behavior
