@@ -38,3 +38,32 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Real-time sync
 - [x] User onboarding flow
 - [x] Vercel deployment config
+
+## Phase 5: Agents, Research, Canvas Intelligence & Competitive Analysis
+
+### 5A. AI Agents / Memory Architecture
+- [x] Write technical spec for AI agents architecture inspired by `claude-code-sourcemap`: memory model, context compression, grep-based memory search, project/session scopes, and customer-facing Q&A flow
+- [ ] Implement agent memory data model + persistence layer for long-term memory, short-term working memory, and compressed conversation summaries
+- [ ] Implement context compression pipeline so long chats can be summarized and reloaded into future agent turns safely
+- [ ] Implement grep-style memory retrieval/search over stored memory/context with ranking heuristics and tests
+- [ ] Integrate memory + compression + retrieval into customer Q&A and business brainstorming flows
+- [ ] Add regression + integration tests for agent memory, compression, and retrieval behavior
+
+### 5B. Auto Research
+- [ ] Research `karpathy/autoresearch` architecture and write adaptation spec for AI Cofounder use cases
+- [ ] Implement auto-research orchestration flow for customer idea research (query planning, multi-step browsing/search, synthesis)
+- [ ] Add UI entry point and report rendering for auto-research runs inside project workspace
+- [ ] Add citations/source collection and structured output for research sessions
+- [ ] Add tests for research planner, orchestration, and result formatting
+
+### 5C. Canvas Mind Maps / Diagrams
+- [ ] Design mind map / diagram object model for canvas items, edges, layout metadata, and drag/drop behavior
+- [ ] Implement generated mind maps / diagrams on the right canvas based on brainstorming/research/project context
+- [ ] Add drag-and-drop interaction for generated diagram nodes while preserving layout state
+- [ ] Add edge rendering / relationship visualization between diagram nodes
+- [ ] Add tests for diagram generation, drag/drop behavior, and persistence
+
+### 5D. Competitive Research
+- [ ] Research competitors in AI idea validation / cofounder / startup research products and document implementation patterns worth copying
+- [ ] Produce competitor comparison memo covering features, UX patterns, research workflows, agent memory behavior, and canvas/diagram interfaces
+- [ ] Convert competitor insights into prioritized product recommendations and new follow-up tasks in this file
