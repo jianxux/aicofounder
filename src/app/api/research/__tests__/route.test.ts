@@ -2,15 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OpenAI from "openai";
 import { buildPromptMemory } from "@/lib/prompt-memory";
-import {
-  buildResearchPrompt,
-  buildSynthesisPrompt,
-  parseResearchResponse,
-  RESEARCH_ANGLES,
-} from "@/lib/research";
+import { runResearch } from "@/lib/research";
 
 vi.mock("openai", () => ({
   default: vi.fn(),
+}));
+
+vi.mock("@/lib/prompt-memory", () => ({
+  buildPromptMemory: vi.fn(),
 }));
 
 vi.mock("@/lib/research", async () => {
@@ -18,21 +17,13 @@ vi.mock("@/lib/research", async () => {
 
   return {
     ...actual,
-    buildResearchPrompt: vi.fn(),
-    buildSynthesisPrompt: vi.fn(),
-    parseResearchResponse: vi.fn(),
+    runResearch: vi.fn(),
   };
 });
 
-vi.mock("@/lib/prompt-memory", () => ({
-  buildPromptMemory: vi.fn(),
-}));
-
 const openAIConstructor = vi.mocked(OpenAI);
 const buildPromptMemoryMock = vi.mocked(buildPromptMemory);
-const buildResearchPromptMock = vi.mocked(buildResearchPrompt);
-const buildSynthesisPromptMock = vi.mocked(buildSynthesisPrompt);
-const parseResearchResponseMock = vi.mocked(parseResearchResponse);
+const runResearchMock = vi.mocked(runResearch);
 
 const createRequest = (body: unknown) =>
   new Request("http://localhost/api/research", {
@@ -51,7 +42,7 @@ describe("POST /api/research", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     buildPromptMemoryMock.mockReturnValue({
-      block: "",
+      block: "Relevant memory context:\nSignal",
       metadata: {
         query: "",
         entryIds: [],
@@ -60,8 +51,13 @@ describe("POST /api/research", () => {
         reloadTokenEstimate: 0,
       },
     });
-    buildResearchPromptMock.mockReturnValue("mocked research prompt");
-    buildSynthesisPromptMock.mockReturnValue("mocked synthesis prompt");
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: { completions: { create: vi.fn() } },
+        } as never;
+      },
+    );
   });
 
   afterEach(() => {
@@ -99,52 +95,29 @@ describe("POST /api/research", () => {
     expect(openAIConstructor).not.toHaveBeenCalled();
   });
 
-  it("returns a synthesized report when at least one section parses", async () => {
+  it("returns the report plus artifact on success", async () => {
     process.env.OPENAI_API_KEY = "test-key";
-
-    const create = vi
-      .fn()
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"market","title":"Market","angle":"A","findings":"F","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"technical","title":"Technical","angle":"B","findings":"G","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"competitive","title":"Competitive","angle":"C","findings":"H","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: "Opportunities outweigh immediate technical risks." } }],
-      });
-
-    openAIConstructor.mockImplementation(
-      function mockOpenAI() {
-        return {
-          chat: {
-            completions: {
-              create,
-            },
-          },
-        } as never;
+    runResearchMock.mockResolvedValue({
+      status: "completed",
+      generatedAt: "2026-04-08T16:12:00.000Z",
+      plan: {
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        researchQuestion: "What are the key opportunities and risks?",
+        budget: { maxAngles: 3, maxSections: 3, maxCitationsPerSection: 3 },
+        steps: [],
       },
-    );
-
-    parseResearchResponseMock
-      .mockReturnValueOnce({
-        id: "market",
-        title: "Market",
-        angle: "A",
-        findings: "F",
-        citations: [],
-      })
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce({
-        id: "competitive",
-        title: "Competitive",
-        angle: "C",
-        findings: "H",
-        citations: [],
-      });
+      report: {
+        sections: [{ id: "market", title: "Market", angle: "Demand", findings: "F", citations: [] }],
+        executiveSummary: "Summary",
+        researchQuestion: "What are the key opportunities and risks?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+      },
+      selectedSources: [],
+      rejectedSources: [],
+      metrics: { attemptedAngles: 3, completedSections: 1, selectedSources: 0, rejectedSources: 0 },
+      failures: [],
+    });
 
     const { POST } = await import("@/app/api/research/route");
     const response = await POST(
@@ -156,18 +129,13 @@ describe("POST /api/research", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      sections: [
-        {
-          id: "market",
-          title: "Market",
-        },
-        {
-          id: "competitive",
-          title: "Competitive",
-        },
-      ],
-      executiveSummary: "Opportunities outweigh immediate technical risks.",
+      sections: [{ id: "market", title: "Market" }],
+      executiveSummary: "Summary",
       researchQuestion: "What are the key opportunities and risks?",
+      artifact: {
+        status: "completed",
+        metrics: { attemptedAngles: 3 },
+      },
     });
     expect(openAIConstructor).toHaveBeenCalledWith({ apiKey: "test-key" });
     expect(buildPromptMemoryMock).toHaveBeenCalledWith({
@@ -175,147 +143,40 @@ describe("POST /api/research", () => {
       memoryEntries: undefined,
       memorySummaries: undefined,
     });
-    expect(buildResearchPromptMock).toHaveBeenCalledTimes(RESEARCH_ANGLES.length);
-    expect(buildResearchPromptMock).toHaveBeenNthCalledWith(
-      1,
-      RESEARCH_ANGLES[0].angle,
-      "Orbit",
-      "Startup research assistant",
-      "What are the key opportunities and risks?",
-      "",
-    );
-    expect(parseResearchResponseMock).toHaveBeenCalledTimes(RESEARCH_ANGLES.length);
-    expect(buildSynthesisPromptMock).toHaveBeenCalledWith(
-      [
-        {
-          id: "market",
-          title: "Market",
-          angle: "A",
-          findings: "F",
-          citations: [],
-        },
-        {
-          id: "competitive",
-          title: "Competitive",
-          angle: "C",
-          findings: "H",
-          citations: [],
-        },
-      ],
-      "What are the key opportunities and risks?",
-    );
-    expect(create).toHaveBeenCalledTimes(4);
-    expect(create).toHaveBeenLastCalledWith({
-      model: "gpt-4o-mini",
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: "mocked synthesis prompt" },
-        { role: "user", content: "Generate the executive summary." },
-      ],
-    });
-  });
-
-  it("returns 500 when no section parses successfully", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-
-    openAIConstructor.mockImplementation(
-      function mockOpenAI() {
-        return {
-          chat: {
-            completions: {
-              create: vi.fn().mockResolvedValue({
-                choices: [
-                  {
-                    message: {
-                      content: "bad response",
-                    },
-                  },
-                ],
-              }),
-            },
-          },
-        } as never;
-      },
-    );
-
-    parseResearchResponseMock.mockReturnValue(null);
-
-    const { POST } = await import("@/app/api/research/route");
-    const response = await POST(
-      createRequest({
+    expect(runResearchMock).toHaveBeenCalledWith(
+      expect.objectContaining({ chat: expect.any(Object) }),
+      {
         projectName: "Orbit",
         projectDescription: "Startup research assistant",
-      }),
+        researchQuestion: "What are the key opportunities and risks?",
+        memoryContextBlock: "Relevant memory context:\nSignal",
+      },
     );
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Failed to parse response" });
-    expect(buildSynthesisPromptMock).not.toHaveBeenCalled();
   });
 
-  it("passes memory payload through the helper and each prompt builder", async () => {
+  it("passes memory payload into the prompt memory helper", async () => {
     process.env.OPENAI_API_KEY = "test-key";
-
-    buildPromptMemoryMock.mockReturnValue({
-      block: "Relevant memory context:\nSignal",
-      metadata: {
-        query: "Orbit Startup research assistant Risks",
-        entryIds: ["entry-1"],
-        summaryIds: ["summary-1"],
-        summaryLevel: "session",
-        reloadTokenEstimate: 9,
+    runResearchMock.mockResolvedValue({
+      status: "completed",
+      generatedAt: "2026-04-08T16:12:00.000Z",
+      plan: {
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        researchQuestion: "Risks",
+        budget: { maxAngles: 3, maxSections: 3, maxCitationsPerSection: 3 },
+        steps: [],
       },
+      report: {
+        sections: [],
+        executiveSummary: "Summary",
+        researchQuestion: "Risks",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+      },
+      selectedSources: [],
+      rejectedSources: [],
+      metrics: { attemptedAngles: 0, completedSections: 0, selectedSources: 0, rejectedSources: 0 },
+      failures: [],
     });
-
-    const create = vi
-      .fn()
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"market","title":"Market","angle":"A","findings":"F","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"technical","title":"Technical","angle":"B","findings":"G","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"competitive","title":"Competitive","angle":"C","findings":"H","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: "summary" } }],
-      });
-
-    openAIConstructor.mockImplementation(
-      function mockOpenAI() {
-        return {
-          chat: {
-            completions: {
-              create,
-            },
-          },
-        } as never;
-      },
-    );
-
-    parseResearchResponseMock
-      .mockReturnValueOnce({
-        id: "market",
-        title: "Market",
-        angle: "A",
-        findings: "F",
-        citations: [],
-      })
-      .mockReturnValueOnce({
-        id: "technical",
-        title: "Technical",
-        angle: "B",
-        findings: "G",
-        citations: [],
-      })
-      .mockReturnValueOnce({
-        id: "competitive",
-        title: "Competitive",
-        angle: "C",
-        findings: "H",
-        citations: [],
-      });
 
     const { POST } = await import("@/app/api/research/route");
     await POST(
@@ -333,67 +194,31 @@ describe("POST /api/research", () => {
       memoryEntries: [{ id: "entry-1" }],
       memorySummaries: [{ id: "summary-1" }],
     });
-    expect(buildResearchPromptMock).toHaveBeenCalledWith(
-      RESEARCH_ANGLES[0].angle,
-      "Orbit",
-      "Startup research assistant",
-      "Risks",
-      "Relevant memory context:\nSignal",
-    );
   });
 
-  it("returns 500 when synthesis produces an empty summary", async () => {
+  it("returns 500 with artifact when orchestrator fails", async () => {
     process.env.OPENAI_API_KEY = "test-key";
-
-    const create = vi
-      .fn()
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"market","title":"Market","angle":"A","findings":"F","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"technical","title":"Technical","angle":"B","findings":"G","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: '{"id":"competitive","title":"Competitive","angle":"C","findings":"H","citations":[]}' } }],
-      })
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: "   " } }],
-      });
-
-    openAIConstructor.mockImplementation(
-      function mockOpenAI() {
-        return {
-          chat: {
-            completions: {
-              create,
-            },
-          },
-        } as never;
+    runResearchMock.mockResolvedValue({
+      status: "failed",
+      generatedAt: "2026-04-08T16:12:00.000Z",
+      plan: {
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        researchQuestion: "What are the key opportunities and risks?",
+        budget: { maxAngles: 3, maxSections: 3, maxCitationsPerSection: 3 },
+        steps: [],
       },
-    );
-
-    parseResearchResponseMock
-      .mockReturnValueOnce({
-        id: "market",
-        title: "Market",
-        angle: "A",
-        findings: "F",
-        citations: [],
-      })
-      .mockReturnValueOnce({
-        id: "technical",
-        title: "Technical",
-        angle: "B",
-        findings: "G",
-        citations: [],
-      })
-      .mockReturnValueOnce({
-        id: "competitive",
-        title: "Competitive",
-        angle: "C",
-        findings: "H",
-        citations: [],
-      });
+      report: {
+        sections: [],
+        executiveSummary: "Evidence is limited.",
+        researchQuestion: "What are the key opportunities and risks?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+      },
+      selectedSources: [],
+      rejectedSources: [],
+      metrics: { attemptedAngles: 3, completedSections: 0, selectedSources: 0, rejectedSources: 0 },
+      failures: [{ stage: "gather", code: "no-evidence", message: "No research sections passed validation" }],
+    });
 
     const { POST } = await import("@/app/api/research/route");
     const response = await POST(
@@ -404,7 +229,53 @@ describe("POST /api/research", () => {
     );
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Failed to synthesize report" });
+    await expect(response.json()).resolves.toMatchObject({
+      error: "No research sections passed validation",
+      artifact: {
+        status: "failed",
+      },
+    });
+  });
+
+  it("falls back to a generic error message when a failed artifact has no failures", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    runResearchMock.mockResolvedValue({
+      status: "failed",
+      generatedAt: "2026-04-08T16:12:00.000Z",
+      plan: {
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        researchQuestion: "What are the key opportunities and risks?",
+        budget: { maxAngles: 3, maxSections: 3, maxCitationsPerSection: 3 },
+        steps: [],
+      },
+      report: {
+        sections: [],
+        executiveSummary: "Evidence is limited.",
+        researchQuestion: "What are the key opportunities and risks?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+      },
+      selectedSources: [],
+      rejectedSources: [],
+      metrics: { attemptedAngles: 0, completedSections: 0, selectedSources: 0, rejectedSources: 0 },
+      failures: [],
+    });
+
+    const { POST } = await import("@/app/api/research/route");
+    const response = await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Failed to get AI response",
+      artifact: {
+        status: "failed",
+      },
+    });
   });
 
   it("returns a generic 500 when request parsing throws unexpectedly", async () => {

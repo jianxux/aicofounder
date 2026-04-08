@@ -51,7 +51,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 
 ### 5B. Auto Research
 - [x] Research `karpathy/autoresearch` architecture and write adaptation spec for AI Cofounder use cases
-- [ ] Implement auto-research orchestration flow for customer idea research (query planning, multi-step browsing/search, synthesis)
+- [x] Implement auto-research orchestration flow for customer idea research (query planning, multi-step browsing/search, synthesis)
 - [ ] Add UI entry point and report rendering for auto-research runs inside project workspace
 - [ ] Add citations/source collection and structured output for research sessions
 - [ ] Add tests for research planner, orchestration, and result formatting
