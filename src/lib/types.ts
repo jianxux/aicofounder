@@ -1,3 +1,5 @@
+import type { ResearchReport } from "@/lib/research";
+
 export type Sender = "user" | "assistant";
 
 export type ChatMessage = {
@@ -66,6 +68,15 @@ export type Phase = {
   tasks: PhaseTask[];
 };
 
+export type ProjectResearch = {
+  status: "success" | "error";
+  report?: ResearchReport;
+  errorMessage?: string;
+  researchQuestion: string;
+  sourceContext: string;
+  updatedAt: string;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -78,6 +89,7 @@ export type Project = {
   websiteBuilders?: WebsiteBuilderData[];
   messages: ChatMessage[];
   phases: Phase[];
+  research?: ProjectResearch | null;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -206,6 +218,61 @@ export const isPhase = (value: unknown): value is Phase => {
   );
 };
 
+const isResearchRelevance = (value: unknown): value is "high" | "medium" | "low" =>
+  value === "high" || value === "medium" || value === "low";
+
+const isResearchCitation = (value: unknown): boolean => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.source === "string" &&
+    typeof value.claim === "string" &&
+    isResearchRelevance(value.relevance) &&
+    (value.url === undefined || typeof value.url === "string")
+  );
+};
+
+const isResearchSection = (value: unknown): boolean => {
+  if (!isRecord(value) || !Array.isArray(value.citations)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.angle === "string" &&
+    typeof value.findings === "string" &&
+    value.citations.every(isResearchCitation)
+  );
+};
+
+export const isProjectResearch = (value: unknown): value is ProjectResearch => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.status !== "success" && value.status !== "error") {
+    return false;
+  }
+
+  return (
+    typeof value.researchQuestion === "string" &&
+    typeof value.sourceContext === "string" &&
+    typeof value.updatedAt === "string" &&
+    (value.errorMessage === undefined || typeof value.errorMessage === "string") &&
+    (value.report === undefined ||
+      (isRecord(value.report) &&
+        Array.isArray(value.report.sections) &&
+        value.report.sections.every(isResearchSection) &&
+        typeof value.report.executiveSummary === "string" &&
+        typeof value.report.researchQuestion === "string" &&
+        typeof value.report.generatedAt === "string"))
+  );
+};
+
 export const isProject = (value: unknown): value is Project => {
   if (
     !isRecord(value) ||
@@ -229,6 +296,7 @@ export const isProject = (value: unknown): value is Project => {
     (value.websiteBuilders == null ||
       (Array.isArray(value.websiteBuilders) && value.websiteBuilders.every(isWebsiteBuilderData))) &&
     value.messages.every(isChatMessage) &&
-    value.phases.every(isPhase)
+    value.phases.every(isPhase) &&
+    (value.research == null || isProjectResearch(value.research))
   );
 };

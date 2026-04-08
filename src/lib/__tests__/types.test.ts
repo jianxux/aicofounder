@@ -77,6 +77,36 @@ describe("lib/types guards", () => {
     documents: [documentCard],
     messages: [chatMessage],
     phases: [phase],
+    research: null,
+  };
+
+  const researchReport: types.ProjectResearch = {
+    status: "success",
+    researchQuestion: "What are the key opportunities and risks?",
+    sourceContext: "User asked for a market scan.",
+    updatedAt: "2025-01-02T00:00:00.000Z",
+    report: {
+      sections: [
+        {
+          id: "section-1",
+          title: "Market demand",
+          angle: "Demand",
+          findings: "Demand is growing.",
+          citations: [
+            {
+              id: "citation-1",
+              source: "Source",
+              claim: "Claim",
+              relevance: "high",
+              url: "https://example.com",
+            },
+          ],
+        },
+      ],
+      executiveSummary: "A concise summary.",
+      researchQuestion: "What are the key opportunities and risks?",
+      generatedAt: "2025-01-02T00:00:00.000Z",
+    },
   };
 
   it("accepts a valid ChatMessage", () => {
@@ -169,6 +199,11 @@ describe("lib/types guards", () => {
     expect(types.isProject(project)).toBe(true);
   });
 
+  it("accepts a valid ProjectResearch payload", () => {
+    expect(types.isProjectResearch(researchReport)).toBe(true);
+    expect(types.isProject({ ...project, research: researchReport })).toBe(true);
+  });
+
   it("rejects invalid validation patterns", () => {
     expect(types.isChatMessage({ ...chatMessage, sender: "system" })).toBe(false);
     expect(types.isStickyNoteData({ ...stickyNote, x: "120" })).toBe(false);
@@ -176,6 +211,10 @@ describe("lib/types guards", () => {
     expect(types.isPhaseTask({ ...phaseTask, done: "no" })).toBe(false);
     expect(types.isPhase({ ...phase, tasks: [{ ...phaseTask, done: "no" }] })).toBe(false);
     expect(types.isProject({ ...project, notes: [{ ...stickyNote, color: "blue" }] })).toBe(true);
+    expect(types.isProjectResearch({ ...researchReport, status: "loading" })).toBe(false);
+    expect(types.isProjectResearch({ ...researchReport, report: { ...researchReport.report, sections: [{}] } })).toBe(
+      false,
+    );
   });
 
   it.each(["amber", "", null, undefined, 123, {}, []])(

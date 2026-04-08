@@ -105,6 +105,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
         tasks: [{ id: "task-1", label: "Interview users", done: true }],
       },
     ],
+    research: null,
     ...overrides,
   };
 }
@@ -580,6 +581,39 @@ describe("lib/supabase-projects", () => {
     });
   });
 
+  it("fetchProjectById merges locally persisted research data into the remote project", async () => {
+    const localResearch = {
+      status: "success" as const,
+      researchQuestion: "What are the key opportunities and risks?",
+      sourceContext: "Saved locally",
+      updatedAt: "2025-01-20T00:00:00.000Z",
+      report: {
+        sections: [],
+        executiveSummary: "Stored summary",
+        researchQuestion: "What are the key opportunities and risks?",
+        generatedAt: "2025-01-20T00:00:00.000Z",
+      },
+    };
+    localStorage.setItem(
+      "aicofounder.projects",
+      JSON.stringify([makeProject({ id: "project-9", research: localResearch })]),
+    );
+    const mockSupabase = createMockSupabase(
+      {
+        projects: { maybeSingle: { data: makeProjectRow("project-9"), error: null } },
+        phase_tasks: { order: { data: makePhaseTasks("project-9"), error: null } },
+      },
+      [],
+    );
+    const { module } = await loadModule({
+      createBrowserClient: vi.fn(() => mockSupabase),
+    });
+
+    const project = await module.fetchProjectById("project-9");
+
+    expect(project?.research).toEqual(localResearch);
+  });
+
   it("fetchProjectById falls back to localStorage on query error and when no row exists", async () => {
     const fallbackProject = makeProject({ id: "project-2", name: "Local Project" });
     localStorage.setItem("aicofounder.projects", JSON.stringify([fallbackProject]));
@@ -630,6 +664,8 @@ describe("lib/supabase-projects", () => {
     });
 
     await module.saveProjectToSupabase(project);
+
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([project]);
 
     expect(operations).toContainEqual({
       table: "projects",

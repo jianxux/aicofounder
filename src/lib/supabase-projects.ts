@@ -7,6 +7,7 @@ import type {
   NoteColor,
   Phase,
   Project,
+  ProjectResearch,
   SectionData,
   StickyNoteData,
   WebsiteBuilderData,
@@ -182,6 +183,19 @@ function mapProjectRow(project: ProjectRow, tasks: DbPhaseTask[] | null | undefi
   };
 }
 
+function mergeLocalResearch(project: Project): Project {
+  const localProject = getProjectById(project.id);
+
+  if (!localProject?.research) {
+    return project;
+  }
+
+  return {
+    ...project,
+    research: localProject.research as ProjectResearch,
+  };
+}
+
 function mapProjectToDbProject(project: Project, userId: string): DbProject {
   return {
     id: project.id,
@@ -354,9 +368,11 @@ export async function fetchProjects(): Promise<Project[]> {
     const phaseTasks = await fetchPhaseTasks(projects.map((project) => project.id));
 
     return projects.map((project) =>
-      mapProjectRow(
-        project,
-        phaseTasks.filter((task) => task.project_id === project.id),
+      mergeLocalResearch(
+        mapProjectRow(
+          project,
+          phaseTasks.filter((task) => task.project_id === project.id),
+        ),
       ),
     );
   } catch (error) {
@@ -389,7 +405,7 @@ export async function fetchProjectById(id: string): Promise<Project | null> {
     }
 
     const phaseTasks = await fetchPhaseTasks([id]);
-    return mapProjectRow(data as ProjectRow, phaseTasks);
+    return mergeLocalResearch(mapProjectRow(data as ProjectRow, phaseTasks));
   } catch (error) {
     console.warn(`Failed to fetch project ${id} from Supabase, falling back to localStorage.`, error);
     return getProjectById(id);
@@ -397,11 +413,12 @@ export async function fetchProjectById(id: string): Promise<Project | null> {
 }
 
 export async function saveProjectToSupabase(project: Project): Promise<void> {
+  upsertProject(project);
+
   try {
     const { supabase, userId } = await getSupabaseUserId();
 
     if (!supabase || !userId) {
-      upsertProject(project);
       return;
     }
 

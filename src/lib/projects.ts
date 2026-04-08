@@ -101,6 +101,7 @@ export function createProjectRecord(): Project {
       },
     ],
     phases: createStarterPhases(),
+    research: null,
   };
 }
 
@@ -169,8 +170,9 @@ export async function getProject(id: string): Promise<Project | null> {
 }
 
 export async function saveProject(project: Project): Promise<void> {
+  upsertProject(project);
+
   if (!isSupabaseConfigured()) {
-    upsertProject(project);
     return Promise.resolve();
   }
 

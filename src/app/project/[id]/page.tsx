@@ -16,7 +16,7 @@ import { createProjectRecord, getProject, saveProject, upsertProject } from "@/l
 import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { fetchProjectById } from "@/lib/supabase-projects";
 import { UltraplanResult } from "@/lib/ultraplan";
-import { ChatMessage, DocumentCardData, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
+import { ChatMessage, DocumentCardData, Phase, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -35,12 +35,45 @@ export default function ProjectWorkspacePage() {
   const [activePanel, setActivePanel] = useState<"chat" | "canvas">("chat");
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isResearchLoading, setIsResearchLoading] = useState(false);
   const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null);
   const [ultraplanResult, setUltraplanResult] = useState<UltraplanResult | null>(null);
-  const [researchReport, setResearchReport] = useState<ResearchReportData | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
   const savingRef = useRef(false);
+
+  const normalizeProject = (value: Project): Project => ({
+    ...value,
+    sections: value.sections ?? [],
+    documents: value.documents ?? [],
+    websiteBuilders: value.websiteBuilders ?? [],
+    research: value.research ?? null,
+  });
+
+  const buildResearchContext = (currentProject: Project, phase: Phase | null) => {
+    const latestUserMessage = [...currentProject.messages]
+      .reverse()
+      .find((message) => message.sender === "user" && message.content.trim());
+
+    if (latestUserMessage) {
+      return {
+        sourceContext: latestUserMessage.content,
+        researchQuestion: "What are the key opportunities and risks?",
+      };
+    }
+
+    const incompleteTasks = phase?.tasks.filter((task) => !task.done).map((task) => task.label) ?? [];
+    const taskContext =
+      incompleteTasks.length > 0
+        ? `Open tasks: ${incompleteTasks.join(", ")}.`
+        : "No open tasks are listed for this phase yet.";
+    const sourceContext = `Current phase: ${phase?.title ?? "Getting started"}. ${taskContext}`;
+
+    return {
+      sourceContext,
+      researchQuestion: `What are the key opportunities and risks for the ${phase?.title ?? "Getting started"} phase?`,
+    };
+  };
 
   useEffect(() => {
     void trackEvent("workspace_view", {
@@ -54,12 +87,7 @@ export default function ProjectWorkspacePage() {
       const storedProject = await getProject(projectId);
 
       if (storedProject) {
-        const normalizedProject = {
-          ...storedProject,
-          sections: storedProject.sections ?? [],
-          documents: storedProject.documents ?? [],
-          websiteBuilders: storedProject.websiteBuilders ?? [],
-        };
+        const normalizedProject = normalizeProject(storedProject);
 
         if (!isMounted) {
           return;
@@ -79,9 +107,11 @@ export default function ProjectWorkspacePage() {
         return;
       }
 
-      projectRef.current = recoveredProject;
-      setProject(recoveredProject);
-      setActivePhaseId(recoveredProject.phases[0]?.id ?? "getting-started");
+      const normalizedProject = normalizeProject(recoveredProject);
+
+      projectRef.current = normalizedProject;
+      setProject(normalizedProject);
+      setActivePhaseId(normalizedProject.phases[0]?.id ?? "getting-started");
     };
 
     void loadProject();
@@ -109,12 +139,7 @@ export default function ProjectWorkspacePage() {
         return;
       }
 
-      const normalizedProject = {
-        ...remoteProject,
-        sections: remoteProject.sections ?? [],
-        documents: remoteProject.documents ?? [],
-        websiteBuilders: remoteProject.websiteBuilders ?? [],
-      };
+      const normalizedProject = normalizeProject(remoteProject);
 
       projectRef.current = normalizedProject;
       setProject(normalizedProject);
@@ -403,13 +428,14 @@ export default function ProjectWorkspacePage() {
       return;
     }
 
+    setActivePanel("canvas");
     setIsLoading(true);
+    setIsResearchLoading(true);
+
+    const existingResearch = currentProject.research;
+    const { sourceContext, researchQuestion } = buildResearchContext(currentProject, activePhase);
 
     try {
-      const latestUserMessage = [...currentProject.messages]
-        .reverse()
-        .find((message) => message.sender === "user" && message.content.trim());
-
       const response = await fetch("/api/research", {
         method: "POST",
         headers: {
@@ -417,25 +443,51 @@ export default function ProjectWorkspacePage() {
         },
         body: JSON.stringify({
           projectName: currentProject.name,
-          projectDescription:
-            latestUserMessage?.content ?? `Current phase: ${activePhase?.title ?? "Getting started"}`,
-          researchQuestion: "What are the key opportunities and risks?",
+          projectDescription: sourceContext,
+          researchQuestion,
         }),
       });
 
-      const payload = (await response.json()) as ResearchReportData | { error: string };
+      const payload = (await response.json()) as
+        | (ResearchReportData & { artifact?: unknown })
+        | { error: string };
 
       if (!response.ok || "error" in payload) {
-        throw new Error("Failed to run deep research");
+        throw new Error(("error" in payload && payload.error) || "Failed to run deep research");
       }
 
-      setResearchReport(payload);
-    } catch {
-      const baseProject = projectRef.current;
+      const latestProject = projectRef.current ?? currentProject;
+      const nextProject = {
+        ...latestProject,
+        research: {
+          status: "success" as const,
+          report: {
+            sections: payload.sections,
+            executiveSummary: payload.executiveSummary,
+            researchQuestion: payload.researchQuestion,
+            generatedAt: payload.generatedAt,
+          },
+          researchQuestion: payload.researchQuestion,
+          sourceContext,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+      persistProject(nextProject);
+    } catch (error) {
+      const baseProject = projectRef.current ?? currentProject;
 
       if (baseProject) {
         persistProject({
           ...baseProject,
+          research: {
+            status: "error",
+            errorMessage: error instanceof Error ? error.message : "Failed to run deep research",
+            researchQuestion,
+            sourceContext,
+            updatedAt: new Date().toISOString(),
+            report: existingResearch?.report,
+          },
           messages: [
             ...baseProject.messages,
             createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
@@ -443,6 +495,7 @@ export default function ProjectWorkspacePage() {
         });
       }
     } finally {
+      setIsResearchLoading(false);
       setIsLoading(false);
     }
   };
@@ -660,7 +713,23 @@ export default function ProjectWorkspacePage() {
             onSetActivePhase={handleSetActivePhase}
           />
           <div className="flex flex-col gap-4">
-            {researchReport ? <ResearchReport report={researchReport} /> : null}
+            <ResearchReport
+              status={
+                isResearchLoading
+                  ? "loading"
+                  : project.research?.status === "success" && project.research.report
+                    ? "success"
+                    : project.research?.status === "error"
+                      ? "error"
+                      : "empty"
+              }
+              report={project.research?.report ?? null}
+              errorMessage={project.research?.errorMessage}
+              lastUpdatedAt={project.research?.updatedAt}
+              researchQuestion={project.research?.researchQuestion}
+              sourceContext={project.research?.sourceContext}
+              onRunResearch={handleResearch}
+            />
             {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
@@ -698,7 +767,23 @@ export default function ProjectWorkspacePage() {
             />
           ) : (
             <div className="flex flex-col gap-4">
-              {researchReport ? <ResearchReport report={researchReport} /> : null}
+              <ResearchReport
+                status={
+                  isResearchLoading
+                    ? "loading"
+                    : project.research?.status === "success" && project.research.report
+                      ? "success"
+                      : project.research?.status === "error"
+                        ? "error"
+                        : "empty"
+                }
+                report={project.research?.report ?? null}
+                errorMessage={project.research?.errorMessage}
+                lastUpdatedAt={project.research?.updatedAt}
+                researchQuestion={project.research?.researchQuestion}
+                sourceContext={project.research?.sourceContext}
+                onRunResearch={handleResearch}
+              />
               {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
               {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
               <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">

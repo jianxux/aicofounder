@@ -52,6 +52,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
         tasks: [{ id: "task-1", label: "Write down the idea", done: false }],
       },
     ],
+    research: null,
     ...overrides,
   };
 }
@@ -81,6 +82,7 @@ describe("lib/projects", () => {
       expect(project.notes).toHaveLength(2);
       expect(project.notes.map((note) => note.title)).toEqual(["Idea", "Problem statement"]);
       expect(project.documents).toEqual([]);
+      expect(project.research).toBeNull();
 
       expect(project.messages).toHaveLength(1);
       expect(project.messages[0]).toMatchObject({
