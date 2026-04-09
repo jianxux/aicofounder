@@ -3,12 +3,14 @@
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import DocumentCard from "@/components/DocumentCard";
+import GeneratedDiagram from "@/components/GeneratedDiagram";
 import Section from "@/components/Section";
 import StickyNote from "@/components/StickyNote";
 import WebsiteBuilder from "@/components/WebsiteBuilder";
 import type {
   DocumentCardData,
   NoteColor,
+  ProjectDiagram,
   SectionData,
   StickyNoteData,
   WebsiteBuilderData,
@@ -19,6 +21,7 @@ type CanvasProps = {
   documents: DocumentCardData[];
   sections?: SectionData[];
   websiteBuilders?: WebsiteBuilderData[];
+  diagram?: ProjectDiagram;
   onChangeNotes: (notes: StickyNoteData[]) => void;
   onChangeDocuments: (documents: DocumentCardData[]) => void;
   onChangeSections?: (sections: SectionData[]) => void;
@@ -105,6 +108,7 @@ export default function Canvas({
   documents,
   sections = [],
   websiteBuilders = [],
+  diagram,
   onChangeNotes,
   onChangeDocuments,
   onChangeSections = () => undefined,
@@ -458,6 +462,7 @@ export default function Canvas({
             transformOrigin: "0 0",
           }}
         >
+          {diagram ? <GeneratedDiagram diagram={diagram} /> : null}
           {sections.map((section) => (
             <Section
               key={section.id}

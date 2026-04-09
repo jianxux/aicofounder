@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Canvas from "@/components/Canvas";
-import type { DocumentCardData, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
+import type { DocumentCardData, ProjectDiagram, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
 
 const createNote = (overrides: Partial<StickyNoteData> = {}): StickyNoteData => ({
   id: "note-1",
@@ -62,6 +62,68 @@ const createWebsiteBuilder = (overrides: Partial<WebsiteBuilderData> = {}): Webs
   x: 180,
   y: 200,
   ...overrides,
+});
+
+const createDiagram = (): ProjectDiagram => ({
+  nodes: [
+    {
+      id: "diagram-root",
+      type: "topic",
+      label: "Launchpad",
+      content: "AI planning workspace",
+      x: 980,
+      y: 840,
+      width: 260,
+      height: 100,
+      source: { type: "generated" },
+      style: { color: "yellow", shape: "pill" },
+    },
+    {
+      id: "branch:research",
+      type: "branch",
+      label: "Research",
+      x: 520,
+      y: 1320,
+      width: 220,
+      height: 70,
+      source: { type: "generated" },
+      style: { color: "purple", shape: "rounded_rect" },
+      layout: { parentId: "diagram-root", order: 0 },
+    },
+    {
+      id: "branch:research:summary",
+      type: "detail",
+      label: "Executive summary",
+      content: "Evidence points to fragmented founder workflows.",
+      x: 200,
+      y: 1320,
+      width: 250,
+      height: 84,
+      source: { type: "generated" },
+      style: { color: "purple", shape: "rounded_rect" },
+      layout: { parentId: "branch:research", order: 0 },
+    },
+  ],
+  edges: [
+    { id: "edge:diagram-root->branch:research", from: "diagram-root", to: "branch:research", type: "parent_child" },
+    {
+      id: "edge:branch:research->branch:research:summary",
+      from: "branch:research",
+      to: "branch:research:summary",
+      type: "parent_child",
+    },
+  ],
+  layout: {
+    algorithm: "mind_map",
+    direction: "horizontal",
+    rootNodeId: "diagram-root",
+    viewport: { x: 0, y: 0, zoom: 1 },
+  },
+  drag: {
+    snapToGrid: false,
+    gridSize: 24,
+    reparentOnDrop: true,
+  },
 });
 
 function CanvasStateHarness({
@@ -415,6 +477,24 @@ describe("Canvas", () => {
     );
 
     expect(getBoard()).toBeInTheDocument();
+  });
+
+  it("renders generated diagram content on the canvas without removing existing items", () => {
+    render(
+      <Canvas
+        notes={[createNote()]}
+        documents={[]}
+        diagram={createDiagram()}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("generated-diagram")).toBeInTheDocument();
+    expect(screen.getByText("Launchpad")).toBeInTheDocument();
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("Executive summary")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Launch plan")).toBeInTheDocument();
   });
 
   it("calls onChangeNotes with a patched note when a sticky note title changes", () => {

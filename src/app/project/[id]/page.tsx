@@ -11,6 +11,7 @@ import UltraplanReport from "@/components/UltraplanReport";
 import { useRealtimeProject } from "@/hooks/useRealtimeProject";
 import { trackEvent } from "@/lib/analytics";
 import { BrainstormResult } from "@/lib/brainstorm";
+import { generateProjectDiagram } from "@/lib/diagram-generation";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { resolveProjectResearchResponse, type ResearchApiFailure, type ResearchApiSuccess } from "@/lib/project-research";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
@@ -33,6 +34,13 @@ function createMessage(sender: "user" | "assistant", content: string): ChatMessa
     sender,
     content,
     createdAt: new Date().toISOString(),
+  };
+}
+
+function withGeneratedDiagram(project: Project, options?: { brainstormResult?: BrainstormResult | null }): Project {
+  return {
+    ...project,
+    diagram: generateProjectDiagram(project, options),
   };
 }
 
@@ -88,7 +96,7 @@ export default function ProjectWorkspacePage() {
       const storedProject = await getProject(projectId);
 
       if (storedProject) {
-        const normalizedProject = normalizeProject(storedProject);
+        const normalizedProject = withGeneratedDiagram(normalizeProject(storedProject));
 
         if (!isMounted) {
           return;
@@ -108,7 +116,7 @@ export default function ProjectWorkspacePage() {
         return;
       }
 
-      const normalizedProject = normalizeProject(recoveredProject);
+      const normalizedProject = withGeneratedDiagram(normalizeProject(recoveredProject));
 
       projectRef.current = normalizedProject;
       setProject(normalizedProject);
@@ -140,7 +148,7 @@ export default function ProjectWorkspacePage() {
         return;
       }
 
-      const normalizedProject = normalizeProject(remoteProject);
+      const normalizedProject = withGeneratedDiagram(normalizeProject(remoteProject));
 
       projectRef.current = normalizedProject;
       setProject(normalizedProject);
@@ -153,7 +161,7 @@ export default function ProjectWorkspacePage() {
   });
 
   const persistProject = (nextProject: Project) => {
-    const updated = { ...nextProject, updatedAt: new Date().toISOString() };
+    const updated = withGeneratedDiagram({ ...nextProject, updatedAt: new Date().toISOString() });
     projectRef.current = updated;
     setProject(updated);
     savingRef.current = true;
@@ -165,6 +173,10 @@ export default function ProjectWorkspacePage() {
   const activePhase = useMemo(
     () => project?.phases.find((phase) => phase.id === activePhaseId) ?? project?.phases[0] ?? null,
     [activePhaseId, project?.phases],
+  );
+  const generatedDiagram = useMemo(
+    () => (project ? generateProjectDiagram(project, { brainstormResult }) : undefined),
+    [brainstormResult, project],
   );
 
   const handleNameChange = (name: string) => {
@@ -764,6 +776,7 @@ export default function ProjectWorkspacePage() {
                 sections={project.sections ?? []}
                 documents={project.documents ?? []}
                 websiteBuilders={project.websiteBuilders ?? []}
+                diagram={generatedDiagram}
                 onChangeNotes={handleNotesChange}
                 onChangeSections={handleSectionsChange}
                 onChangeDocuments={handleDocumentsChange}
@@ -819,6 +832,7 @@ export default function ProjectWorkspacePage() {
                   sections={project.sections ?? []}
                   documents={project.documents ?? []}
                   websiteBuilders={project.websiteBuilders ?? []}
+                  diagram={generatedDiagram}
                   onChangeNotes={handleNotesChange}
                   onChangeSections={handleSectionsChange}
                   onChangeDocuments={handleDocumentsChange}
