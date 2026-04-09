@@ -24,6 +24,7 @@ import {
   SectionData,
   StickyNoteData,
   WebsiteBuilderData,
+  normalizeProject,
 } from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
@@ -49,14 +50,6 @@ export default function ProjectWorkspacePage() {
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
   const savingRef = useRef(false);
-
-  const normalizeProject = (value: Project): Project => ({
-    ...value,
-    sections: value.sections ?? [],
-    documents: value.documents ?? [],
-    websiteBuilders: value.websiteBuilders ?? [],
-    research: value.research ?? null,
-  });
 
   const buildResearchContext = (currentProject: Project, phase: Phase | null) => {
     const latestUserMessage = [...currentProject.messages]

@@ -1,4 +1,4 @@
-import { Project } from "@/lib/types";
+import { createDefaultProjectDiagram, isProject, normalizeProject, Project } from "@/lib/types";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 const STORAGE_KEY = "aicofounder.projects";
@@ -81,8 +81,21 @@ function createStarterPhases() {
   ];
 }
 
+function repairStoredProject(value: unknown): Project | null {
+  if (isProject(value)) {
+    return normalizeProject(value);
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const repairedValue = { ...value, diagram: createDefaultProjectDiagram() };
+  return isProject(repairedValue) ? normalizeProject(repairedValue) : null;
+}
+
 export function createProjectRecord(): Project {
-  return {
+  return normalizeProject({
     id: createId(),
     name: "Untitled Project",
     description: "A new concept taking shape with your AI cofounder.",
@@ -102,7 +115,7 @@ export function createProjectRecord(): Project {
     ],
     phases: createStarterPhases(),
     research: null,
-  };
+  });
 }
 
 export function getStoredProjects(): Project[] {
@@ -117,8 +130,8 @@ export function getStoredProjects(): Project[] {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Project[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.map(repairStoredProject).filter((project) => project !== null) : [];
   } catch {
     return [];
   }

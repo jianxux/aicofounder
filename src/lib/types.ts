@@ -56,6 +56,77 @@ export type WebsiteBuilderData = {
   y: number;
 };
 
+export type DiagramLinkedCanvasItemKind = "note" | "section" | "document" | "website_builder";
+
+export type DiagramNodeType = "topic" | "branch" | "detail" | "reference";
+
+export type DiagramNodeShape = "pill" | "rounded_rect" | "circle";
+
+export type DiagramNodeSource =
+  | {
+      type: "generated";
+    }
+  | {
+      type: "canvas_item";
+      itemKind: DiagramLinkedCanvasItemKind;
+      itemId: string;
+    };
+
+export type DiagramNode = {
+  id: string;
+  type: DiagramNodeType;
+  label: string;
+  content?: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  source?: DiagramNodeSource;
+  style?: {
+    color?: NoteColor;
+    shape?: DiagramNodeShape;
+  };
+  layout?: {
+    parentId?: string;
+    order?: number;
+    collapsed?: boolean;
+  };
+};
+
+export type DiagramEdgeType = "parent_child" | "association";
+
+export type DiagramEdge = {
+  id: string;
+  from: string;
+  to: string;
+  type: DiagramEdgeType;
+  label?: string;
+};
+
+export type DiagramLayoutMetadata = {
+  algorithm: "manual" | "mind_map";
+  direction: "horizontal" | "vertical" | "radial";
+  rootNodeId?: string;
+  viewport: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+};
+
+export type DiagramDragMetadata = {
+  snapToGrid: boolean;
+  gridSize: number;
+  reparentOnDrop: boolean;
+};
+
+export type ProjectDiagram = {
+  nodes: DiagramNode[];
+  edges: DiagramEdge[];
+  layout: DiagramLayoutMetadata;
+  drag: DiagramDragMetadata;
+};
+
 export type PhaseTask = {
   id: string;
   label: string;
@@ -106,10 +177,13 @@ export type Project = {
   messages: ChatMessage[];
   phases: Phase[];
   research?: ProjectResearch | null;
+  diagram?: ProjectDiagram;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
 export const isSender = (value: unknown): value is Sender =>
   value === "user" || value === "assistant";
@@ -207,6 +281,114 @@ export const isWebsiteBuilderData = (value: unknown): value is WebsiteBuilderDat
     value.blocks.every(isWebsiteBlock) &&
     typeof value.x === "number" &&
     typeof value.y === "number"
+  );
+};
+
+export const isDiagramLinkedCanvasItemKind = (value: unknown): value is DiagramLinkedCanvasItemKind =>
+  value === "note" || value === "section" || value === "document" || value === "website_builder";
+
+export const isDiagramNodeType = (value: unknown): value is DiagramNodeType =>
+  value === "topic" || value === "branch" || value === "detail" || value === "reference";
+
+export const isDiagramNodeShape = (value: unknown): value is DiagramNodeShape =>
+  value === "pill" || value === "rounded_rect" || value === "circle";
+
+export const isDiagramNodeSource = (value: unknown): value is DiagramNodeSource => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.type === "generated") {
+    return true;
+  }
+
+  return value.type === "canvas_item" && isDiagramLinkedCanvasItemKind(value.itemKind) && typeof value.itemId === "string";
+};
+
+export const isDiagramNode = (value: unknown): value is DiagramNode => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const style = value.style;
+  const layout = value.layout;
+
+  return (
+    typeof value.id === "string" &&
+    isDiagramNodeType(value.type) &&
+    typeof value.label === "string" &&
+    (value.content === undefined || typeof value.content === "string") &&
+    isFiniteNumber(value.x) &&
+    isFiniteNumber(value.y) &&
+    (value.width === undefined || isFiniteNumber(value.width)) &&
+    (value.height === undefined || isFiniteNumber(value.height)) &&
+    (value.source === undefined || isDiagramNodeSource(value.source)) &&
+    (style === undefined ||
+      (isRecord(style) &&
+        (style.color === undefined || isNoteColor(style.color)) &&
+        (style.shape === undefined || isDiagramNodeShape(style.shape)))) &&
+    (layout === undefined ||
+      (isRecord(layout) &&
+        (layout.parentId === undefined || typeof layout.parentId === "string") &&
+        (layout.order === undefined || isFiniteNumber(layout.order)) &&
+        (layout.collapsed === undefined || typeof layout.collapsed === "boolean")))
+  );
+};
+
+export const isDiagramEdgeType = (value: unknown): value is DiagramEdgeType =>
+  value === "parent_child" || value === "association";
+
+export const isDiagramEdge = (value: unknown): value is DiagramEdge => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.from === "string" &&
+    typeof value.to === "string" &&
+    isDiagramEdgeType(value.type) &&
+    (value.label === undefined || typeof value.label === "string")
+  );
+};
+
+export const isDiagramLayoutMetadata = (value: unknown): value is DiagramLayoutMetadata => {
+  if (!isRecord(value) || !isRecord(value.viewport)) {
+    return false;
+  }
+
+  return (
+    (value.algorithm === "manual" || value.algorithm === "mind_map") &&
+    (value.direction === "horizontal" || value.direction === "vertical" || value.direction === "radial") &&
+    (value.rootNodeId === undefined || typeof value.rootNodeId === "string") &&
+    isFiniteNumber(value.viewport.x) &&
+    isFiniteNumber(value.viewport.y) &&
+    isFiniteNumber(value.viewport.zoom)
+  );
+};
+
+export const isDiagramDragMetadata = (value: unknown): value is DiagramDragMetadata => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.snapToGrid === "boolean" &&
+    isFiniteNumber(value.gridSize) &&
+    typeof value.reparentOnDrop === "boolean"
+  );
+};
+
+export const isProjectDiagram = (value: unknown): value is ProjectDiagram => {
+  if (!isRecord(value) || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) {
+    return false;
+  }
+
+  return (
+    value.nodes.every(isDiagramNode) &&
+    value.edges.every(isDiagramEdge) &&
+    isDiagramLayoutMetadata(value.layout) &&
+    isDiagramDragMetadata(value.drag)
   );
 };
 
@@ -523,6 +705,39 @@ export const isProject = (value: unknown): value is Project => {
       (Array.isArray(value.websiteBuilders) && value.websiteBuilders.every(isWebsiteBuilderData))) &&
     value.messages.every(isChatMessage) &&
     value.phases.every(isPhase) &&
-    (value.research == null || isProjectResearch(value.research))
+    (value.research == null || isProjectResearch(value.research)) &&
+    (value.diagram === undefined || isProjectDiagram(value.diagram))
   );
 };
+
+export function createDefaultProjectDiagram(): ProjectDiagram {
+  return {
+    nodes: [],
+    edges: [],
+    layout: {
+      algorithm: "manual",
+      direction: "radial",
+      viewport: {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      },
+    },
+    drag: {
+      snapToGrid: false,
+      gridSize: 24,
+      reparentOnDrop: true,
+    },
+  };
+}
+
+export function normalizeProject(value: Project): Project {
+  return {
+    ...value,
+    sections: value.sections ?? [],
+    documents: value.documents ?? [],
+    websiteBuilders: value.websiteBuilders ?? [],
+    research: value.research ?? null,
+    diagram: value.diagram ?? createDefaultProjectDiagram(),
+  };
+}

@@ -1,13 +1,13 @@
 import { createProjectRecord, getProjectById, getStoredProjects, saveStoredProjects, upsertProject } from "@/lib/projects";
 import type { DbCanvasItem, DbMessage, DbPhase, DbPhaseTask, DbProject } from "@/lib/database.types";
 import { createBrowserClient } from "@/lib/supabase";
+import { normalizeProject } from "@/lib/types";
 import type {
   ChatMessage,
   DocumentCardData,
   NoteColor,
   Phase,
   Project,
-  ProjectResearch,
   SectionData,
   StickyNoteData,
   WebsiteBuilderData,
@@ -183,17 +183,18 @@ function mapProjectRow(project: ProjectRow, tasks: DbPhaseTask[] | null | undefi
   };
 }
 
-function mergeLocalResearch(project: Project): Project {
+function mergeLocalProjectState(project: Project): Project {
   const localProject = getProjectById(project.id);
 
-  if (!localProject?.research) {
-    return project;
+  if (!localProject) {
+    return normalizeProject(project);
   }
 
-  return {
+  return normalizeProject({
     ...project,
-    research: localProject.research as ProjectResearch,
-  };
+    research: localProject.research ?? project.research ?? null,
+    diagram: localProject.diagram ?? project.diagram,
+  });
 }
 
 function mapProjectToDbProject(project: Project, userId: string): DbProject {
@@ -368,7 +369,7 @@ export async function fetchProjects(): Promise<Project[]> {
     const phaseTasks = await fetchPhaseTasks(projects.map((project) => project.id));
 
     return projects.map((project) =>
-      mergeLocalResearch(
+      mergeLocalProjectState(
         mapProjectRow(
           project,
           phaseTasks.filter((task) => task.project_id === project.id),
@@ -405,7 +406,7 @@ export async function fetchProjectById(id: string): Promise<Project | null> {
     }
 
     const phaseTasks = await fetchPhaseTasks([id]);
-    return mergeLocalResearch(mapProjectRow(data as ProjectRow, phaseTasks));
+    return mergeLocalProjectState(mapProjectRow(data as ProjectRow, phaseTasks));
   } catch (error) {
     console.warn(`Failed to fetch project ${id} from Supabase, falling back to localStorage.`, error);
     return getProjectById(id);

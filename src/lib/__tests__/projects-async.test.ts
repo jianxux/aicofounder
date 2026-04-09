@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/lib/types";
+import { createDefaultProjectDiagram, type Project } from "@/lib/types";
 
 function makeProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -36,6 +36,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
         tasks: [{ id: "task-1", label: "Write down the idea", done: false }],
       },
     ],
+    research: null,
+    diagram: createDefaultProjectDiagram(),
     ...overrides,
   };
 }

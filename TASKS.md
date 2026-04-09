@@ -57,7 +57,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Add tests for research planner, orchestration, and result formatting
 
 ### 5C. Canvas Mind Maps / Diagrams
-- [ ] Design mind map / diagram object model for canvas items, edges, layout metadata, and drag/drop behavior
+- [x] Design mind map / diagram object model for canvas items, edges, layout metadata, and drag/drop behavior
 - [ ] Implement generated mind maps / diagrams on the right canvas based on brainstorming/research/project context
 - [ ] Add drag-and-drop interaction for generated diagram nodes while preserving layout state
 - [ ] Add edge rendering / relationship visualization between diagram nodes

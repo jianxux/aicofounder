@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectWorkspacePage from "@/app/project/[id]/page";
-import type { Project } from "@/lib/types";
+import { createDefaultProjectDiagram, type Project } from "@/lib/types";
 
 const push = vi.fn();
 const mockGetProject = vi.fn();
@@ -138,6 +138,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       },
     ],
     research: null,
+    diagram: createDefaultProjectDiagram(),
     ...overrides,
   };
 }

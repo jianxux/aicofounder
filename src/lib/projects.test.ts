@@ -1,4 +1,4 @@
-import { isProject, type Project } from "@/lib/types";
+import { createDefaultProjectDiagram, isProject, type Project } from "@/lib/types";
 import {
   createAndStoreProject,
   createProjectRecord,
@@ -28,6 +28,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       },
     ],
     sections: [],
+    websiteBuilders: [],
     documents: [
       {
         id: "doc-1",
@@ -53,6 +54,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       },
     ],
     research: null,
+    diagram: createDefaultProjectDiagram(),
     ...overrides,
   };
 }
@@ -83,6 +85,20 @@ describe("lib/projects", () => {
       expect(project.notes.map((note) => note.title)).toEqual(["Idea", "Problem statement"]);
       expect(project.documents).toEqual([]);
       expect(project.research).toBeNull();
+      expect(project.diagram).toEqual({
+        nodes: [],
+        edges: [],
+        layout: {
+          algorithm: "manual",
+          direction: "radial",
+          viewport: { x: 0, y: 0, zoom: 1 },
+        },
+        drag: {
+          snapToGrid: false,
+          gridSize: 24,
+          reparentOnDrop: true,
+        },
+      });
 
       expect(project.messages).toHaveLength(1);
       expect(project.messages[0]).toMatchObject({
@@ -156,6 +172,40 @@ describe("lib/projects", () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 
       expect(getStoredProjects()).toEqual(projects);
+    });
+
+    it("normalizes legacy projects that do not yet include diagram data", () => {
+      const { diagram, ...legacyProject } = makeProject();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([legacyProject]));
+
+      const [storedProject] = getStoredProjects();
+
+      expect(diagram).toEqual(createDefaultProjectDiagram());
+      expect(storedProject?.diagram).toEqual(createDefaultProjectDiagram());
+    });
+
+    it("repairs an invalid persisted diagram payload to the default diagram", () => {
+      const malformedDiagramProject = makeProject({
+        diagram: { nodes: [], edges: [] } as Project["diagram"],
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([malformedDiagramProject]));
+
+      const [storedProject] = getStoredProjects();
+
+      expect(storedProject?.diagram).toEqual(createDefaultProjectDiagram());
+    });
+
+    it("keeps a project with malformed persisted diagram data instead of discarding it", () => {
+      const malformedDiagramProject = makeProject({
+        id: "project-with-bad-diagram",
+        diagram: { nodes: [], edges: [] } as Project["diagram"],
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([malformedDiagramProject]));
+
+      const storedProjects = getStoredProjects();
+
+      expect(storedProjects).toHaveLength(1);
+      expect(storedProjects[0]?.id).toBe("project-with-bad-diagram");
     });
   });
 

@@ -66,6 +66,72 @@ describe("lib/types guards", () => {
     tasks: [phaseTask],
   };
 
+  const diagramNode: types.DiagramNode = {
+    id: "diagram-node-1",
+    type: "topic",
+    label: "Core idea",
+    content: "Start here",
+    x: 240,
+    y: 120,
+    source: {
+      type: "canvas_item",
+      itemKind: "note",
+      itemId: stickyNote.id,
+    },
+    style: {
+      color: "yellow",
+      shape: "pill",
+    },
+    layout: {
+      order: 0,
+      collapsed: false,
+    },
+  };
+
+  const diagramEdge: types.DiagramEdge = {
+    id: "diagram-edge-1",
+    from: diagramNode.id,
+    to: "diagram-node-2",
+    type: "parent_child",
+    label: "expands to",
+  };
+
+  const projectDiagram: types.ProjectDiagram = {
+    nodes: [
+      diagramNode,
+      {
+        id: "diagram-node-2",
+        type: "detail",
+        label: "Customer pain",
+        x: 420,
+        y: 180,
+        source: {
+          type: "generated",
+        },
+        layout: {
+          parentId: diagramNode.id,
+          order: 1,
+        },
+      },
+    ],
+    edges: [diagramEdge],
+    layout: {
+      algorithm: "mind_map",
+      direction: "radial",
+      rootNodeId: diagramNode.id,
+      viewport: {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      },
+    },
+    drag: {
+      snapToGrid: false,
+      gridSize: 24,
+      reparentOnDrop: true,
+    },
+  };
+
   const project: types.Project = {
     id: "project-1",
     name: "AI Cofounder",
@@ -78,6 +144,7 @@ describe("lib/types guards", () => {
     messages: [chatMessage],
     phases: [phase],
     research: null,
+    diagram: projectDiagram,
   };
 
   const researchReport: types.ProjectResearch = {
@@ -216,6 +283,15 @@ describe("lib/types guards", () => {
     expect(types.isProject(project)).toBe(true);
   });
 
+  it("accepts a valid ProjectDiagram with linked and generated nodes", () => {
+    expect(types.isDiagramLinkedCanvasItemKind("note")).toBe(true);
+    expect(types.isDiagramNode(diagramNode)).toBe(true);
+    expect(types.isDiagramEdge(diagramEdge)).toBe(true);
+    expect(types.isDiagramLayoutMetadata(projectDiagram.layout)).toBe(true);
+    expect(types.isDiagramDragMetadata(projectDiagram.drag)).toBe(true);
+    expect(types.isProjectDiagram(projectDiagram)).toBe(true);
+  });
+
   it("accepts a valid ProjectResearch payload", () => {
     expect(types.isProjectResearch(researchReport)).toBe(true);
     expect(types.isProject({ ...project, research: researchReport })).toBe(true);
@@ -249,6 +325,11 @@ describe("lib/types guards", () => {
       false,
     );
     expect(types.isProjectResearchArtifact({ status: "completed", metrics: { attemptedAngles: "3" } })).toBe(false);
+    expect(types.isDiagramNode({ ...diagramNode, source: { type: "canvas_item", itemKind: "sticky", itemId: "1" } })).toBe(
+      false,
+    );
+    expect(types.isDiagramEdge({ ...diagramEdge, type: "invalid" })).toBe(false);
+    expect(types.isProjectDiagram({ ...projectDiagram, drag: { snapToGrid: true, gridSize: "24" } })).toBe(false);
   });
 
   it.each(["amber", "", null, undefined, 123, {}, []])(
@@ -349,7 +430,26 @@ describe("lib/types guards", () => {
     expect(types.isProject(legacyProject)).toBe(true);
   });
 
+  it("accepts Project with undefined diagram (backward compat)", () => {
+    const { diagram, ...legacyProject } = project;
+    expect(types.isProject(legacyProject)).toBe(true);
+  });
+
   it("rejects Project with invalid sections array", () => {
     expect(types.isProject({ ...project, sections: [{ id: "bad" }] })).toBe(false);
+  });
+
+  it("rejects Project with an invalid diagram", () => {
+    expect(types.isProject({ ...project, diagram: { nodes: [], edges: [] } })).toBe(false);
+  });
+
+  it("normalizes missing optional project fields to safe defaults", () => {
+    const { sections, websiteBuilders, research, diagram, ...legacyProject } = project;
+    const normalized = types.normalizeProject(legacyProject);
+
+    expect(normalized.sections).toEqual([]);
+    expect(normalized.websiteBuilders).toEqual([]);
+    expect(normalized.research).toBeNull();
+    expect(normalized.diagram).toEqual(types.createDefaultProjectDiagram());
   });
 });

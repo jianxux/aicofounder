@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/lib/types";
+import { createDefaultProjectDiagram, type Project } from "@/lib/types";
 import type { DbCanvasItem, DbMessage, DbPhase, DbPhaseTask, DbProject } from "@/lib/database.types";
 
 type QueryResult<T = unknown> = { data: T | null; error: Error | null };
@@ -106,6 +106,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       },
     ],
     research: null,
+    diagram: createDefaultProjectDiagram(),
     ...overrides,
   };
 }
@@ -470,6 +471,8 @@ describe("lib/supabase-projects", () => {
           ],
         },
       ],
+      research: null,
+      diagram: createDefaultProjectDiagram(),
     });
 
     expect(operations).toContainEqual({
@@ -594,9 +597,24 @@ describe("lib/supabase-projects", () => {
         generatedAt: "2025-01-20T00:00:00.000Z",
       },
     };
+    const localDiagram = {
+      ...createDefaultProjectDiagram(),
+      nodes: [
+        {
+          id: "diagram-node-1",
+          type: "topic" as const,
+          label: "Saved locally",
+          x: 100,
+          y: 120,
+          source: {
+            type: "generated" as const,
+          },
+        },
+      ],
+    };
     localStorage.setItem(
       "aicofounder.projects",
-      JSON.stringify([makeProject({ id: "project-9", research: localResearch })]),
+      JSON.stringify([makeProject({ id: "project-9", research: localResearch, diagram: localDiagram })]),
     );
     const mockSupabase = createMockSupabase(
       {
@@ -612,6 +630,7 @@ describe("lib/supabase-projects", () => {
     const project = await module.fetchProjectById("project-9");
 
     expect(project?.research).toEqual(localResearch);
+    expect(project?.diagram).toEqual(localDiagram);
   });
 
   it("fetchProjectById falls back to localStorage on query error and when no row exists", async () => {
