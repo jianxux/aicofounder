@@ -61,7 +61,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Implement generated mind maps / diagrams on the right canvas based on brainstorming/research/project context
 - [x] Add drag-and-drop interaction for generated diagram nodes while preserving layout state
 - [x] Add edge rendering / relationship visualization between diagram nodes
-- [ ] Add tests for diagram generation, drag/drop behavior, and persistence
+- [x] Add tests for diagram generation, drag/drop behavior, and persistence
 
 ### 5D. Competitive Research
 - [ ] Research competitors in AI idea validation / cofounder / startup research products and document implementation patterns worth copying

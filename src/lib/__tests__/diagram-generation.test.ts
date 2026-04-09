@@ -211,7 +211,123 @@ describe("generateProjectDiagram", () => {
     });
   });
 
-  it("reuses persisted node coordinates for matching ids during regeneration", () => {
+  it("handles research errors", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "error",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What are the strongest demand signals?",
+          sourceContext: "Discovery phase",
+          errorMessage: "Source fetch failed after repeated retries.",
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:error")).toMatchObject({
+      label: "Research blocked",
+      content: "Source fetch failed after repeated retries.",
+      layout: {
+        parentId: "branch:research",
+        order: 0,
+      },
+    });
+    expect(diagram.edges).toContainEqual({
+      id: "edge:branch:research->branch:research:research:error",
+      from: "branch:research",
+      to: "branch:research:research:error",
+      type: "parent_child",
+    });
+  });
+
+  it("handles successful research with no report", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What are the strongest demand signals?",
+          sourceContext: "Discovery phase",
+          report: null,
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research")).toMatchObject({
+      id: "branch:research",
+      label: "Research",
+    });
+    expect(diagram.nodes.filter((node) => node.id.startsWith("branch:research:"))).toEqual([]);
+    expect(diagram.edges.filter((edge) => edge.from === "branch:research")).toEqual([]);
+  });
+
+  it("falls back to sections when key findings are absent", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What are the strongest demand signals?",
+          sourceContext: "Discovery phase",
+          report: {
+            executiveSummary: "The strongest signal is repeated frustration with fragmented workflows.",
+            researchQuestion: "What are the strongest demand signals?",
+            generatedAt: "2025-01-12T00:00:00.000Z",
+            sections: [
+              {
+                id: "section-demand",
+                title: "Demand",
+                angle: "Market demand",
+                findings: "Founders repeatedly mention scattered notes and decisions.",
+                citations: [],
+              },
+              {
+                id: "section-workflow",
+                title: "Workflow",
+                angle: "Workflow friction",
+                findings: "Teams lose momentum when research never turns into prioritized next steps.",
+                citations: [],
+              },
+            ],
+            keyFindings: [],
+            sources: [
+              {
+                id: "source-1",
+                title: "Indie Hackers thread",
+                canonicalId: "indie-hackers-thread",
+                sourceType: "community",
+                status: "selected",
+                citationIds: [],
+                sectionIds: [],
+                domain: "indiehackers.com",
+                claimCount: 1,
+              },
+            ],
+          },
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:summary")).toMatchObject({
+      label: "Executive summary",
+    });
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:section:section-demand")).toMatchObject({
+      label: "Demand",
+      content: "Founders repeatedly mention scattered notes and decisions.",
+    });
+    expect(
+      diagram.nodes.find((node) => node.id === "branch:research:research:section:section-workflow"),
+    ).toMatchObject({
+      label: "Workflow",
+      content: "Teams lose momentum when research never turns into prioritized next steps.",
+    });
+    expect(diagram.nodes.some((node) => node.id.startsWith("branch:research:research:finding:"))).toBe(false);
+  });
+
+  it("regenerates using persisted node positions", () => {
     const diagram = generateProjectDiagram(
       makeProject({
         diagram: {
@@ -281,5 +397,216 @@ describe("generateProjectDiagram", () => {
       gridSize: 32,
       reparentOnDrop: false,
     });
+  });
+
+  it("builds a research error node when the latest research run failed", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "error",
+          errorMessage: "Supabase rate limit",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What is blocking founders?",
+          sourceContext: "Discovery phase",
+          report: null,
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:error")).toMatchObject({
+      label: "Research blocked",
+      content: "Supabase rate limit",
+      layout: {
+        parentId: "branch:research",
+        order: 0,
+      },
+    });
+    expect(diagram.edges).toContainEqual({
+      id: "edge:branch:research->branch:research:research:error",
+      from: "branch:research",
+      to: "branch:research:research:error",
+      type: "parent_child",
+    });
+  });
+
+  it("keeps the research branch empty when a successful run has no report yet", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What is blocking founders?",
+          sourceContext: "Discovery phase",
+          report: null,
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.some((node) => node.id.startsWith("branch:research:research:"))).toBe(false);
+    expect(diagram.edges.some((edge) => edge.from === "branch:research" && edge.to.startsWith("branch:research:research:"))).toBe(
+      false,
+    );
+  });
+
+  it("falls back to research sections and source type when key findings and domains are unavailable", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What are the strongest demand signals?",
+          sourceContext: "Discovery phase",
+          report: {
+            executiveSummary: "Founders need a clearer bridge from inputs to decisions.",
+            researchQuestion: "What are the strongest demand signals?",
+            generatedAt: "2025-01-12T00:00:00.000Z",
+            sections: [
+              {
+                id: "section-demand",
+                title: "Demand",
+                angle: "Market demand",
+                findings: "Users describe a gap between collecting evidence and taking action.",
+                citations: [],
+              },
+            ],
+            keyFindings: [],
+            sources: [
+              {
+                id: "source-1",
+                title: "Founder interview notes",
+                canonicalId: "founder-interview-notes",
+                sourceType: "interview",
+                status: "selected",
+                citationIds: [],
+                sectionIds: [],
+                claimCount: 1,
+              },
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:section:section-demand")).toMatchObject({
+      label: "Demand",
+      content: "Users describe a gap between collecting evidence and taking action.",
+    });
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:source:source-1")).toMatchObject({
+      label: "Founder interview notes",
+      content: "interview",
+      type: "reference",
+    });
+  });
+
+  it("leaves the research branch empty when successful research has no report", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What is blocking founders?",
+          sourceContext: "Discovery phase",
+          report: null,
+        },
+      }),
+    );
+
+    expect(diagram.nodes.filter((node) => node.layout?.parentId === "branch:research")).toHaveLength(0);
+    expect(diagram.edges.filter((edge) => edge.from === "branch:research")).toHaveLength(0);
+  });
+
+  it("falls back to sections when key findings are empty and skips finding nodes", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "success",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What are the strongest demand signals?",
+          sourceContext: "Discovery phase",
+          report: {
+            executiveSummary: "Founders need a clearer bridge from inputs to decisions.",
+            researchQuestion: "What are the strongest demand signals?",
+            generatedAt: "2025-01-12T00:00:00.000Z",
+            sections: [
+              {
+                id: "section-demand",
+                title: "Demand",
+                angle: "Market demand",
+                findings: "Users describe a gap between collecting evidence and taking action.",
+                citations: [],
+              },
+            ],
+            keyFindings: [],
+            sources: [],
+          },
+        },
+      }),
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:section:section-demand")).toMatchObject({
+      label: "Demand",
+    });
+    expect(diagram.nodes.some((node) => node.id.includes(":finding:"))).toBe(false);
+  });
+
+  it("creates a research error node with a parent-child edge for failed research", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        research: {
+          status: "error",
+          errorMessage: "Supabase rate limit",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          researchQuestion: "What is blocking founders?",
+          sourceContext: "Discovery phase",
+          report: null,
+        },
+      }),
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "branch:research:research:error")).toMatchObject({
+      content: "Supabase rate limit",
+      layout: { parentId: "branch:research" },
+    });
+    expect(diagram.edges).toContainEqual({
+      id: "edge:branch:research->branch:research:research:error",
+      from: "branch:research",
+      to: "branch:research:research:error",
+      type: "parent_child",
+    });
+  });
+
+  it("preserves a dragged node position across regeneration while rebuilding its content", () => {
+    const generated = generateProjectDiagram(makeProject(), { brainstormResult });
+    const persistedDiagram = {
+      ...generated,
+      nodes: generated.nodes.map((node) =>
+        node.id === "branch:research"
+          ? {
+              ...node,
+              x: 760,
+              y: 1180,
+            }
+          : node,
+      ),
+    };
+
+    const regenerated = generateProjectDiagram(
+      makeProject({
+        description: "Updated description after saving a dragged diagram position.",
+        diagram: persistedDiagram,
+      }),
+      { brainstormResult },
+    );
+
+    expect(regenerated.nodes.find((node) => node.id === "branch:research")).toMatchObject({
+      label: "Research",
+      x: 760,
+      y: 1180,
+    });
+    expect(regenerated.nodes.find((node) => node.id === "diagram-root")?.content).toBe(
+      "Updated description after saving a dragged diagram position.",
+    );
   });
 });
