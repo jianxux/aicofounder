@@ -330,22 +330,39 @@ function createDrag(existingDiagram: Project["diagram"]): DiagramDragMetadata {
   return existingDiagram?.drag ?? DEFAULT_DRAG;
 }
 
+function applyPersistedNodePosition(node: DiagramNode, existingDiagram: Project["diagram"]): DiagramNode {
+  const persistedNode = existingDiagram?.nodes.find((entry) => entry.id === node.id);
+
+  if (!persistedNode) {
+    return node;
+  }
+
+  return {
+    ...node,
+    x: persistedNode.x,
+    y: persistedNode.y,
+  };
+}
+
 export function generateProjectDiagram(project: Project, options: GeneratedDiagramOptions = {}): ProjectDiagram {
+  const applyExistingPosition = (node: DiagramNode) => applyPersistedNodePosition(node, project.diagram);
   const branchItems = getBranchItems(project, options);
   const nodes: DiagramNode[] = [
-    createNode({
-      id: ROOT_NODE_ID,
-      type: "topic",
-      label: project.name.trim() || "Untitled project",
-      content: compactText(project.description, 180),
-      x: 980,
-      y: 840,
-      width: 260,
-      height: 100,
-      color: "yellow",
-      shape: "pill",
-      source: { type: "generated" },
-    }),
+    applyExistingPosition(
+      createNode({
+        id: ROOT_NODE_ID,
+        type: "topic",
+        label: project.name.trim() || "Untitled project",
+        content: compactText(project.description, 180),
+        x: 980,
+        y: 840,
+        width: 260,
+        height: 100,
+        color: "yellow",
+        shape: "pill",
+        source: { type: "generated" },
+      }),
+    ),
   ];
   const edges: DiagramEdge[] = [];
 
@@ -353,20 +370,22 @@ export function generateProjectDiagram(project: Project, options: GeneratedDiagr
     const branchId = `branch:${branch.id}`;
 
     nodes.push(
-      createNode({
-        id: branchId,
-        type: "branch",
-        label: branch.label,
-        x: branch.x,
-        y: branch.y,
-        width: 220,
-        height: 70,
-        color: branch.color,
-        shape: branch.shape ?? "rounded_rect",
-        source: { type: "generated" },
-        parentId: ROOT_NODE_ID,
-        order: branchIndex,
-      }),
+      applyExistingPosition(
+        createNode({
+          id: branchId,
+          type: "branch",
+          label: branch.label,
+          x: branch.x,
+          y: branch.y,
+          width: 220,
+          height: 70,
+          color: branch.color,
+          shape: branch.shape ?? "rounded_rect",
+          source: { type: "generated" },
+          parentId: ROOT_NODE_ID,
+          order: branchIndex,
+        }),
+      ),
     );
     edges.push(createEdge(ROOT_NODE_ID, branchId));
 
@@ -381,21 +400,23 @@ export function generateProjectDiagram(project: Project, options: GeneratedDiagr
       const itemY = startY + itemIndex * 124;
 
       nodes.push(
-        createNode({
-          id: itemId,
-          type: item.kind,
-          label: item.label,
-          content: item.content,
-          x: item.kind === "reference" ? referenceX : detailX,
-          y: itemY,
-          width: item.kind === "reference" ? 220 : 250,
-          height: item.kind === "reference" ? 64 : 84,
-          color: branch.color,
-          shape: item.kind === "reference" ? "circle" : "rounded_rect",
-          source: item.source ?? { type: "generated" },
-          parentId: branchId,
-          order: itemIndex,
-        }),
+        applyExistingPosition(
+          createNode({
+            id: itemId,
+            type: item.kind,
+            label: item.label,
+            content: item.content,
+            x: item.kind === "reference" ? referenceX : detailX,
+            y: itemY,
+            width: item.kind === "reference" ? 220 : 250,
+            height: item.kind === "reference" ? 64 : 84,
+            color: branch.color,
+            shape: item.kind === "reference" ? "circle" : "rounded_rect",
+            source: item.source ?? { type: "generated" },
+            parentId: branchId,
+            order: itemIndex,
+          }),
+        ),
       );
       edges.push(createEdge(branchId, itemId));
     });

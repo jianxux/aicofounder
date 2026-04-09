@@ -210,4 +210,76 @@ describe("generateProjectDiagram", () => {
       type: "parent_child",
     });
   });
+
+  it("reuses persisted node coordinates for matching ids during regeneration", () => {
+    const diagram = generateProjectDiagram(
+      makeProject({
+        diagram: {
+          nodes: [
+            {
+              id: "diagram-root",
+              type: "topic",
+              label: "Outdated root label",
+              x: 1200,
+              y: 960,
+            },
+            {
+              id: "branch:notes",
+              type: "branch",
+              label: "Outdated notes label",
+              x: 640,
+              y: 420,
+            },
+            {
+              id: "stale-node",
+              type: "detail",
+              label: "Should be ignored",
+              x: 1,
+              y: 1,
+            },
+          ],
+          edges: [],
+          layout: {
+            algorithm: "mind_map",
+            direction: "vertical",
+            rootNodeId: "diagram-root",
+            viewport: { x: 24, y: 48, zoom: 1.2 },
+          },
+          drag: {
+            snapToGrid: true,
+            gridSize: 32,
+            reparentOnDrop: false,
+          },
+        },
+      }),
+      { brainstormResult },
+    );
+
+    expect(diagram.nodes.find((node) => node.id === "diagram-root")).toMatchObject({
+      label: "Founder Graph",
+      x: 1200,
+      y: 960,
+    });
+    expect(diagram.nodes.find((node) => node.id === "branch:notes")).toMatchObject({
+      label: "Notes",
+      x: 640,
+      y: 420,
+    });
+    expect(diagram.nodes.find((node) => node.id === "branch:research")).toMatchObject({
+      x: 520,
+      y: 1320,
+    });
+    expect(diagram.nodes.some((node) => node.id === "stale-node")).toBe(false);
+    expect(diagram.layout).toEqual({
+      algorithm: "mind_map",
+      direction: "vertical",
+      rootNodeId: "diagram-root",
+      viewport: { x: 24, y: 48, zoom: 1.2 },
+    });
+    expect(diagram.drag).toEqual({
+      snapToGrid: true,
+      gridSize: 32,
+      reparentOnDrop: false,
+    });
+  });
 });

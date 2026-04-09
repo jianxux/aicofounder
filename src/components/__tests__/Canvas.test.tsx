@@ -130,23 +130,28 @@ function CanvasStateHarness({
   initialNotes = [],
   initialDocuments = [],
   initialSections = [],
+  initialDiagram,
 }: {
   initialNotes?: StickyNoteData[];
   initialDocuments?: DocumentCardData[];
   initialSections?: SectionData[];
+  initialDiagram?: ProjectDiagram;
 }) {
   const [notes, setNotes] = useState(initialNotes);
   const [documents, setDocuments] = useState(initialDocuments);
   const [sections, setSections] = useState(initialSections);
+  const [diagram, setDiagram] = useState(initialDiagram);
 
   return (
     <Canvas
       notes={notes}
       documents={documents}
       sections={sections}
+      diagram={diagram}
       onChangeNotes={setNotes}
       onChangeDocuments={setDocuments}
       onChangeSections={setSections}
+      onChangeDiagram={setDiagram}
     />
   );
 }
@@ -495,6 +500,316 @@ describe("Canvas", () => {
     expect(screen.getByText("Research")).toBeInTheDocument();
     expect(screen.getByText("Executive summary")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Launch plan")).toBeInTheDocument();
+  });
+
+  it("updates diagram node coordinates after dragging a generated node", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const researchBranch = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "branch:research");
+
+    expect(researchBranch).toBeDefined();
+
+    fireEvent.pointerDown(researchBranch!, { pointerId: 1, clientX: 540, clientY: 1340 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 620, clientY: 1420 }));
+    });
+
+    expect(onChangeDiagram).not.toHaveBeenCalled();
+    expect(researchBranch).toHaveStyle({
+      left: "600px",
+      top: "1400px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledWith({
+      ...diagram,
+      nodes: diagram.nodes.map((node) =>
+        node.id === "branch:research"
+          ? {
+              ...node,
+              x: 600,
+              y: 1400,
+            }
+          : node,
+      ),
+    });
+  });
+
+  it("clamps generated diagram node dragging using centered diagram node bounds", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1, clientY: 1 }));
+    });
+
+    expect(rootNode).toHaveStyle({
+      left: "142px",
+      top: "62px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledWith({
+      ...diagram,
+      nodes: diagram.nodes.map((node) =>
+        node.id === "diagram-root"
+          ? {
+              ...node,
+              x: 142,
+              y: 62,
+            }
+          : node,
+      ),
+    });
+  });
+
+  it("keeps generated diagram dragging correct when the canvas has a non-zero pan offset", () => {
+    render(<CanvasStateHarness initialDiagram={createDiagram()} />);
+
+    const board = getBoard();
+    mockBoardRect(board);
+
+    fireEvent.wheel(board, { shiftKey: true, deltaY: -40 });
+    fireEvent.wheel(board, { deltaY: -30 });
+
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, button: 0, clientX: 1060, clientY: 910 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1140, clientY: 980 }));
+    });
+
+    expect(rootNode).toHaveStyle({
+      left: "1060px",
+      top: "910px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+  });
+
+  it("stops responding to pointermove after generated diagram drag cleanup runs", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1050, clientY: 900 }));
+    });
+
+    expect(onChangeDiagram).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1100, clientY: 940 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores pointer moves from a different pointer id while dragging a generated diagram node", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 2, clientX: 1050, clientY: 900 }));
+    });
+
+    expect(onChangeDiagram).not.toHaveBeenCalled();
+  });
+
+  it("keeps touch dragging on generated diagram nodes from starting board pan and commits once on release", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 5, pointerType: "touch", clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 5, clientX: 1040, clientY: 900 }));
+    });
+
+    expect(getSurface()).toHaveStyle({ transform: "translate(0px, 0px) scale(1)" });
+    expect(rootNode).toHaveStyle({
+      left: "1020px",
+      top: "880px",
+    });
+    expect(onChangeDiagram).not.toHaveBeenCalled();
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 5 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
+    expect(onChangeDiagram).toHaveBeenCalledWith({
+      ...diagram,
+      nodes: diagram.nodes.map((node) =>
+        node.id === "diagram-root"
+          ? {
+              ...node,
+              x: 1020,
+              y: 880,
+            }
+          : node,
+      ),
+    });
+  });
+
+  it("persists the latest diagram drag position once instead of on every pointermove", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1040, clientY: 900 }));
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1120, clientY: 980 }));
+    });
+
+    expect(onChangeDiagram).not.toHaveBeenCalled();
+    expect(rootNode).toHaveStyle({
+      left: "1100px",
+      top: "960px",
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
+    expect(onChangeDiagram).toHaveBeenCalledWith({
+      ...diagram,
+      nodes: diagram.nodes.map((node) =>
+        node.id === "diagram-root"
+          ? {
+              ...node,
+              x: 1100,
+              y: 960,
+            }
+          : node,
+      ),
+    });
   });
 
   it("calls onChangeNotes with a patched note when a sticky note title changes", () => {
@@ -1188,5 +1503,55 @@ describe("Canvas", () => {
 
     expect(screen.queryByRole("button", { name: "Research Cluster" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Section" })).toBeInTheDocument();
+  });
+
+  it("commits a generated diagram drag on window blur cleanup", () => {
+    const diagram = createDiagram();
+    const onChangeDiagram = vi.fn();
+
+    render(
+      <Canvas
+        notes={[]}
+        documents={[]}
+        diagram={diagram}
+        onChangeNotes={vi.fn()}
+        onChangeDocuments={vi.fn()}
+        onChangeDiagram={onChangeDiagram}
+      />,
+    );
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const rootNode = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "diagram-root");
+
+    fireEvent.pointerDown(rootNode!, { pointerId: 1, clientX: 1000, clientY: 860 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1050, clientY: 900 }));
+    });
+
+    fireEvent.blur(window);
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
+    expect(onChangeDiagram).toHaveBeenCalledWith({
+      ...diagram,
+      nodes: diagram.nodes.map((node) =>
+        node.id === "diagram-root"
+          ? {
+              ...node,
+              x: 1030,
+              y: 880,
+            }
+          : node,
+      ),
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 1050, clientY: 900 }));
+    });
+
+    expect(onChangeDiagram).toHaveBeenCalledTimes(1);
   });
 });

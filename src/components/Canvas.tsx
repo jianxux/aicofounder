@@ -26,15 +26,18 @@ type CanvasProps = {
   onChangeDocuments: (documents: DocumentCardData[]) => void;
   onChangeSections?: (sections: SectionData[]) => void;
   onChangeWebsiteBuilders?: (websiteBuilders: WebsiteBuilderData[]) => void;
+  onChangeDiagram?: (diagram: ProjectDiagram) => void;
   onNoteCreated?: (note: StickyNoteData) => void;
   onNoteDragged?: (note: StickyNoteData) => void;
 };
 
 type DragState = {
   itemId: string;
-  type: "note" | "document" | "section" | "website";
+  type: "note" | "document" | "section" | "website" | "diagram";
   offsetX: number;
   offsetY: number;
+  width?: number;
+  height?: number;
 } | null;
 
 type PanDragState = {
@@ -103,6 +106,38 @@ function createWebsiteBuilder(): WebsiteBuilderData {
   };
 }
 
+function clampCanvasCoordinate(value: number): number {
+  return Math.max(12, value);
+}
+
+function getDiagramNodeWidth(node: NonNullable<ProjectDiagram["nodes"]>[number]): number {
+  return node.width ?? (node.type === "topic" ? 260 : 220);
+}
+
+function getDiagramNodeHeight(node: NonNullable<ProjectDiagram["nodes"]>[number]): number {
+  return node.height ?? 64;
+}
+
+function clampDiagramCoordinate(value: number, size: number): number {
+  return Math.max(12 + size / 2, value);
+}
+
+function updateDiagramNodePosition(
+  diagram: ProjectDiagram | undefined,
+  nodeId: string,
+  x: number,
+  y: number,
+): ProjectDiagram | undefined {
+  if (!diagram) {
+    return undefined;
+  }
+
+  return {
+    ...diagram,
+    nodes: diagram.nodes.map((node) => (node.id === nodeId ? { ...node, x, y } : node)),
+  };
+}
+
 export default function Canvas({
   notes,
   documents,
@@ -113,11 +148,16 @@ export default function Canvas({
   onChangeDocuments,
   onChangeSections = () => undefined,
   onChangeWebsiteBuilders = () => undefined,
+  onChangeDiagram = () => undefined,
   onNoteCreated = () => undefined,
   onNoteDragged = () => undefined,
 }: CanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
+  const notesRef = useRef(notes);
+  const dragStateRef = useRef<DragState>(null);
+  const diagramDraftRef = useRef<ProjectDiagram | undefined>(diagram);
+  const pendingDiagramCommitRef = useRef<ProjectDiagram | undefined>(undefined);
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -125,7 +165,66 @@ export default function Canvas({
   const [panDragState, setPanDragState] = useState<PanDragState>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [selectedColor, setSelectedColor] = useState<NoteColor>("yellow");
+  const [diagramDraft, setDiagramDraft] = useState(diagram);
   const didDragRef = useRef(false);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
+
+  useEffect(() => {
+    diagramDraftRef.current = diagramDraft;
+  }, [diagramDraft]);
+
+  useEffect(() => {
+    if (dragStateRef.current?.type === "diagram") {
+      return;
+    }
+
+    pendingDiagramCommitRef.current = undefined;
+    setDiagramDraft(diagram);
+  }, [diagram]);
+
+  const commitPendingDiagramDrag = () => {
+    const pendingDiagram = pendingDiagramCommitRef.current;
+
+    if (!pendingDiagram) {
+      return;
+    }
+
+    pendingDiagramCommitRef.current = undefined;
+    onChangeDiagram(pendingDiagram);
+  };
+
+  const clearPointerInteraction = (pointerId?: number) => {
+    if (pointerId !== undefined && activePointerIdRef.current !== null && pointerId !== activePointerIdRef.current) {
+      return;
+    }
+
+    activePointerIdRef.current = null;
+
+    const currentDragState = dragStateRef.current;
+
+    if (currentDragState?.type === "note" && didDragRef.current) {
+      const note = notesRef.current.find((entry) => entry.id === currentDragState.itemId);
+
+      if (note) {
+        onNoteDragged(note);
+      }
+    }
+
+    if (currentDragState?.type === "diagram") {
+      commitPendingDiagramDrag();
+    }
+
+    didDragRef.current = false;
+    setDragState(null);
+    setPanDragState(null);
+  };
 
   useEffect(() => {
     if (!dragState && !panDragState) {
@@ -154,10 +253,12 @@ export default function Canvas({
       }
 
       const rect = board.getBoundingClientRect();
-      const nextX = Math.max(12, (event.clientX - rect.left - dragState.offsetX) / zoom - panX);
-      const nextY = Math.max(12, (event.clientY - rect.top - dragState.offsetY) / zoom - panY);
+      let nextX = (event.clientX - rect.left - dragState.offsetX) / zoom - panX;
+      let nextY = (event.clientY - rect.top - dragState.offsetY) / zoom - panY;
 
       if (dragState.type === "note") {
+        nextX = clampCanvasCoordinate(nextX);
+        nextY = clampCanvasCoordinate(nextY);
         didDragRef.current = true;
         onChangeNotes(
           notes.map((note) =>
@@ -174,6 +275,8 @@ export default function Canvas({
       }
 
       if (dragState.type === "section") {
+        nextX = clampCanvasCoordinate(nextX);
+        nextY = clampCanvasCoordinate(nextY);
         onChangeSections(
           sections.map((section) =>
             section.id === dragState.itemId
@@ -189,6 +292,8 @@ export default function Canvas({
       }
 
       if (dragState.type === "website") {
+        nextX = clampCanvasCoordinate(nextX);
+        nextY = clampCanvasCoordinate(nextY);
         onChangeWebsiteBuilders(
           websiteBuilders.map((websiteBuilder) =>
             websiteBuilder.id === dragState.itemId
@@ -203,6 +308,21 @@ export default function Canvas({
         return;
       }
 
+      if (dragState.type === "diagram") {
+        nextX = clampDiagramCoordinate(nextX, dragState.width ?? 0);
+        nextY = clampDiagramCoordinate(nextY, dragState.height ?? 0);
+        const nextDiagram = updateDiagramNodePosition(diagramDraftRef.current, dragState.itemId, nextX, nextY);
+
+        if (nextDiagram) {
+          pendingDiagramCommitRef.current = nextDiagram;
+          setDiagramDraft(nextDiagram);
+        }
+
+        return;
+      }
+
+      nextX = clampCanvasCoordinate(nextX);
+      nextY = clampCanvasCoordinate(nextY);
       onChangeDocuments(
         documents.map((document) =>
           document.id === dragState.itemId
@@ -217,23 +337,7 @@ export default function Canvas({
     };
 
     const handleUp = (event: PointerEvent) => {
-      if (activePointerIdRef.current !== null && event.pointerId !== activePointerIdRef.current) {
-        return;
-      }
-
-      activePointerIdRef.current = null;
-
-      if (dragState?.type === "note" && didDragRef.current) {
-        const note = notes.find((entry) => entry.id === dragState.itemId);
-
-        if (note) {
-          onNoteDragged(note);
-        }
-      }
-
-      didDragRef.current = false;
-      setDragState(null);
-      setPanDragState(null);
+      clearPointerInteraction(event.pointerId);
     };
 
     window.addEventListener("pointermove", handleMove);
@@ -250,6 +354,7 @@ export default function Canvas({
     dragState,
     notes,
     onChangeDocuments,
+    onChangeDiagram,
     onChangeNotes,
     onChangeSections,
     onChangeWebsiteBuilders,
@@ -260,6 +365,7 @@ export default function Canvas({
     sections,
     websiteBuilders,
     zoom,
+    diagram,
   ]);
 
   useEffect(() => {
@@ -286,9 +392,7 @@ export default function Canvas({
 
     const handleBlur = () => {
       setIsSpacePressed(false);
-      activePointerIdRef.current = null;
-      setPanDragState(null);
-      setDragState(null);
+      clearPointerInteraction();
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -303,9 +407,9 @@ export default function Canvas({
   }, []);
 
   const handleDragStart = (
-    type: "note" | "document" | "section" | "website",
+    type: "note" | "document" | "section" | "website" | "diagram",
     itemId: string,
-    event: ReactPointerEvent<HTMLDivElement>,
+    event: ReactPointerEvent<HTMLElement>,
   ) => {
     if (event.button !== 0 || isSpacePressed) {
       return;
@@ -318,6 +422,7 @@ export default function Canvas({
     }
 
     const rect = board.getBoundingClientRect();
+    const diagramNode = type === "diagram" ? diagram?.nodes.find((entry) => entry.id === itemId) : undefined;
     const item =
       type === "note"
         ? notes.find((entry) => entry.id === itemId)
@@ -325,11 +430,14 @@ export default function Canvas({
           ? sections.find((entry) => entry.id === itemId)
           : type === "website"
             ? websiteBuilders.find((entry) => entry.id === itemId)
+            : type === "diagram"
+              ? diagramNode
           : documents.find((entry) => entry.id === itemId);
 
     if (!item) {
       return;
     }
+    const nodeRect = diagramNode ? event.currentTarget.getBoundingClientRect() : null;
 
     activePointerIdRef.current = event.pointerId;
     didDragRef.current = false;
@@ -339,6 +447,18 @@ export default function Canvas({
       type,
       offsetX: event.clientX - rect.left - (item.x + panX) * zoom,
       offsetY: event.clientY - rect.top - (item.y + panY) * zoom,
+      width:
+        diagramNode
+          ? nodeRect && nodeRect.width > 0
+            ? nodeRect.width / zoom
+            : getDiagramNodeWidth(diagramNode)
+          : undefined,
+      height:
+        diagramNode
+          ? nodeRect && nodeRect.height > 0
+            ? nodeRect.height / zoom
+            : getDiagramNodeHeight(diagramNode)
+          : undefined,
     });
   };
 
@@ -462,7 +582,12 @@ export default function Canvas({
             transformOrigin: "0 0",
           }}
         >
-          {diagram ? <GeneratedDiagram diagram={diagram} /> : null}
+          {diagramDraft ? (
+            <GeneratedDiagram
+              diagram={diagramDraft}
+              onNodeDragStart={(nodeId, event) => handleDragStart("diagram", nodeId, event)}
+            />
+          ) : null}
           {sections.map((section) => (
             <Section
               key={section.id}

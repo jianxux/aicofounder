@@ -364,6 +364,14 @@ export default function ProjectWorkspacePage() {
     persistProject({ ...project, websiteBuilders });
   };
 
+  const handleDiagramChange = (diagram: NonNullable<Project["diagram"]>) => {
+    if (!project) {
+      return;
+    }
+
+    persistProject({ ...project, diagram });
+  };
+
   const handleNoteCreated = (note: StickyNoteData) => {
     void trackEvent("note_created", {
       page: `/project/${projectId}`,
@@ -781,6 +789,7 @@ export default function ProjectWorkspacePage() {
                 onChangeSections={handleSectionsChange}
                 onChangeDocuments={handleDocumentsChange}
                 onChangeWebsiteBuilders={handleWebsiteBuildersChange}
+                onChangeDiagram={handleDiagramChange}
                 onNoteCreated={handleNoteCreated}
                 onNoteDragged={handleNoteDragged}
               />
@@ -837,6 +846,7 @@ export default function ProjectWorkspacePage() {
                   onChangeSections={handleSectionsChange}
                   onChangeDocuments={handleDocumentsChange}
                   onChangeWebsiteBuilders={handleWebsiteBuildersChange}
+                  onChangeDiagram={handleDiagramChange}
                   onNoteCreated={handleNoteCreated}
                   onNoteDragged={handleNoteDragged}
                 />

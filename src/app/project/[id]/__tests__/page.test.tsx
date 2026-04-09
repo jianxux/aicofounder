@@ -53,7 +53,40 @@ vi.mock("@/components/ChatPanel", () => ({
 }));
 
 vi.mock("@/components/Canvas", () => ({
-  default: () => <div data-testid="canvas" />,
+  default: ({ onChangeDiagram }: { onChangeDiagram?: (diagram: Project["diagram"]) => void }) => (
+    <div data-testid="canvas">
+      <button
+        type="button"
+        onClick={() =>
+          onChangeDiagram?.({
+            nodes: [
+              {
+                id: "diagram-root",
+                type: "topic",
+                label: "Launchpad",
+                x: 1111,
+                y: 999,
+              },
+            ],
+            edges: [],
+            layout: {
+              algorithm: "mind_map",
+              direction: "horizontal",
+              rootNodeId: "diagram-root",
+              viewport: { x: 0, y: 0, zoom: 1 },
+            },
+            drag: {
+              snapToGrid: false,
+              gridSize: 24,
+              reparentOnDrop: true,
+            },
+          })
+        }
+      >
+        Move diagram
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/BrainstormResults", () => ({
@@ -351,5 +384,33 @@ describe("ProjectWorkspacePage", () => {
         }),
       }),
     );
+  });
+
+  it("persists manual diagram node coordinates back into project state", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+
+    render(<ProjectWorkspacePage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Move diagram" }));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          diagram: expect.objectContaining({
+            nodes: expect.arrayContaining([
+              expect.objectContaining({
+                id: "diagram-root",
+                x: 1111,
+                y: 999,
+              }),
+            ]),
+          }),
+        }),
+      );
+    });
   });
 });

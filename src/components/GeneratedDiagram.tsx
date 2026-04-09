@@ -1,9 +1,11 @@
 "use client";
 
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DiagramNode, ProjectDiagram } from "@/lib/types";
 
 type GeneratedDiagramProps = {
   diagram: ProjectDiagram;
+  onNodeDragStart?: (nodeId: string, event: ReactPointerEvent<HTMLElement>) => void;
 };
 
 function getNodeClasses(node: DiagramNode): string {
@@ -34,7 +36,15 @@ function getNodeShape(node: DiagramNode): string {
   return "rounded-[24px]";
 }
 
-export default function GeneratedDiagram({ diagram }: GeneratedDiagramProps) {
+function getNodeWidth(node: DiagramNode): number {
+  return node.width ?? (node.type === "topic" ? 260 : 220);
+}
+
+function getNodeMinHeight(node: DiagramNode): number {
+  return node.height ?? 64;
+}
+
+export default function GeneratedDiagram({ diagram, onNodeDragStart = () => undefined }: GeneratedDiagramProps) {
   return (
     <div
       data-testid="generated-diagram"
@@ -45,12 +55,17 @@ export default function GeneratedDiagram({ diagram }: GeneratedDiagramProps) {
         <article
           key={node.id}
           data-testid="generated-diagram-node"
-          className={`absolute border px-4 py-3 ${getNodeShape(node)} ${getNodeClasses(node)}`}
+          data-diagram-node-id={node.id}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onNodeDragStart(node.id, event);
+          }}
+          className={`pointer-events-auto absolute cursor-grab touch-none select-none border px-4 py-3 active:cursor-grabbing ${getNodeShape(node)} ${getNodeClasses(node)}`}
           style={{
             left: node.x,
             top: node.y,
-            width: node.width ?? (node.type === "topic" ? 260 : 220),
-            minHeight: node.height ?? 64,
+            width: getNodeWidth(node),
+            minHeight: getNodeMinHeight(node),
             transform: "translate(-50%, -50%)",
           }}
         >
