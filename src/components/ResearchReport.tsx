@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ResearchReport as ResearchReportData } from "@/lib/research";
+import type { ResearchCitation, ResearchReport as ResearchReportData, ResearchSource } from "@/lib/research";
+import type { ProjectResearchArtifact } from "@/lib/types";
 
 type ResearchReportProps = {
   status: "empty" | "loading" | "success" | "error";
   report?: ResearchReportData | null;
+  artifact?: ProjectResearchArtifact;
   errorMessage?: string;
   lastUpdatedAt?: string;
   researchQuestion?: string;
@@ -36,6 +38,104 @@ function formatTimestamp(timestamp: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatSourceMeta(source: Pick<
+  ResearchSource,
+  "sourceType" | "publicationSignal" | "recencySignal" | "accessibilityStatus" | "publicationDate"
+>) {
+  return [
+    source.sourceType !== "other" ? source.sourceType : null,
+    source.publicationSignal && source.publicationSignal !== "unknown" ? source.publicationSignal.replace(/_/g, " ") : null,
+    source.recencySignal && source.recencySignal !== "unknown" ? source.recencySignal : null,
+    source.accessibilityStatus && source.accessibilityStatus !== "unknown"
+      ? source.accessibilityStatus.replace(/_/g, " ")
+      : null,
+    source.publicationDate ? `published ${source.publicationDate}` : null,
+  ].filter(Boolean);
+}
+
+function getCitationAnchor(citationId: string) {
+  return `citation-${citationId}`;
+}
+
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  items.forEach((item) => {
+    if (!item.id || seen.has(item.id)) {
+      return;
+    }
+
+    seen.add(item.id);
+    result.push(item);
+  });
+
+  return result;
+}
+
+function getReportCitations(report?: ResearchReportData | null) {
+  if (report?.citations?.length) {
+    return dedupeById(report.citations);
+  }
+
+  return dedupeById((report?.sections ?? []).flatMap((section) => section.citations));
+}
+
+function getSourceInventory(report?: ResearchReportData | null, artifact?: ProjectResearchArtifact) {
+  if (report?.sources?.length) {
+    return {
+      selected: report.sources,
+      rejected: artifact?.sourceInventory?.rejected ?? [],
+    };
+  }
+
+  if (artifact?.sourceInventory) {
+    return artifact.sourceInventory;
+  }
+
+  const selected = (artifact?.selectedSources ?? []).map((citation) => ({
+    id: `selected-${citation.id}`,
+    title: citation.source,
+    canonicalId: citation.url ?? citation.source,
+    sourceType: citation.sourceType ?? "other",
+    status: "selected" as const,
+    citationIds: [citation.id],
+    sectionIds: [],
+    url: citation.url,
+    publicationDate: citation.publicationDate,
+    publicationSignal: citation.publicationSignal ?? "unknown",
+    recencySignal: citation.recencySignal ?? "unknown",
+    accessibilityStatus: citation.accessibilityStatus ?? "unknown",
+    claimCount: 1,
+  }));
+
+  return {
+    selected,
+    rejected: [],
+  };
+}
+
+function CitationReferences({ citationIds, citationsById }: { citationIds: string[]; citationsById: Map<string, ResearchCitation> }) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {citationIds.map((citationId) => {
+        const citation = citationsById.get(citationId);
+
+        return (
+          <a
+            key={citationId}
+            href={`#${getCitationAnchor(citationId)}`}
+            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700 underline decoration-stone-300 underline-offset-4"
+          >
+            {citationId}
+            {citation ? ` · ${citation.source}` : ""}
+          </a>
+        );
+      })}
+    </div>
+  );
 }
 
 function ResearchSummary({
@@ -117,6 +217,7 @@ function ResearchSummary({
 export default function ResearchReport({
   status,
   report,
+  artifact,
   errorMessage,
   lastUpdatedAt,
   researchQuestion,
@@ -124,6 +225,23 @@ export default function ResearchReport({
   onRunResearch,
 }: ResearchReportProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const selectedSources = artifact?.selectedSources ?? [];
+  const rejectedSources = artifact?.rejectedSources ?? [];
+  const sourceInventory = getSourceInventory(report, artifact);
+  const failures = artifact?.failures ?? [];
+  const metrics = artifact?.metrics;
+  const reportCitations = getReportCitations(report);
+  const citationsById = new Map(reportCitations.map((citation) => [citation.id, citation] as const));
+  const hasArtifactDetails =
+    Boolean(artifact?.status) ||
+    Boolean(artifact?.generatedAt) ||
+    Boolean(artifact?.plan) ||
+    selectedSources.length > 0 ||
+    rejectedSources.length > 0 ||
+    sourceInventory.selected.length > 0 ||
+    sourceInventory.rejected.length > 0 ||
+    failures.length > 0 ||
+    Boolean(metrics);
 
   useEffect(() => {
     if (!report) {
@@ -148,7 +266,7 @@ export default function ResearchReport({
         onRunResearch={onRunResearch}
       />
 
-      {status === "success" && report ? (
+      {(status === "success" || status === "error") && report ? (
         <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
           <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-5">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Deep research</div>
@@ -171,6 +289,265 @@ export default function ResearchReport({
           </div>
 
           <div className="mt-4 space-y-4">
+            {report.keyFindings?.length ||
+            report.caveats?.length ||
+            report.contradictions?.length ||
+            report.unansweredQuestions?.length ? (
+              <section className="grid gap-4 lg:grid-cols-2">
+                {report.keyFindings?.length ? (
+                  <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Key findings</div>
+                    <div className="mt-3 space-y-3">
+                      {report.keyFindings.map((finding) => (
+                        <div key={finding.id} className="rounded-2xl bg-[#fcfaf6] px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-stone-800">{finding.statement}</span>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
+                              finding.strength === "strong"
+                                ? "high"
+                                : finding.strength === "moderate"
+                                  ? "medium"
+                                  : "low",
+                            )}`}>
+                              {finding.strength}
+                            </span>
+                          </div>
+                          <CitationReferences citationIds={finding.citationIds} citationsById={citationsById} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {report.caveats?.length ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">Caveats</div>
+                    <div className="mt-3 space-y-2">
+                      {report.caveats.map((caveat) => (
+                        <div key={caveat.id} className="rounded-2xl bg-white px-4 py-3">
+                          <p className="text-sm leading-6 text-amber-900">{caveat.statement}</p>
+                          {caveat.citationIds?.length ? (
+                            <CitationReferences citationIds={caveat.citationIds} citationsById={citationsById} />
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {report.contradictions?.length ? (
+                  <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-800">Contradictions</div>
+                    <div className="mt-3 space-y-2">
+                      {report.contradictions.map((contradiction) => (
+                        <div key={contradiction.id} className="rounded-2xl bg-white px-4 py-3">
+                          <p className="text-sm leading-6 text-rose-900">{contradiction.statement}</p>
+                          <CitationReferences citationIds={contradiction.citationIds} citationsById={citationsById} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {report.unansweredQuestions?.length ? (
+                  <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Unanswered questions
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {report.unansweredQuestions.map((question) => (
+                        <div key={question.id} className="rounded-2xl bg-white px-4 py-3">
+                          <p className="text-sm leading-6 text-stone-700">{question.question}</p>
+                          {question.citationIds?.length ? (
+                            <CitationReferences citationIds={question.citationIds} citationsById={citationsById} />
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            {hasArtifactDetails ? (
+              <section className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Run details</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {artifact?.status ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium capitalize text-stone-700">
+                        {artifact.status}
+                      </span>
+                    ) : null}
+                    {typeof metrics?.attemptedAngles === "number" ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                        {metrics.attemptedAngles} angles
+                      </span>
+                    ) : null}
+                    {typeof metrics?.completedSections === "number" ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                        {metrics.completedSections} sections
+                      </span>
+                    ) : null}
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                      {metrics?.selectedSources ?? selectedSources.length} selected sources
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                      {metrics?.rejectedSources ?? rejectedSources.length} rejected
+                    </span>
+                  </div>
+                  {artifact?.plan?.steps?.length ? (
+                    <p className="mt-3 text-sm leading-6 text-stone-600">
+                      Scope: {artifact.plan.steps.length} planned research angles.
+                    </p>
+                  ) : null}
+                </div>
+
+                {sourceInventory.selected.length > 0 ? (
+                  <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Evidence inventory
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {sourceInventory.selected.slice(0, 4).map((source) => (
+                        <div key={source.id} className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-stone-800">{source.title}</p>
+                            {formatSourceMeta(source).map((meta) => (
+                              <span key={`${source.id}-${meta}`} className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
+                                {meta}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="mt-1 text-xs leading-5 text-stone-600">
+                            {source.claimCount} supporting claim{source.claimCount === 1 ? "" : "s"}
+                          </p>
+                          {source.citationIds.length ? (
+                            <CitationReferences citationIds={source.citationIds} citationsById={citationsById} />
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {sourceInventory.rejected.length > 0 || rejectedSources.length > 0 ? (
+                  <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Rejected sources
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {(sourceInventory.rejected.length > 0 ? sourceInventory.rejected : rejectedSources).slice(0, 4).map((source, index) =>
+                        "title" in source ? (
+                          <p key={`${source.title}-${index + 1}`} className="text-sm leading-6 text-stone-600">
+                            <span className="font-medium text-stone-800">{source.title}</span>
+                            {" - "}
+                            {source.rejectionReason ?? "rejected"}
+                          </p>
+                        ) : (
+                          <p key={`${source.source}-${index + 1}`} className="text-sm leading-6 text-stone-600">
+                            <span className="font-medium text-stone-800">{source.source}</span>
+                            {" - "}
+                            {source.reason}
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+
+                {failures.length > 0 ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">Run notes</div>
+                    <div className="mt-3 space-y-2">
+                      {failures.slice(0, 4).map((failure, index) => (
+                        <p key={`${failure.stage}-${failure.code}-${index + 1}`} className="text-sm leading-6 text-amber-900">
+                          <span className="font-medium capitalize">{failure.stage}</span>
+                          {" - "}
+                          {failure.message}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Source collection</div>
+                {sourceInventory.selected.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {sourceInventory.selected.map((source) => (
+                      <div key={source.id} className="rounded-2xl bg-[#fcfaf6] px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-stone-800">{source.title}</p>
+                          {formatSourceMeta(source).map((meta) => (
+                            <span key={`${source.id}-${meta}`} className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
+                              {meta}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-stone-600">
+                          {source.claimCount} supporting claim{source.claimCount === 1 ? "" : "s"}
+                        </p>
+                        {source.url ? (
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-xs font-medium text-stone-500 underline decoration-stone-300 underline-offset-4"
+                          >
+                            {source.url}
+                          </a>
+                        ) : null}
+                        {source.citationIds.length ? (
+                          <CitationReferences citationIds={source.citationIds} citationsById={citationsById} />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm leading-6 text-stone-600">
+                    No normalized sources were retained for this run.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Citation index</div>
+                {reportCitations.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {reportCitations.map((citation) => (
+                      <div key={citation.id} className="rounded-2xl bg-[#fcfaf6] px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium text-stone-800">{citation.source}</p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
+                            {citation.id}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-stone-600">{citation.claim}</p>
+                        {citation.url ? (
+                          <a
+                            href={citation.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 inline-block text-xs font-medium text-stone-500 underline decoration-stone-300 underline-offset-4"
+                          >
+                            {citation.url}
+                          </a>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm leading-6 text-stone-600">
+                    No citations were retained for this run.
+                  </p>
+                )}
+              </div>
+            </section>
+
             {report.sections.map((section) => {
               const isExpanded = expandedSections[section.id] ?? true;
 
@@ -210,35 +587,64 @@ export default function ResearchReport({
 
                       <div className="mt-5 border-t border-stone-200 pt-4">
                         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Citations</div>
-                        <div className="mt-3 space-y-3">
-                          {section.citations.map((citation) => (
-                            <div key={citation.id} className="rounded-3xl bg-[#fcfaf6] px-4 py-3">
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-stone-800">{citation.source}</p>
-                                  <p className="mt-1 text-sm leading-6 text-stone-600">{citation.claim}</p>
-                                  {citation.url ? (
-                                    <a
-                                      href={citation.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="mt-2 inline-block text-xs font-medium text-stone-500 underline decoration-stone-300 underline-offset-4"
-                                    >
-                                      {citation.url}
-                                    </a>
-                                  ) : null}
+                        {section.citations.length > 0 ? (
+                          <div className="mt-3 space-y-3">
+                            {section.citations.map((citation) => (
+                              <div key={citation.id} id={getCitationAnchor(citation.id)} className="rounded-3xl bg-[#fcfaf6] px-4 py-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-sm font-medium text-stone-800">{citation.source}</p>
+                                      <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
+                                        {citation.id}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-sm leading-6 text-stone-600">{citation.claim}</p>
+                                    {citation.sourceType || citation.publicationDate || citation.publicationSignal || citation.recencySignal || citation.accessibilityStatus ? (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {formatSourceMeta({
+                                          sourceType: citation.sourceType ?? "other",
+                                          publicationSignal: citation.publicationSignal ?? "unknown",
+                                          recencySignal: citation.recencySignal ?? "unknown",
+                                          accessibilityStatus: citation.accessibilityStatus ?? "unknown",
+                                          publicationDate: citation.publicationDate,
+                                        }).map((meta) => (
+                                          <span
+                                            key={`${citation.id}-${meta}`}
+                                            className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600"
+                                          >
+                                            {meta}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    {citation.url ? (
+                                      <a
+                                        href={citation.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-2 inline-block text-xs font-medium text-stone-500 underline decoration-stone-300 underline-offset-4"
+                                      >
+                                        {citation.url}
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                  <span
+                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
+                                      citation.relevance,
+                                    )}`}
+                                  >
+                                    {citation.relevance} relevance
+                                  </span>
                                 </div>
-                                <span
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
-                                    citation.relevance,
-                                  )}`}
-                                >
-                                  {citation.relevance} relevance
-                                </span>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm leading-6 text-stone-600">
+                            No citations were retained for this section.
+                          </p>
+                        )}
                       </div>
                     </div>
                   ) : null}

@@ -1,4 +1,4 @@
-import type { ResearchReport } from "@/lib/research";
+import type { ResearchReport, ResearchRunArtifact, ResearchSource } from "@/lib/research";
 
 export type Sender = "user" | "assistant";
 
@@ -71,10 +71,26 @@ export type Phase = {
 export type ProjectResearch = {
   status: "success" | "error";
   report?: ResearchReport;
+  artifact?: ProjectResearchArtifact;
   errorMessage?: string;
   researchQuestion: string;
   sourceContext: string;
   updatedAt: string;
+};
+
+export type ProjectResearchArtifact = {
+  status?: ResearchRunArtifact["status"];
+  generatedAt?: string;
+  plan?: Partial<ResearchRunArtifact["plan"]> & {
+    budget?: Partial<ResearchRunArtifact["plan"]["budget"]>;
+    steps?: Array<Partial<ResearchRunArtifact["plan"]["steps"][number]>>;
+  };
+  report?: Partial<ResearchReport>;
+  selectedSources?: ResearchRunArtifact["selectedSources"];
+  rejectedSources?: ResearchRunArtifact["rejectedSources"];
+  sourceInventory?: ResearchRunArtifact["sourceInventory"];
+  metrics?: Partial<ResearchRunArtifact["metrics"]>;
+  failures?: ResearchRunArtifact["failures"];
 };
 
 export type Project = {
@@ -221,6 +237,34 @@ export const isPhase = (value: unknown): value is Phase => {
 const isResearchRelevance = (value: unknown): value is "high" | "medium" | "low" =>
   value === "high" || value === "medium" || value === "low";
 
+const isResearchSourceType = (value: unknown): value is ResearchSource["sourceType"] =>
+  value === "report" ||
+  value === "company" ||
+  value === "documentation" ||
+  value === "news" ||
+  value === "community" ||
+  value === "analyst" ||
+  value === "academic" ||
+  value === "government" ||
+  value === "dataset" ||
+  value === "other";
+
+const isResearchAccessibilityStatus = (value: unknown): value is NonNullable<ResearchSource["accessibilityStatus"]> =>
+  value === "public" ||
+  value === "paywalled" ||
+  value === "login_required" ||
+  value === "restricted" ||
+  value === "unknown";
+
+const isResearchPublicationSignal = (value: unknown): value is NonNullable<ResearchSource["publicationSignal"]> =>
+  value === "official" || value === "third_party" || value === "community" || value === "analyst" || value === "unknown";
+
+const isResearchRecencySignal = (value: unknown): value is NonNullable<ResearchSource["recencySignal"]> =>
+  value === "current" || value === "recent" || value === "dated" || value === "undated" || value === "unknown";
+
+const isResearchEvidenceStrength = (value: unknown): value is NonNullable<NonNullable<ResearchReport["keyFindings"]>[number]["strength"]> =>
+  value === "strong" || value === "moderate" || value === "weak";
+
 const isResearchCitation = (value: unknown): boolean => {
   if (!isRecord(value)) {
     return false;
@@ -231,7 +275,12 @@ const isResearchCitation = (value: unknown): boolean => {
     typeof value.source === "string" &&
     typeof value.claim === "string" &&
     isResearchRelevance(value.relevance) &&
-    (value.url === undefined || typeof value.url === "string")
+    (value.url === undefined || typeof value.url === "string") &&
+    (value.sourceType === undefined || isResearchSourceType(value.sourceType)) &&
+    (value.publicationDate === undefined || typeof value.publicationDate === "string") &&
+    (value.publicationSignal === undefined || isResearchPublicationSignal(value.publicationSignal)) &&
+    (value.recencySignal === undefined || isResearchRecencySignal(value.recencySignal)) &&
+    (value.accessibilityStatus === undefined || isResearchAccessibilityStatus(value.accessibilityStatus))
   );
 };
 
@@ -249,6 +298,181 @@ const isResearchSection = (value: unknown): boolean => {
   );
 };
 
+const isResearchReportLike = (value: unknown): value is Partial<ResearchReport> => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    (value.sections === undefined || (Array.isArray(value.sections) && value.sections.every(isResearchSection))) &&
+    (value.executiveSummary === undefined || typeof value.executiveSummary === "string") &&
+    (value.researchQuestion === undefined || typeof value.researchQuestion === "string") &&
+    (value.generatedAt === undefined || typeof value.generatedAt === "string") &&
+    (value.citations === undefined || (Array.isArray(value.citations) && value.citations.every(isResearchCitation))) &&
+    (value.sources === undefined || (Array.isArray(value.sources) && value.sources.every(isResearchSource))) &&
+    (value.keyFindings === undefined ||
+      (Array.isArray(value.keyFindings) &&
+        value.keyFindings.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.id === "string" &&
+            typeof item.statement === "string" &&
+            Array.isArray(item.citationIds) &&
+            item.citationIds.every((citationId) => typeof citationId === "string") &&
+            (item.sectionIds === undefined || (Array.isArray(item.sectionIds) && item.sectionIds.every((sectionId) => typeof sectionId === "string"))) &&
+            isResearchEvidenceStrength(item.strength),
+        ))) &&
+    (value.caveats === undefined ||
+      (Array.isArray(value.caveats) &&
+        value.caveats.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.id === "string" &&
+            typeof item.statement === "string" &&
+            (item.citationIds === undefined || (Array.isArray(item.citationIds) && item.citationIds.every((citationId) => typeof citationId === "string"))) &&
+            (item.sectionIds === undefined || (Array.isArray(item.sectionIds) && item.sectionIds.every((sectionId) => typeof sectionId === "string"))),
+        ))) &&
+    (value.contradictions === undefined ||
+      (Array.isArray(value.contradictions) &&
+        value.contradictions.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.id === "string" &&
+            typeof item.statement === "string" &&
+            Array.isArray(item.citationIds) &&
+            item.citationIds.every((citationId) => typeof citationId === "string") &&
+            (item.sectionIds === undefined || (Array.isArray(item.sectionIds) && item.sectionIds.every((sectionId) => typeof sectionId === "string"))),
+        ))) &&
+    (value.unansweredQuestions === undefined ||
+      (Array.isArray(value.unansweredQuestions) &&
+        value.unansweredQuestions.every(
+          (item) =>
+            isRecord(item) &&
+            typeof item.id === "string" &&
+            typeof item.question === "string" &&
+            (item.citationIds === undefined || (Array.isArray(item.citationIds) && item.citationIds.every((citationId) => typeof citationId === "string"))) &&
+            (item.sectionIds === undefined || (Array.isArray(item.sectionIds) && item.sectionIds.every((sectionId) => typeof sectionId === "string"))),
+        )))
+  );
+};
+
+const isResearchSource = (value: unknown): value is ResearchSource => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.canonicalId === "string" &&
+    isResearchSourceType(value.sourceType) &&
+    (value.status === "selected" || value.status === "rejected") &&
+    Array.isArray(value.citationIds) &&
+    value.citationIds.every((citationId) => typeof citationId === "string") &&
+    Array.isArray(value.sectionIds) &&
+    value.sectionIds.every((sectionId) => typeof sectionId === "string") &&
+    (value.url === undefined || typeof value.url === "string") &&
+    (value.canonicalUrl === undefined || typeof value.canonicalUrl === "string") &&
+    (value.domain === undefined || typeof value.domain === "string") &&
+    (value.publicationDate === undefined || typeof value.publicationDate === "string") &&
+    (value.publicationSignal === undefined || isResearchPublicationSignal(value.publicationSignal)) &&
+    (value.recencySignal === undefined || isResearchRecencySignal(value.recencySignal)) &&
+    (value.accessibilityStatus === undefined || isResearchAccessibilityStatus(value.accessibilityStatus)) &&
+    typeof value.claimCount === "number" &&
+    (value.rejectionReason === undefined ||
+      value.rejectionReason === "duplicate" ||
+      value.rejectionReason === "budget" ||
+      value.rejectionReason === "invalid")
+  );
+};
+
+const isResearchRejectedSource = (value: unknown): boolean => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    (value.reason === "duplicate" || value.reason === "budget" || value.reason === "invalid") &&
+    typeof value.source === "string" &&
+    (value.citationId === undefined || typeof value.citationId === "string")
+  );
+};
+
+const isResearchFailure = (value: unknown): boolean => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    (value.stage === "plan" || value.stage === "gather" || value.stage === "report") &&
+    (value.code === "invalid-input" ||
+      value.code === "invalid-plan" ||
+      value.code === "budget-exceeded" ||
+      value.code === "no-evidence" ||
+      value.code === "invalid-section" ||
+      value.code === "invalid-summary" ||
+      value.code === "provider-error") &&
+    typeof value.message === "string"
+  );
+};
+
+const isResearchPlanItemLike = (value: unknown): boolean => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    (value.id === undefined || typeof value.id === "string") &&
+    (value.title === undefined || typeof value.title === "string") &&
+    (value.angle === undefined || typeof value.angle === "string") &&
+    (value.query === undefined || typeof value.query === "string") &&
+    (value.rationale === undefined || typeof value.rationale === "string")
+  );
+};
+
+export const isProjectResearchArtifact = (value: unknown): value is ProjectResearchArtifact => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const plan = value.plan;
+  const metrics = value.metrics;
+
+  return (
+    (value.status === undefined || value.status === "completed" || value.status === "partial" || value.status === "failed") &&
+    (value.generatedAt === undefined || typeof value.generatedAt === "string") &&
+    (plan === undefined ||
+      (isRecord(plan) &&
+        (plan.projectName === undefined || typeof plan.projectName === "string") &&
+        (plan.projectDescription === undefined || typeof plan.projectDescription === "string") &&
+        (plan.researchQuestion === undefined || typeof plan.researchQuestion === "string") &&
+        (plan.budget === undefined ||
+          (isRecord(plan.budget) &&
+            (plan.budget.maxAngles === undefined || typeof plan.budget.maxAngles === "number") &&
+            (plan.budget.maxSections === undefined || typeof plan.budget.maxSections === "number") &&
+            (plan.budget.maxCitationsPerSection === undefined || typeof plan.budget.maxCitationsPerSection === "number"))) &&
+        (plan.steps === undefined || (Array.isArray(plan.steps) && plan.steps.every(isResearchPlanItemLike))))) &&
+    (value.report === undefined || isResearchReportLike(value.report)) &&
+    (value.selectedSources === undefined ||
+      (Array.isArray(value.selectedSources) && value.selectedSources.every(isResearchCitation))) &&
+    (value.rejectedSources === undefined ||
+      (Array.isArray(value.rejectedSources) && value.rejectedSources.every(isResearchRejectedSource))) &&
+    (value.sourceInventory === undefined ||
+      (isRecord(value.sourceInventory) &&
+        Array.isArray(value.sourceInventory.selected) &&
+        value.sourceInventory.selected.every(isResearchSource) &&
+        Array.isArray(value.sourceInventory.rejected) &&
+        value.sourceInventory.rejected.every(isResearchSource))) &&
+    (metrics === undefined ||
+      (isRecord(metrics) &&
+        (metrics.attemptedAngles === undefined || typeof metrics.attemptedAngles === "number") &&
+        (metrics.completedSections === undefined || typeof metrics.completedSections === "number") &&
+        (metrics.selectedSources === undefined || typeof metrics.selectedSources === "number") &&
+        (metrics.rejectedSources === undefined || typeof metrics.rejectedSources === "number"))) &&
+    (value.failures === undefined || (Array.isArray(value.failures) && value.failures.every(isResearchFailure)))
+  );
+};
+
 export const isProjectResearch = (value: unknown): value is ProjectResearch => {
   if (!isRecord(value)) {
     return false;
@@ -263,13 +487,15 @@ export const isProjectResearch = (value: unknown): value is ProjectResearch => {
     typeof value.sourceContext === "string" &&
     typeof value.updatedAt === "string" &&
     (value.errorMessage === undefined || typeof value.errorMessage === "string") &&
+    (value.artifact === undefined || isProjectResearchArtifact(value.artifact)) &&
     (value.report === undefined ||
       (isRecord(value.report) &&
         Array.isArray(value.report.sections) &&
         value.report.sections.every(isResearchSection) &&
         typeof value.report.executiveSummary === "string" &&
         typeof value.report.researchQuestion === "string" &&
-        typeof value.report.generatedAt === "string"))
+        typeof value.report.generatedAt === "string" &&
+        isResearchReportLike(value.report)))
   );
 };
 

@@ -724,14 +724,13 @@ function evictDurableOverriddenBucketItems(
   maxItemsPerSection: number,
 ): SummaryBuckets {
   const maps = createItemMaps();
+  const durableMergeableItems = MERGEABLE_BUCKETS.flatMap((bucket) => durableBuckets[bucket]);
 
   for (const key of Object.keys(buckets) as Array<keyof SummaryBuckets>) {
-    const durableItems = durableBuckets[key];
-
     for (const item of buckets[key]) {
       const shouldEvict =
         (MERGEABLE_BUCKETS as readonly string[]).includes(key) &&
-        durableItems.some((durableItem) => itemsConflict(item, durableItem) || itemsShareTopic(item, durableItem));
+        durableMergeableItems.some((durableItem) => itemsConflict(item, durableItem) || itemsShareTopic(item, durableItem));
 
       if (!shouldEvict) {
         addBucketItem(maps, key, item);

@@ -38,6 +38,16 @@ function createMockClient(responses: Array<string | Error>): ResearchOpenAIClien
   };
 }
 
+function createSummaryResponse(executiveSummary: string) {
+  return JSON.stringify({
+    executiveSummary,
+    keyFindings: [],
+    caveats: [],
+    contradictions: [],
+    unansweredQuestions: [],
+  });
+}
+
 describe("research helpers", () => {
   it("builds a prompt with project details and JSON instructions", () => {
     const prompt = buildResearchPrompt(
@@ -138,6 +148,35 @@ End`);
     });
   });
 
+  it("normalizes incomplete citations with stable fallback values", () => {
+    const result = parseResearchResponse(`{
+      "title": "Market Analysis",
+      "angle": "Demand validation",
+      "findings": "Customers keep asking for this workflow.",
+      "citations": [
+        {
+          "url": "https://www.example.com/report?utm_source=test"
+        }
+      ]
+    }`);
+
+    expect(result).toEqual({
+      id: "market-analysis",
+      title: "Market Analysis",
+      angle: "Demand validation",
+      findings: "Customers keep asking for this workflow.",
+      citations: [
+        {
+          id: "market-analysis-citation-1",
+          source: "example.com",
+          claim: "Customers keep asking for this workflow.",
+          relevance: "low",
+          url: "https://www.example.com/report?utm_source=test",
+        },
+      ],
+    });
+  });
+
   it("returns null for invalid JSON or invalid citation shape", () => {
     expect(parseResearchResponse("not json")).toBeNull();
     expect(parseResearchResponse("[]")).toBeNull();
@@ -180,6 +219,26 @@ End`);
             "claim": "Claim",
             "relevance": "low",
             "url": 123
+          }
+        ]
+      }`),
+    ).toBeNull();
+    expect(
+      parseResearchResponse(`{
+        "id": "market-section",
+        "title": "Market Analysis",
+        "angle": "Demand validation",
+        "findings": "Invalid source metadata.",
+        "citations": [
+          {
+            "id": "citation-3",
+            "source": "Industry report",
+            "claim": "Claim",
+            "relevance": "medium",
+            "sourceType": "podcast",
+            "publicationSignal": "first_party",
+            "recencySignal": "fresh",
+            "accessibilityStatus": "members_only"
           }
         ]
       }`),
@@ -276,6 +335,94 @@ End`);
         generatedAt: "2026-04-08T16:12:00.000Z",
       }),
     ).toBe(true);
+    expect(
+      validateResearchReport({
+        sections: [],
+        executiveSummary: "Summary",
+        researchQuestion: "Demand?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+        citations: [{ id: "c1", source: "Source A", claim: "Claim A", relevance: "high" }],
+        sources: [
+          {
+            id: "selected-source-a",
+            title: "Source A",
+            canonicalId: "source-a",
+            sourceType: "report",
+            status: "selected",
+            citationIds: ["c1"],
+            sectionIds: ["section-1"],
+            publicationSignal: "unknown",
+            recencySignal: "unknown",
+            accessibilityStatus: "unknown",
+            claimCount: 1,
+          },
+        ],
+        keyFindings: [
+          {
+            id: "finding-1",
+            statement: "Supported finding",
+            citationIds: ["c1"],
+            sectionIds: ["section-1"],
+            strength: "moderate",
+          },
+        ],
+        caveats: [
+          {
+            id: "caveat-1",
+            statement: "Watch recency",
+            citationIds: ["c1"],
+            sectionIds: ["section-1"],
+          },
+        ],
+        contradictions: [
+          {
+            id: "contradiction-1",
+            statement: "Signals conflict",
+            citationIds: ["c1"],
+            sectionIds: ["section-1"],
+          },
+        ],
+        unansweredQuestions: [
+          {
+            id: "question-1",
+            question: "What is still unknown?",
+            citationIds: ["c1"],
+            sectionIds: ["section-1"],
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      validateResearchReport({
+        sections: [],
+        executiveSummary: "Summary",
+        researchQuestion: "Demand?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+        keyFindings: [
+          {
+            id: "finding-1",
+            statement: "Unsupported finding",
+            citationIds: [],
+            strength: "strong",
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      validateResearchReport({
+        sections: [],
+        executiveSummary: "Summary",
+        researchQuestion: "Demand?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+        caveats: [
+          {
+            id: "caveat-1",
+            statement: "Bad section id",
+            sectionIds: [""],
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 
   it("builds a synthesis prompt from sections", () => {
@@ -301,7 +448,7 @@ End`);
 
     expect(prompt).toContain("Research question: What are the key opportunities and risks?.");
     expect(prompt).toContain("AI workflow budgets are expanding.");
-    expect(prompt).toContain("Be honest about missing or weak evidence.");
+    expect(prompt).toContain("Be explicit about weak evidence, dated evidence, missing publication dates, and partial runs when relevant.");
   });
 });
 
@@ -332,7 +479,42 @@ describe("runResearch", () => {
         findings: "Crowded.",
         citations: [{ id: "c4", source: "Source D", claim: "Claim D", relevance: "low" }],
       }),
-      "Opportunities outweigh immediate risks.",
+      JSON.stringify({
+        executiveSummary: "Opportunities outweigh immediate risks.",
+        keyFindings: [
+          {
+            id: "market-proof",
+            statement: "Demand evidence is strongest in the market section.",
+            citationIds: ["c1", "missing-citation"],
+            sectionIds: ["wrong-section"],
+            strength: "strong",
+          },
+        ],
+        caveats: [
+          {
+            id: "missing-recency",
+            statement: "Some evidence is undated.",
+            citationIds: ["missing-citation"],
+            sectionIds: ["wrong-section"],
+          },
+        ],
+        contradictions: [
+          {
+            id: "bad-linkage",
+            statement: "This contradiction does not have valid support.",
+            citationIds: ["missing-citation"],
+            sectionIds: ["wrong-section"],
+          },
+        ],
+        unansweredQuestions: [
+          {
+            id: "follow-up",
+            question: "What do customers prioritize first?",
+            citationIds: ["c2", "missing-citation"],
+            sectionIds: ["wrong-section"],
+          },
+        ],
+      }),
     ]);
 
     const artifact = await runResearch(client, {
@@ -345,6 +527,38 @@ describe("runResearch", () => {
     expect(artifact.status).toBe("completed");
     expect(artifact.report.sections).toHaveLength(3);
     expect(artifact.report.executiveSummary).toBe("Opportunities outweigh immediate risks.");
+    expect(artifact.report.citations).toHaveLength(4);
+    expect(artifact.report.sources).toEqual(artifact.sourceInventory.selected);
+    expect(artifact.report.keyFindings).toEqual([
+      {
+        id: "market-proof",
+        statement: "Demand evidence is strongest in the market section.",
+        citationIds: ["c1"],
+        sectionIds: ["market"],
+        strength: "strong",
+      },
+    ]);
+    expect(artifact.report.caveats).toHaveLength(2);
+    expect(artifact.report.caveats).toEqual(
+      expect.arrayContaining([
+        {
+          id: "missing-recency",
+          statement: "Some evidence is undated.",
+        },
+        {
+          id: "bad-linkage-unsupported",
+          statement: "This contradiction does not have valid support.",
+        },
+      ]),
+    );
+    expect(artifact.report.unansweredQuestions).toEqual([
+      {
+        id: "follow-up",
+        question: "What do customers prioritize first?",
+        citationIds: ["c2"],
+        sectionIds: ["market"],
+      },
+    ]);
     expect(artifact.metrics.selectedSources).toBe(4);
     expect(artifact.failures).toEqual([]);
   });
@@ -362,7 +576,7 @@ describe("runResearch", () => {
           { id: "c3", source: "Source C", claim: "Claim C", relevance: "medium" },
         ],
       }),
-      "Summary",
+      createSummaryResponse("Summary"),
     ]);
 
     const artifact = await runResearch(client, {
@@ -375,6 +589,95 @@ describe("runResearch", () => {
 
     expect(artifact.report.sections[0]?.citations).toHaveLength(2);
     expect(artifact.rejectedSources).toEqual([{ reason: "budget", source: "Source C", citationId: "c3" }]);
+    expect(artifact.sourceInventory.selected).toEqual([
+      expect.objectContaining({
+        title: "Source A",
+        sectionIds: ["market"],
+        citationIds: ["c1"],
+      }),
+      expect.objectContaining({
+        title: "Source B",
+        sectionIds: ["market"],
+        citationIds: ["c2"],
+      }),
+    ]);
+    expect(artifact.sourceInventory.rejected).toEqual([
+      expect.objectContaining({
+        title: "Source C",
+        sectionIds: ["market"],
+        citationIds: ["c3"],
+        rejectionReason: "budget",
+      }),
+    ]);
+  });
+
+  it("normalizes duplicate source inventory across sections while preserving citation linkage", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Found demand.",
+        citations: [
+          {
+            id: "c1",
+            source: "Source A",
+            claim: "Claim A",
+            relevance: "high",
+            url: "https://example.com/report?utm_source=test",
+            sourceType: "report",
+          },
+        ],
+      }),
+      JSON.stringify({
+        id: "technical",
+        title: "Technical",
+        angle: "Feasibility",
+        findings: "Feasible.",
+        citations: [
+          {
+            id: "c2",
+            source: "Source A",
+            claim: "Claim B",
+            relevance: "medium",
+            url: "https://www.example.com/report",
+            publicationSignal: "official",
+          },
+        ],
+      }),
+      createSummaryResponse("Summary"),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 2, maxSections: 2, maxCitationsPerSection: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.sourceInventory.selected).toEqual([
+      {
+        id: "selected-https-example-com-report",
+        title: "Source A",
+        canonicalId: "https://example.com/report",
+        sourceType: "report",
+        status: "selected",
+        citationIds: ["c1", "c2"],
+        sectionIds: ["market", "technical"],
+        url: "https://example.com/report?utm_source=test",
+        canonicalUrl: "https://example.com/report",
+        domain: "example.com",
+        publicationDate: undefined,
+        publicationSignal: "official",
+        recencySignal: "undated",
+        accessibilityStatus: "unknown",
+        claimCount: 2,
+        rejectionReason: undefined,
+      },
+    ]);
+    expect(artifact.report.sources).toEqual(artifact.sourceInventory.selected);
+    expect(artifact.report.citations?.map((citation) => citation.id)).toEqual(["c1", "c2"]);
   });
 
   it("returns partial when one section fails validation but others succeed", async () => {
@@ -394,7 +697,7 @@ describe("runResearch", () => {
         findings: "Crowded.",
         citations: [{ id: "c2", source: "Source B", claim: "Claim B", relevance: "low" }],
       }),
-      "Evidence is mixed.",
+      createSummaryResponse("Evidence is mixed."),
     ]);
 
     const artifact = await runResearch(client, {
@@ -495,6 +798,29 @@ describe("runResearch", () => {
       code: "invalid-summary",
       message: "Failed to synthesize report",
     });
+    expect(artifact.report.keyFindings).toEqual([
+      {
+        id: "market-finding",
+        statement: "Found demand.",
+        citationIds: ["c1"],
+        sectionIds: ["market"],
+        strength: "weak",
+      },
+      {
+        id: "technical-finding",
+        statement: "Feasible.",
+        citationIds: ["c2"],
+        sectionIds: ["technical"],
+        strength: "weak",
+      },
+      {
+        id: "competitive-finding",
+        statement: "Crowded.",
+        citationIds: ["c3"],
+        sectionIds: ["competitive"],
+        strength: "weak",
+      },
+    ]);
   });
 
   it("records a generic gather provider error for non-Error throws", async () => {
@@ -510,7 +836,7 @@ describe("runResearch", () => {
           citations: [{ id: "c3", source: "Source C", claim: "Claim C", relevance: "low" }],
         }) } }],
       })
-      .mockResolvedValueOnce({ choices: [{ message: { content: "Summary" } }] });
+      .mockResolvedValueOnce({ choices: [{ message: { content: createSummaryResponse("Summary") } }] });
 
     const customClient: ResearchOpenAIClient = { chat: { completions: { create } } };
     const artifact = await runResearch(customClient, {
@@ -545,7 +871,7 @@ describe("runResearch", () => {
         findings: "Crowded.",
         citations: [{ id: "c2", source: "Source B", claim: "Claim B", relevance: "low" }],
       }),
-      "Summary",
+      createSummaryResponse("Summary"),
     ]);
 
     const artifact = await runResearch(client, {
@@ -586,7 +912,7 @@ describe("runResearch", () => {
         findings: "Crowded.",
         citations: [{ id: "c3", source: "Source C", claim: "Claim C", relevance: "low" }],
       }),
-      "Summary",
+      createSummaryResponse("Summary"),
     ]);
 
     const artifact = await runResearch(client, {
@@ -610,7 +936,7 @@ describe("runResearch", () => {
         findings: "Found demand.",
         citations: [{ id: "c1", source: "Source A", claim: "Claim A", relevance: "high" }],
       }),
-      "Summary",
+      createSummaryResponse("Summary"),
     ]);
 
     const artifact = await runResearch(client, {
@@ -625,7 +951,52 @@ describe("runResearch", () => {
     expect(artifact.metrics.completedSections).toBe(1);
   });
 
-  it("returns partial when duplicate sources are rejected across sections", async () => {
+  it("drops duplicate citations across sections and keeps later sections stable when citations are empty", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Demand exists.",
+        citations: [{ id: "c1", source: "Shared Source", claim: "Claim A", relevance: "high" }],
+      }),
+      JSON.stringify({
+        id: "technical",
+        title: "Technical",
+        angle: "Feasibility",
+        findings: "Implementation is feasible.",
+        citations: [{ id: "c2", source: "Shared Source", claim: "Claim A", relevance: "medium" }],
+      }),
+      createSummaryResponse("Summary"),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 2, maxSections: 2, maxCitationsPerSection: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.report.sections).toEqual([
+      expect.objectContaining({
+        id: "market",
+        citations: [{ id: "c1", source: "Shared Source", claim: "Claim A", relevance: "high" }],
+      }),
+      expect.objectContaining({
+        id: "technical",
+        citations: [],
+      }),
+    ]);
+    expect(artifact.report.citations).toEqual([{ id: "c1", source: "Shared Source", claim: "Claim A", relevance: "high" }]);
+    expect(artifact.rejectedSources).toContainEqual({
+      reason: "duplicate",
+      source: "Shared Source",
+      citationId: "c2",
+    });
+  });
+
+  it("dedupes selected sources across sections without rejecting distinct claims", async () => {
     const client = createMockClient([
       JSON.stringify({
         id: "market",
@@ -648,7 +1019,7 @@ describe("runResearch", () => {
         findings: "Crowded.",
         citations: [{ id: "c3", source: "Unique Source", claim: "Claim C", relevance: "low" }],
       }),
-      "Summary",
+      createSummaryResponse("Summary"),
     ]);
 
     const artifact = await runResearch(client, {
@@ -658,11 +1029,238 @@ describe("runResearch", () => {
       generatedAt: "2026-04-08T16:12:00.000Z",
     });
 
-    expect(artifact.selectedSources.map((source) => source.source)).toEqual(["Shared Source", "Unique Source"]);
-    expect(artifact.rejectedSources).toContainEqual({
-      reason: "duplicate",
-      source: "Shared Source",
-      citationId: "c2",
+    expect(artifact.selectedSources.map((source) => source.source)).toEqual([
+      "Shared Source",
+      "Shared Source",
+      "Unique Source",
+    ]);
+    expect(artifact.rejectedSources).toEqual([]);
+    expect(artifact.sourceInventory.selected).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Shared Source",
+          citationIds: ["c1", "c2"],
+          sectionIds: ["market", "technical"],
+          claimCount: 2,
+        }),
+      ]),
+    );
+  });
+
+  it("normalizes duplicate summary ids, unsupported findings, and missing supported findings", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Signals exist but the citations were dropped.",
+        citations: [],
+      }),
+      JSON.stringify({
+        executiveSummary: "Summary with unsupported evidence.",
+        keyFindings: [
+          {
+            id: "duplicate",
+            statement: "Unsupported finding should become a caveat.",
+            citationIds: ["missing"],
+            sectionIds: ["market"],
+            strength: "weak",
+          },
+        ],
+        caveats: [
+          {
+            id: "duplicate",
+            statement: "Existing caveat keeps the base id.",
+          },
+        ],
+        contradictions: [],
+        unansweredQuestions: [
+          {
+            id: "duplicate",
+            question: "What evidence is still needed?",
+          },
+          {
+            id: "duplicate",
+            question: "What evidence is still needed?",
+          },
+        ],
+      }),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 1, maxSections: 1, maxCitationsPerSection: 1 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
     });
+
+    expect(artifact.status).toBe("partial");
+    expect(artifact.report.keyFindings).toEqual([]);
+    expect(artifact.report.caveats).toEqual(
+      expect.arrayContaining([
+        {
+          id: "duplicate",
+          statement: "Existing caveat keeps the base id.",
+        },
+        {
+          id: "duplicate-unsupported",
+          statement: "Unsupported finding should become a caveat.",
+        },
+        {
+          id: "missing-supported-findings",
+          statement: "No key findings met the citation threshold, so evidence gaps remain visible instead of inferred.",
+        },
+      ]),
+    );
+    expect(artifact.report.unansweredQuestions).toEqual([
+      {
+        id: "duplicate-2",
+        question: "What evidence is still needed?",
+      },
+    ]);
+  });
+
+  it("updates selected source metadata from later citations when the initial source is unknown", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Initial source metadata is weak.",
+        citations: [
+          {
+            id: "c1",
+            source: "Shared Source",
+            claim: "Claim A",
+            relevance: "high",
+            sourceType: "other",
+            publicationSignal: "unknown",
+            recencySignal: "unknown",
+            accessibilityStatus: "unknown",
+          },
+        ],
+      }),
+      JSON.stringify({
+        id: "technical",
+        title: "Technical",
+        angle: "Feasibility",
+        findings: "Later source metadata is stronger.",
+        citations: [
+          {
+            id: "c2",
+            source: "Shared Source",
+            claim: "Claim B",
+            relevance: "medium",
+            url: "https://www.example.com/docs?ref=nav",
+            sourceType: "documentation",
+            publicationDate: "2026-01-02",
+            publicationSignal: "official",
+            recencySignal: "current",
+            accessibilityStatus: "public",
+          },
+        ],
+      }),
+      createSummaryResponse("Summary"),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 2, maxSections: 2, maxCitationsPerSection: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.sourceInventory.selected).toEqual([
+      {
+        id: "selected-shared-source",
+        title: "Shared Source",
+        canonicalId: "shared-source",
+        sourceType: "documentation",
+        status: "selected",
+        citationIds: ["c1", "c2"],
+        sectionIds: ["market", "technical"],
+        url: "https://www.example.com/docs?ref=nav",
+        canonicalUrl: "https://example.com/docs",
+        domain: "example.com",
+        publicationDate: "2026-01-02",
+        publicationSignal: "official",
+        recencySignal: "current",
+        accessibilityStatus: "public",
+        claimCount: 2,
+        rejectionReason: undefined,
+      },
+    ]);
+  });
+
+  it("keeps recency conservative from publication dates alone and upgrades it when richer metadata arrives", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Initial metadata is missing dates.",
+        citations: [
+          {
+            id: "c1",
+            source: "Shared Source",
+            claim: "Claim A",
+            relevance: "high",
+            url: "https://example.com/report",
+          },
+        ],
+      }),
+      JSON.stringify({
+        id: "technical",
+        title: "Technical",
+        angle: "Feasibility",
+        findings: "Later metadata adds a publication date.",
+        citations: [
+          {
+            id: "c2",
+            source: "Shared Source",
+            claim: "Claim B",
+            relevance: "medium",
+            url: "https://example.com/report?ref=nav",
+            publicationDate: "2026-01-02",
+          },
+        ],
+      }),
+      JSON.stringify({
+        id: "competitive",
+        title: "Competitive",
+        angle: "Landscape",
+        findings: "Final metadata adds an explicit recency signal.",
+        citations: [
+          {
+            id: "c3",
+            source: "Shared Source",
+            claim: "Claim C",
+            relevance: "medium",
+            recencySignal: "recent",
+          },
+        ],
+      }),
+      createSummaryResponse("Summary"),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 3, maxSections: 3, maxCitationsPerSection: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.sourceInventory.selected).toEqual([
+      expect.objectContaining({
+        title: "Shared Source",
+        citationIds: ["c1", "c2", "c3"],
+        sectionIds: ["market", "technical", "competitive"],
+        publicationDate: "2026-01-02",
+        recencySignal: "recent",
+      }),
+    ]);
   });
 });

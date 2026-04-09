@@ -273,6 +273,41 @@ describe("context compression", () => {
     expect(result.summaryText).not.toContain("Persistence should use a temporary JSON blob.");
   });
 
+  it("evicts stale summary items across fact and decision buckets when durable memory supersedes them", () => {
+    const priorSummaries = [
+      buildSummary({
+        id: "summary-pricing-stale",
+        summaryVersion: 2,
+        content: [
+          "Key facts:",
+          "- Creator teams previously tested monthly pricing.",
+          "Decisions:",
+          "- Monthly pricing for creator teams.",
+        ].join("\n"),
+      }),
+    ];
+
+    const durableMemoryEntries = [
+      buildMemoryEntry({
+        id: "memory-pricing-current",
+        kind: "decision",
+        title: "Pricing direction",
+        content: "Annual pricing for creator teams with guided onboarding.",
+        dedupeKey: "decision:pricing-direction",
+      }),
+    ];
+
+    const result = compressContext({
+      turns: [],
+      priorSummaries,
+      durableMemoryEntries,
+    });
+
+    expect(result.summaryText).not.toContain("previously tested monthly pricing");
+    expect(result.summaryText).not.toContain("Monthly pricing for creator teams.");
+    expect(result.reloadContext).toContain("Annual pricing for creator teams with guided onboarding.");
+  });
+
   it("keeps durable memory visible and sorted in the reload payload", () => {
     const durableMemoryEntries = [
       buildMemoryEntry({

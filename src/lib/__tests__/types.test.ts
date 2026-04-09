@@ -85,6 +85,23 @@ describe("lib/types guards", () => {
     researchQuestion: "What are the key opportunities and risks?",
     sourceContext: "User asked for a market scan.",
     updatedAt: "2025-01-02T00:00:00.000Z",
+    artifact: {
+      status: "completed",
+      generatedAt: "2025-01-02T00:00:00.000Z",
+      metrics: {
+        attemptedAngles: 3,
+        completedSections: 1,
+      },
+      selectedSources: [
+        {
+          id: "citation-1",
+          source: "Source",
+          claim: "Claim",
+          relevance: "high",
+          url: "https://example.com",
+        },
+      ],
+    },
     report: {
       sections: [
         {
@@ -204,6 +221,22 @@ describe("lib/types guards", () => {
     expect(types.isProject({ ...project, research: researchReport })).toBe(true);
   });
 
+  it("accepts a legacy ProjectResearch payload with only a report", () => {
+    const { artifact, ...legacyResearch } = researchReport;
+
+    expect(types.isProjectResearch(legacyResearch)).toBe(true);
+  });
+
+  it("accepts a partial persisted research artifact", () => {
+    expect(
+      types.isProjectResearchArtifact({
+        status: "partial",
+        generatedAt: "2025-01-02T00:00:00.000Z",
+        metrics: { attemptedAngles: 2 },
+      }),
+    ).toBe(true);
+  });
+
   it("rejects invalid validation patterns", () => {
     expect(types.isChatMessage({ ...chatMessage, sender: "system" })).toBe(false);
     expect(types.isStickyNoteData({ ...stickyNote, x: "120" })).toBe(false);
@@ -215,6 +248,7 @@ describe("lib/types guards", () => {
     expect(types.isProjectResearch({ ...researchReport, report: { ...researchReport.report, sections: [{}] } })).toBe(
       false,
     );
+    expect(types.isProjectResearchArtifact({ status: "completed", metrics: { attemptedAngles: "3" } })).toBe(false);
   });
 
   it.each(["amber", "", null, undefined, 123, {}, []])(

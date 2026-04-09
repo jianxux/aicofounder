@@ -30,6 +30,11 @@ export type PromptMemoryResult = {
   metadata: PromptMemoryMetadata;
 };
 
+type RetrievalContext = {
+  projectId?: string;
+  sessionId?: string;
+};
+
 const DEFAULT_ENTRY_LIMIT = 6;
 const DEFAULT_SUMMARY_LIMIT = 4;
 const MAX_RELOAD_CHARACTERS = 1200;
@@ -120,6 +125,58 @@ function dedupeSummaries(summaries: readonly MemorySummary[]) {
   };
 }
 
+function deriveRetrievalContext(
+  entryHits: ReturnType<typeof searchMemoryEntries>,
+  summaryHits: ReturnType<typeof searchMemorySummaries>,
+): RetrievalContext {
+  const summary = summaryHits[0]?.summary;
+  if (summary) {
+    return {
+      projectId: summary.projectId,
+      sessionId: summary.sessionId ?? undefined,
+    };
+  }
+
+  const entry = entryHits[0]?.entry;
+  if (entry) {
+    return {
+      projectId: entry.projectId,
+      sessionId: entry.sessionId ?? undefined,
+    };
+  }
+
+  return {};
+}
+
+function scoreEntryAlignment(entry: MemoryEntry, context: RetrievalContext) {
+  let score = 0;
+
+  if (context.projectId) {
+    score += entry.projectId === context.projectId ? 3 : entry.projectId ? -2 : 0;
+  }
+
+  if (context.sessionId) {
+    score += entry.sessionId === context.sessionId ? 5 : entry.sessionId ? -2 : 0;
+    score += entry.scope === "session" ? 2 : entry.scope === "project" ? 1 : 0;
+  }
+
+  return score;
+}
+
+function prioritizeEntriesByContext(
+  hits: ReturnType<typeof searchMemoryEntries>,
+  context: RetrievalContext,
+) {
+  return hits
+    .map((hit, index) => ({
+      hit,
+      index,
+      alignmentScore: scoreEntryAlignment(hit.entry, context),
+    }))
+    .sort((left, right) => right.alignmentScore - left.alignmentScore || left.index - right.index)
+    .map(({ hit }) => hit);
+}
+
 export function buildPromptMemory(input: BuildPromptMemoryInput): PromptMemoryResult {
   const query = normalizeQuery(input.messages, input.query);
 
@@ -136,8 +193,20 @@ export function buildPromptMemory(input: BuildPromptMemoryInput): PromptMemoryRe
     };
   }
 
-  const entryHits = searchMemoryEntries(input.memoryEntries ?? [], query, { limit: DEFAULT_ENTRY_LIMIT * 2 });
-  const summaryHits = searchMemorySummaries(input.memorySummaries ?? [], query, { limit: DEFAULT_SUMMARY_LIMIT * 2 });
+  const initialEntryHits = searchMemoryEntries(input.memoryEntries ?? [], query, { limit: DEFAULT_ENTRY_LIMIT * 2 });
+  const initialSummaryHits = searchMemorySummaries(input.memorySummaries ?? [], query, { limit: DEFAULT_SUMMARY_LIMIT * 2 });
+  const retrievalContext = deriveRetrievalContext(initialEntryHits, initialSummaryHits);
+  const entryHits = prioritizeEntriesByContext(
+    searchMemoryEntries(input.memoryEntries ?? [], query, {
+      limit: DEFAULT_ENTRY_LIMIT * 2,
+      ...retrievalContext,
+    }),
+    retrievalContext,
+  );
+  const summaryHits = searchMemorySummaries(input.memorySummaries ?? [], query, {
+    limit: DEFAULT_SUMMARY_LIMIT * 2,
+    ...retrievalContext,
+  });
   const selectedEntries = dedupeEntries(entryHits.map((hit) => hit.entry));
   const { summaries: selectedSummaries, summaryLevel } = dedupeSummaries(summaryHits.map((hit) => hit.summary));
 

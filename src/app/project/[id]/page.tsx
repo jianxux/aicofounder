@@ -12,11 +12,19 @@ import { useRealtimeProject } from "@/hooks/useRealtimeProject";
 import { trackEvent } from "@/lib/analytics";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
+import { resolveProjectResearchResponse, type ResearchApiFailure, type ResearchApiSuccess } from "@/lib/project-research";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
-import { ResearchReport as ResearchReportData } from "@/lib/research";
 import { fetchProjectById } from "@/lib/supabase-projects";
 import { UltraplanResult } from "@/lib/ultraplan";
-import { ChatMessage, DocumentCardData, Phase, Project, SectionData, StickyNoteData, WebsiteBuilderData } from "@/lib/types";
+import {
+  ChatMessage,
+  DocumentCardData,
+  Phase,
+  Project,
+  SectionData,
+  StickyNoteData,
+  WebsiteBuilderData,
+} from "@/lib/types";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -448,12 +456,39 @@ export default function ProjectWorkspacePage() {
         }),
       });
 
-      const payload = (await response.json()) as
-        | (ResearchReportData & { artifact?: unknown })
-        | { error: string };
+      const payload = (await response.json()) as ResearchApiSuccess | ResearchApiFailure;
+      const result = resolveProjectResearchResponse(existingResearch, payload, response.ok);
+      const displayedReportUpdatedAt = result.report?.generatedAt ?? existingResearch?.updatedAt ?? new Date().toISOString();
 
-      if (!response.ok || "error" in payload) {
-        throw new Error(("error" in payload && payload.error) || "Failed to run deep research");
+      if (!result.ok) {
+        const baseProject = projectRef.current ?? currentProject;
+
+        if (baseProject) {
+          persistProject({
+            ...baseProject,
+            research: {
+              status: "error",
+              errorMessage: result.errorMessage ?? "Failed to run deep research",
+              researchQuestion,
+              sourceContext,
+              updatedAt: displayedReportUpdatedAt,
+              artifact: result.artifact,
+              report: result.report,
+            },
+            messages: [
+              ...baseProject.messages,
+              createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
+            ],
+          });
+        }
+
+        return;
+      }
+
+      const report = result.report;
+
+      if (!report) {
+        throw new Error("Failed to parse deep research report");
       }
 
       const latestProject = projectRef.current ?? currentProject;
@@ -461,15 +496,11 @@ export default function ProjectWorkspacePage() {
         ...latestProject,
         research: {
           status: "success" as const,
-          report: {
-            sections: payload.sections,
-            executiveSummary: payload.executiveSummary,
-            researchQuestion: payload.researchQuestion,
-            generatedAt: payload.generatedAt,
-          },
-          researchQuestion: payload.researchQuestion,
+          artifact: result.artifact,
+          report,
+          researchQuestion: report.researchQuestion,
           sourceContext,
-          updatedAt: new Date().toISOString(),
+          updatedAt: report.generatedAt,
         },
       };
 
@@ -486,6 +517,7 @@ export default function ProjectWorkspacePage() {
             researchQuestion,
             sourceContext,
             updatedAt: new Date().toISOString(),
+            artifact: existingResearch?.artifact,
             report: existingResearch?.report,
           },
           messages: [
@@ -728,6 +760,7 @@ export default function ProjectWorkspacePage() {
               lastUpdatedAt={project.research?.updatedAt}
               researchQuestion={project.research?.researchQuestion}
               sourceContext={project.research?.sourceContext}
+              artifact={project.research?.artifact}
               onRunResearch={handleResearch}
             />
             {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
@@ -782,6 +815,7 @@ export default function ProjectWorkspacePage() {
                 lastUpdatedAt={project.research?.updatedAt}
                 researchQuestion={project.research?.researchQuestion}
                 sourceContext={project.research?.sourceContext}
+                artifact={project.research?.artifact}
                 onRunResearch={handleResearch}
               />
               {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}

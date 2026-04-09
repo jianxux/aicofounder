@@ -189,6 +189,55 @@ describe("buildPromptMemory", () => {
     expect(result.block).not.toContain("Broader market context.");
   });
 
+  it("uses the strongest summary match to align entry retrieval before deduping", () => {
+    const result = buildPromptMemory({
+      query: "pricing creator teams",
+      memoryEntries: [
+        buildEntry({
+          id: "entry-project-mismatch",
+          projectId: "project-2",
+          sessionId: "session-2",
+          scope: "project",
+          kind: "decision",
+          title: "Pricing direction",
+          content: "Annual pricing for creator teams.",
+          tags: ["pricing", "creators"],
+          importance: 5,
+          confidence: 1,
+          updatedAt: "2025-01-05T00:00:00.000Z",
+        }),
+        buildEntry({
+          id: "entry-session-aligned",
+          projectId: "project-1",
+          sessionId: "session-1",
+          scope: "session",
+          kind: "decision",
+          title: "Pricing direction",
+          content: "Annual pricing for creator teams with guided onboarding.",
+          tags: ["pricing", "creators"],
+          importance: 2,
+          confidence: 0.8,
+          updatedAt: "2025-01-02T00:00:00.000Z",
+        }),
+      ],
+      memorySummaries: [
+        buildSummary({
+          id: "summary-aligned",
+          projectId: "project-1",
+          sessionId: "session-1",
+          summaryLevel: "session",
+          summaryVersion: 3,
+          content: "Decisions:\n- Creator teams need guided onboarding.",
+          createdAt: "2025-01-03T00:00:00.000Z",
+          updatedAt: "2025-01-03T00:00:00.000Z",
+        }),
+      ],
+    });
+
+    expect(result.metadata.entryIds).toEqual(["entry-session-aligned", "entry-project-mismatch"]);
+    expect(result.metadata.summaryIds).toEqual(["summary-aligned"]);
+  });
+
   it("returns an empty block when the query finds no relevant memory", () => {
     const result = buildPromptMemory({
       query: "pricing",

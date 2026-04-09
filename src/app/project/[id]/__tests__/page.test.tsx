@@ -67,21 +67,33 @@ vi.mock("@/components/UltraplanReport", () => ({
 vi.mock("@/components/ResearchReport", () => ({
   default: ({
     status,
+    report,
+    artifact,
     errorMessage,
     researchQuestion,
     sourceContext,
+    lastUpdatedAt,
     onRunResearch,
   }: {
     status: string;
+    report?: { executiveSummary?: string } | null;
+    artifact?: { status?: string; metrics?: { attemptedAngles?: number } };
     errorMessage?: string;
     researchQuestion?: string;
     sourceContext?: string;
+    lastUpdatedAt?: string;
     onRunResearch?: () => void;
   }) => (
     <div>
       <div data-testid="research-status">{status}</div>
+      {report?.executiveSummary ? <div data-testid="research-summary">{report.executiveSummary}</div> : null}
+      {artifact?.status ? <div data-testid="research-artifact-status">{artifact.status}</div> : null}
+      {typeof artifact?.metrics?.attemptedAngles === "number" ? (
+        <div data-testid="research-attempted-angles">{artifact.metrics.attemptedAngles}</div>
+      ) : null}
       {researchQuestion ? <div data-testid="research-question">{researchQuestion}</div> : null}
       {sourceContext ? <div data-testid="research-context">{sourceContext}</div> : null}
+      {lastUpdatedAt ? <div data-testid="research-last-updated">{lastUpdatedAt}</div> : null}
       {errorMessage ? <div data-testid="research-error">{errorMessage}</div> : null}
       <button type="button" onClick={onRunResearch}>
         Run from report
@@ -149,6 +161,12 @@ describe("ProjectWorkspacePage", () => {
           researchQuestion: "What are the key opportunities and risks?",
           sourceContext: "Saved locally",
           updatedAt: "2025-01-11T00:00:00.000Z",
+          artifact: {
+            status: "completed",
+            metrics: {
+              attemptedAngles: 3,
+            },
+          },
           report: {
             sections: [],
             executiveSummary: "Stored summary",
@@ -167,6 +185,7 @@ describe("ProjectWorkspacePage", () => {
 
     expect(screen.getByTestId("research-question")).toHaveTextContent("What are the key opportunities and risks?");
     expect(screen.getByTestId("research-context")).toHaveTextContent("Saved locally");
+    expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("completed");
   });
 
   it("runs research from the latest user message and persists the result", async () => {
@@ -180,6 +199,19 @@ describe("ProjectWorkspacePage", () => {
           executiveSummary: "Demand is real.",
           researchQuestion: "What are the key opportunities and risks?",
           generatedAt: "2025-01-12T00:00:00.000Z",
+          artifact: {
+            status: "completed",
+            generatedAt: "2025-01-12T00:00:00.000Z",
+            metrics: {
+              attemptedAngles: 3,
+              completedSections: 0,
+              selectedSources: 0,
+              rejectedSources: 0,
+            },
+            selectedSources: [],
+            rejectedSources: [],
+            failures: [],
+          },
         }),
       }),
     );
@@ -211,14 +243,38 @@ describe("ProjectWorkspacePage", () => {
           status: "success",
           sourceContext: "Analyze demand for AI note taking for lawyers.",
           researchQuestion: "What are the key opportunities and risks?",
+          artifact: expect.objectContaining({
+            status: "completed",
+            metrics: expect.objectContaining({
+              attemptedAngles: 3,
+            }),
+          }),
         }),
       }),
     );
   });
 
-  it("falls back to the current phase context and shows a failure state when research errors", async () => {
+  it("falls back to the current phase context, keeps the previous report, and stores failed artifact details", async () => {
     mockGetProject.mockResolvedValue(
       makeProject({
+        research: {
+          status: "success",
+          researchQuestion: "Earlier question",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-09T00:00:00.000Z",
+          artifact: {
+            status: "completed",
+            metrics: {
+              attemptedAngles: 1,
+            },
+          },
+          report: {
+            sections: [],
+            executiveSummary: "Stored summary",
+            researchQuestion: "Earlier question",
+            generatedAt: "2025-01-09T00:00:00.000Z",
+          },
+        },
         messages: [
           {
             id: "assistant-1",
@@ -235,6 +291,15 @@ describe("ProjectWorkspacePage", () => {
         ok: false,
         json: async () => ({
           error: "Provider timeout",
+          artifact: {
+            status: "failed",
+            generatedAt: "2025-01-12T00:00:00.000Z",
+            metrics: {
+              attemptedAngles: 2,
+              rejectedSources: 1,
+            },
+            failures: [{ stage: "gather", code: "no-evidence", message: "No research sections passed validation" }],
+          },
         }),
       }),
     );
@@ -242,7 +307,7 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("empty");
+      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("success");
     });
 
     fireEvent.click(
@@ -263,11 +328,25 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByTestId("research-question")[0]).toHaveTextContent(
       "What are the key opportunities and risks for the Discovery phase?",
     );
+    expect(screen.getAllByTestId("research-summary")[0]).toHaveTextContent("Stored summary");
+    expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("failed");
+    expect(screen.getAllByTestId("research-attempted-angles")[0]).toHaveTextContent("2");
+    expect(screen.getAllByTestId("research-last-updated")[0]).toHaveTextContent("2025-01-09T00:00:00.000Z");
     expect(mockSaveProject).toHaveBeenLastCalledWith(
       expect.objectContaining({
         research: expect.objectContaining({
           status: "error",
           sourceContext: "Current phase: Discovery. Open tasks: Interview users.",
+          updatedAt: "2025-01-09T00:00:00.000Z",
+          report: expect.objectContaining({
+            executiveSummary: "Stored summary",
+          }),
+          artifact: expect.objectContaining({
+            status: "failed",
+            metrics: expect.objectContaining({
+              attemptedAngles: 2,
+            }),
+          }),
         }),
       }),
     );
