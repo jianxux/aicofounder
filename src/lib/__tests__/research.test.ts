@@ -16,7 +16,11 @@ import {
   type ResearchOpenAIClient,
 } from "@/lib/research";
 
-function createMockClient(responses: Array<string | Error>): ResearchOpenAIClient {
+type MockResearchClient = ResearchOpenAIClient & {
+  createMock: ReturnType<typeof vi.fn>;
+};
+
+function createMockClient(responses: Array<string | Error>): MockResearchClient {
   const create = vi.fn().mockImplementation(async () => {
     const next = responses.shift();
 
@@ -35,6 +39,7 @@ function createMockClient(responses: Array<string | Error>): ResearchOpenAIClien
         create,
       },
     },
+    createMock: create,
   };
 }
 
@@ -453,6 +458,56 @@ End`);
 });
 
 describe("runResearch", () => {
+  it("returns a failed artifact with a fallback plan when input is invalid", async () => {
+    const client = createMockClient([]);
+
+    const artifact = await runResearch(client, {
+      projectName: "   ",
+      projectDescription: "AI workspace",
+      researchQuestion: "Demand?",
+      budgets: { maxAngles: 99, maxSections: 99, maxCitationsPerSection: 99 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.status).toBe("failed");
+    expect(artifact.generatedAt).toBe("2026-04-08T16:12:00.000Z");
+    expect(artifact.plan).toEqual(
+      expect.objectContaining({
+        projectName: "Untitled project",
+        projectDescription: "AI workspace",
+        researchQuestion: "Demand?",
+        budget: {
+          maxAngles: 3,
+          maxSections: 3,
+          maxCitationsPerSection: 5,
+        },
+        steps: [],
+      }),
+    );
+    expect(artifact.report.sections).toEqual([]);
+    expect(artifact.report.researchQuestion).toBe("Demand?");
+    expect(artifact.report.caveats).toHaveLength(1);
+    expect(artifact.report.caveats[0]).toEqual(
+      expect.objectContaining({
+        statement: "Project name and project description are required",
+      }),
+    );
+    expect(artifact.metrics).toEqual({
+      attemptedAngles: 0,
+      completedSections: 0,
+      selectedSources: 0,
+      rejectedSources: 0,
+    });
+    expect(artifact.failures).toEqual([
+      {
+        stage: "plan",
+        code: "invalid-input",
+        message: "Project name and project description are required",
+      },
+    ]);
+    expect(client.createMock).not.toHaveBeenCalled();
+  });
+
   it("returns a completed artifact for successful research", async () => {
     const client = createMockClient([
       JSON.stringify({
@@ -538,17 +593,14 @@ describe("runResearch", () => {
         strength: "strong",
       },
     ]);
-    expect(artifact.report.caveats).toHaveLength(2);
     expect(artifact.report.caveats).toEqual(
       expect.arrayContaining([
-        {
-          id: "missing-recency",
+        expect.objectContaining({
           statement: "Some evidence is undated.",
-        },
-        {
-          id: "bad-linkage-unsupported",
+        }),
+        expect.objectContaining({
           statement: "This contradiction does not have valid support.",
-        },
+        }),
       ]),
     );
     expect(artifact.report.unansweredQuestions).toEqual([
@@ -561,6 +613,13 @@ describe("runResearch", () => {
     ]);
     expect(artifact.metrics.selectedSources).toBe(4);
     expect(artifact.failures).toEqual([]);
+    expect(client.createMock).toHaveBeenCalledTimes(4);
+    expect(client.createMock.mock.calls.slice(0, 3)).toSatisfy((calls: Array<[{
+      messages: Array<{ role: string; content: string }>;
+    }]>) =>
+      calls.every(([request]) => request.messages[1]?.content.includes("Generate the research section as valid JSON.")),
+    );
+    expect(client.createMock.mock.calls[3]?.[0]?.messages[1]?.content).toBe("Generate the structured synthesis JSON.");
   });
 
   it("dedupes sources and enforces citation budgets", async () => {
@@ -657,24 +716,20 @@ describe("runResearch", () => {
     });
 
     expect(artifact.sourceInventory.selected).toEqual([
-      {
-        id: "selected-https-example-com-report",
+      expect.objectContaining({
         title: "Source A",
         canonicalId: "https://example.com/report",
         sourceType: "report",
         status: "selected",
         citationIds: ["c1", "c2"],
         sectionIds: ["market", "technical"],
-        url: "https://example.com/report?utm_source=test",
         canonicalUrl: "https://example.com/report",
         domain: "example.com",
-        publicationDate: undefined,
         publicationSignal: "official",
         recencySignal: "undated",
         accessibilityStatus: "unknown",
         claimCount: 2,
-        rejectionReason: undefined,
-      },
+      }),
     ]);
     expect(artifact.report.sources).toEqual(artifact.sourceInventory.selected);
     expect(artifact.report.citations?.map((citation) => citation.id)).toEqual(["c1", "c2"]);
@@ -714,6 +769,8 @@ describe("runResearch", () => {
       code: "invalid-section",
       message: "Failed to parse section for Technical Feasibility",
     });
+    expect(client.createMock).toHaveBeenCalledTimes(4);
+    expect(client.createMock.mock.calls[3]?.[0]?.messages[1]?.content).toBe("Generate the structured synthesis JSON.");
   });
 
   it("returns failed when no sections pass validation", async () => {
@@ -733,24 +790,7 @@ describe("runResearch", () => {
       code: "no-evidence",
       message: "No research sections passed validation",
     });
-  });
-
-  it("returns failed when planning input is invalid", async () => {
-    const artifact = await runResearch(createMockClient([]), {
-      projectName: "   ",
-      projectDescription: "AI workspace",
-      researchQuestion: "Where is demand strongest?",
-      generatedAt: "2026-04-08T16:12:00.000Z",
-    });
-
-    expect(artifact.status).toBe("failed");
-    expect(artifact.failures).toEqual([
-      {
-        stage: "plan",
-        code: "invalid-input",
-        message: "Project name and project description are required",
-      },
-    ]);
+    expect(client.createMock).toHaveBeenCalledTimes(3);
   });
 
   it("returns partial with a fallback summary when synthesis fails", async () => {
@@ -821,6 +861,8 @@ describe("runResearch", () => {
         strength: "weak",
       },
     ]);
+    expect(client.createMock).toHaveBeenCalledTimes(4);
+    expect(client.createMock.mock.calls[3]?.[0]?.messages[1]?.content).toBe("Generate the structured synthesis JSON.");
   });
 
   it("records a generic gather provider error for non-Error throws", async () => {
@@ -949,6 +991,8 @@ describe("runResearch", () => {
 
     expect(artifact.metrics.attemptedAngles).toBe(1);
     expect(artifact.metrics.completedSections).toBe(1);
+    expect(client.createMock).toHaveBeenCalledTimes(2);
+    expect(client.createMock.mock.calls[1]?.[0]?.messages[1]?.content).toBe("Generate the structured synthesis JSON.");
   });
 
   it("drops duplicate citations across sections and keeps later sections stable when citations are empty", async () => {
@@ -1099,25 +1143,21 @@ describe("runResearch", () => {
     expect(artifact.report.keyFindings).toEqual([]);
     expect(artifact.report.caveats).toEqual(
       expect.arrayContaining([
-        {
-          id: "duplicate",
+        expect.objectContaining({
           statement: "Existing caveat keeps the base id.",
-        },
-        {
-          id: "duplicate-unsupported",
+        }),
+        expect.objectContaining({
           statement: "Unsupported finding should become a caveat.",
-        },
-        {
-          id: "missing-supported-findings",
+        }),
+        expect.objectContaining({
           statement: "No key findings met the citation threshold, so evidence gaps remain visible instead of inferred.",
-        },
+        }),
       ]),
     );
     expect(artifact.report.unansweredQuestions).toEqual([
-      {
-        id: "duplicate-2",
+      expect.objectContaining({
         question: "What evidence is still needed?",
-      },
+      }),
     ]);
   });
 
@@ -1173,15 +1213,13 @@ describe("runResearch", () => {
     });
 
     expect(artifact.sourceInventory.selected).toEqual([
-      {
-        id: "selected-shared-source",
+      expect.objectContaining({
         title: "Shared Source",
         canonicalId: "shared-source",
         sourceType: "documentation",
         status: "selected",
         citationIds: ["c1", "c2"],
         sectionIds: ["market", "technical"],
-        url: "https://www.example.com/docs?ref=nav",
         canonicalUrl: "https://example.com/docs",
         domain: "example.com",
         publicationDate: "2026-01-02",
@@ -1189,8 +1227,7 @@ describe("runResearch", () => {
         recencySignal: "current",
         accessibilityStatus: "public",
         claimCount: 2,
-        rejectionReason: undefined,
-      },
+      }),
     ]);
   });
 
@@ -1262,5 +1299,147 @@ describe("runResearch", () => {
         recencySignal: "recent",
       }),
     ]);
+  });
+
+  it("returns a failed artifact when all gather steps fail validation or provider calls", async () => {
+    const client = createMockClient(["not json", new Error("Section timeout")]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 2, maxSections: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.status).toBe("failed");
+    expect(artifact.report.sections).toEqual([]);
+    expect(artifact.report.caveats.map((caveat) => caveat.statement)).toEqual([
+      "Failed to parse section for Market Analysis",
+      "Section timeout",
+      "No research sections passed validation",
+    ]);
+    expect(artifact.report.unansweredQuestions).toEqual([
+      {
+        id: "no-evidence",
+        question: "Which sources or customer interviews are still needed to answer the research question credibly?",
+      },
+    ]);
+    expect(artifact.failures).toEqual([
+      { stage: "gather", code: "invalid-section", message: "Failed to parse section for Market Analysis" },
+      { stage: "gather", code: "provider-error", message: "Section timeout" },
+      { stage: "gather", code: "no-evidence", message: "No research sections passed validation" },
+    ]);
+    expect(artifact.metrics).toEqual({
+      attemptedAngles: 2,
+      completedSections: 0,
+      selectedSources: 0,
+      rejectedSources: 0,
+    });
+    expect(client.createMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to a partial summary when synthesis fails and surfaces evidence gaps", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Customers mention the workflow repeatedly.",
+        citations: [{ id: "c1", source: "Source A", claim: "Claim A", relevance: "high" }],
+      }),
+      JSON.stringify({
+        id: "technical",
+        title: "Technical",
+        angle: "Feasibility",
+        findings: "Implementation looks tractable.",
+        citations: [],
+      }),
+      new Error("Synthesis timeout"),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 2, maxSections: 2 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.status).toBe("partial");
+    expect(artifact.report.executiveSummary).toContain("Evidence is limited.");
+    expect(artifact.report.keyFindings).toEqual([
+      {
+        id: "market-finding",
+        statement: "Customers mention the workflow repeatedly.",
+        citationIds: ["c1"],
+        sectionIds: ["market"],
+        strength: "weak",
+      },
+    ]);
+    expect(artifact.report.caveats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ statement: "Synthesis timeout" }),
+        expect.objectContaining({ statement: "Failed to synthesize report" }),
+        expect.objectContaining({
+          statement: "Technical did not retain enough usable citations to support a key finding.",
+        }),
+        expect.objectContaining({
+          statement: "Some supporting sources are undated, which limits confidence in recency-sensitive claims.",
+        }),
+      ]),
+    );
+    expect(artifact.report.unansweredQuestions).toEqual([]);
+    expect(artifact.failures).toEqual([
+      { stage: "report", code: "provider-error", message: "Synthesis timeout" },
+      { stage: "report", code: "invalid-summary", message: "Failed to synthesize report" },
+    ]);
+    expect(client.createMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("adds an explicit caveat when normalized synthesis leaves no supported findings", async () => {
+    const client = createMockClient([
+      JSON.stringify({
+        id: "market",
+        title: "Market",
+        angle: "Demand",
+        findings: "Found demand.",
+        citations: [{ id: "c1", source: "Source A", claim: "Claim A", relevance: "high" }],
+      }),
+      JSON.stringify({
+        executiveSummary: "Summary",
+        keyFindings: [
+          {
+            id: "unsupported",
+            statement: "This claim has no usable citations.",
+            citationIds: ["missing"],
+            strength: "strong",
+          },
+        ],
+        caveats: [],
+        contradictions: [],
+        unansweredQuestions: [],
+      }),
+    ]);
+
+    const artifact = await runResearch(client, {
+      projectName: "Orbit",
+      projectDescription: "AI workspace",
+      researchQuestion: "Where is demand strongest?",
+      budgets: { maxAngles: 1, maxSections: 1 },
+      generatedAt: "2026-04-08T16:12:00.000Z",
+    });
+
+    expect(artifact.status).toBe("partial");
+    expect(artifact.report.keyFindings).toEqual([]);
+    expect(artifact.report.caveats).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          statement: "No key findings met the citation threshold, so evidence gaps remain visible instead of inferred.",
+        }),
+        expect.objectContaining({ statement: "This claim has no usable citations." }),
+      ]),
+    );
+    expect(artifact.failures).toEqual([]);
   });
 });

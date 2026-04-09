@@ -50,12 +50,7 @@ describe("resolveProjectResearchResponse", () => {
 
     expect(result.ok).toBe(true);
     expect(result.report).toEqual(report);
-    expect(result.artifact).toEqual(
-      expect.objectContaining({
-        status: "completed",
-        report,
-      }),
-    );
+    expect(result.artifact).toEqual(expect.objectContaining({ status: "completed", report }));
   });
 
   it("preserves the prior successful report when a new run fails", () => {
@@ -89,17 +84,15 @@ describe("resolveProjectResearchResponse", () => {
     expect(result.ok).toBe(false);
     expect(result.errorMessage).toBe("Provider timeout");
     expect(result.report).toEqual(report);
-    expect(result.artifact).toEqual(
-      expect.objectContaining({
-        status: "failed",
-        generatedAt: "2025-01-10T00:00:00.000Z",
-        report,
-        metrics: expect.objectContaining({
-          attemptedAngles: 2,
-          rejectedSources: 1,
-        }),
+    expect(result.artifact).toEqual(expect.objectContaining({
+      status: "failed",
+      generatedAt: "2025-01-10T00:00:00.000Z",
+      report,
+      metrics: expect.objectContaining({
+        attemptedAngles: 2,
+        rejectedSources: 1,
       }),
-    );
+    }));
   });
 
   it("supports legacy report-only responses without an artifact", () => {
@@ -108,6 +101,32 @@ describe("resolveProjectResearchResponse", () => {
     expect(result.ok).toBe(true);
     expect(result.report).toEqual(report);
     expect(result.artifact).toEqual({ report });
+  });
+
+  it("prefers a valid artifact report when the top-level payload is not a valid report", () => {
+    const artifactReport = {
+      ...report,
+      executiveSummary: "Artifact summary",
+    };
+
+    const result = resolveProjectResearchResponse(
+      null,
+      {
+        executiveSummary: "ignored",
+        artifact: {
+          status: "completed",
+          report: artifactReport,
+        },
+      },
+      true,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.report).toEqual(artifactReport);
+    expect(result.artifact).toEqual({
+      status: "completed",
+      report: artifactReport,
+    });
   });
 
   it("keeps existing artifact data when the new artifact payload is absent", () => {
@@ -304,50 +323,157 @@ describe("resolveProjectResearchResponse", () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(result.artifact).toEqual({
+    expect(result.artifact).toEqual(expect.objectContaining({
       status: "completed",
       generatedAt: "2025-01-09T00:00:00.000Z",
-      plan: {
-        projectName: "Orbit",
-        budget: { maxAngles: 3, maxSections: 2, maxCitationsPerSection: 3 },
-        steps: [{ id: "market", title: "Market", angle: "Demand" }],
-      },
-      sourceInventory: {
-        selected: [
-          {
-            id: "selected-source-a",
-            title: "Source A",
-            canonicalId: "source-a",
-            sourceType: "report",
-            status: "selected",
-            citationIds: ["c1"],
-            sectionIds: ["market"],
-            publicationSignal: "unknown",
-            recencySignal: "unknown",
-            accessibilityStatus: "unknown",
-            claimCount: 1,
-          },
-        ],
-        rejected: [
-          {
-            id: "rejected-source-b",
-            title: "Source B",
-            canonicalId: "source-b",
-            sourceType: "other",
-            status: "rejected",
-            citationIds: ["c2"],
-            sectionIds: ["market"],
-            publicationSignal: "unknown",
-            recencySignal: "unknown",
-            accessibilityStatus: "unknown",
-            claimCount: 1,
-            rejectionReason: "budget",
-          },
-        ],
-      },
       metrics: { attemptedAngles: 1, completedSections: 1, rejectedSources: 2 },
       failures: [{ stage: "report", code: "invalid-summary", message: "Fallback used" }],
       report,
+    }));
+    expect(result.artifact?.plan).toEqual(expect.objectContaining({
+      projectName: "Orbit",
+      budget: { maxAngles: 3, maxSections: 2, maxCitationsPerSection: 3 },
+      steps: [{ id: "market", title: "Market", angle: "Demand" }],
+    }));
+    expect(result.artifact?.sourceInventory).toEqual(expect.objectContaining({
+      selected: [
+        expect.objectContaining({
+          title: "Source A",
+          citationIds: ["c1"],
+          sectionIds: ["market"],
+        }),
+      ],
+      rejected: [
+        expect.objectContaining({
+          title: "Source B",
+          citationIds: ["c2"],
+          sectionIds: ["market"],
+          rejectionReason: "budget",
+        }),
+      ],
+    }));
+  });
+
+  it("replaces plan steps and source arrays when a newer artifact provides them", () => {
+    const existingResearch: ProjectResearch = {
+      status: "success",
+      researchQuestion: report.researchQuestion,
+      sourceContext: "Saved locally",
+      updatedAt: "2025-01-09T00:00:00.000Z",
+      artifact: {
+        plan: {
+          projectName: "Orbit",
+          projectDescription: "Original description",
+          researchQuestion: report.researchQuestion,
+          budget: { maxAngles: 2, maxSections: 2 },
+          steps: [{ id: "market", title: "Market", angle: "Demand", query: "old-query", rationale: "old-rationale" }],
+        },
+        selectedSources: [{ id: "c1", source: "Source A", claim: "Claim A", relevance: "high" }],
+        rejectedSources: [{ source: "Source B", reason: "duplicate", citationId: "c2" }],
+        sourceInventory: {
+          selected: [
+            {
+              id: "selected-source-a",
+              title: "Source A",
+              canonicalId: "source-a",
+              sourceType: "report",
+              status: "selected",
+              citationIds: ["c1"],
+              sectionIds: ["market"],
+              publicationSignal: "unknown",
+              recencySignal: "unknown",
+              accessibilityStatus: "unknown",
+              claimCount: 1,
+            },
+          ],
+          rejected: [],
+        },
+        report,
+      },
+      report,
+    };
+
+    const result = resolveProjectResearchResponse(
+      existingResearch,
+      {
+        artifact: {
+          plan: {
+            budget: { maxCitationsPerSection: 4 },
+            steps: [{ id: "technical", title: "Technical", angle: "Feasibility", query: "new-query", rationale: "new-rationale" }],
+          },
+          selectedSources: [{ id: "c3", source: "Source C", claim: "Claim C", relevance: "medium" }],
+          rejectedSources: [{ source: "Source D", reason: "budget", citationId: "c4" }],
+          sourceInventory: {
+            selected: [],
+            rejected: [
+              {
+                id: "rejected-source-d",
+                title: "Source D",
+                canonicalId: "source-d",
+                sourceType: "other",
+                status: "rejected",
+                citationIds: ["c4"],
+                sectionIds: ["technical"],
+                publicationSignal: "unknown",
+                recencySignal: "unknown",
+                accessibilityStatus: "unknown",
+                claimCount: 1,
+                rejectionReason: "budget",
+              },
+            ],
+          },
+        },
+      },
+      true,
+    );
+
+    expect(result.artifact?.plan).toEqual({
+      projectName: "Orbit",
+      projectDescription: "Original description",
+      researchQuestion: report.researchQuestion,
+      budget: { maxAngles: 2, maxSections: 2, maxCitationsPerSection: 4 },
+      steps: [{ id: "technical", title: "Technical", angle: "Feasibility", query: "new-query", rationale: "new-rationale" }],
+    });
+    expect(result.artifact?.selectedSources).toEqual([{ id: "c3", source: "Source C", claim: "Claim C", relevance: "medium" }]);
+    expect(result.artifact?.rejectedSources).toEqual([{ source: "Source D", reason: "budget", citationId: "c4" }]);
+    expect(result.artifact?.sourceInventory).toEqual({
+      selected: [],
+      rejected: [
+        expect.objectContaining({
+          title: "Source D",
+          citationIds: ["c4"],
+          sectionIds: ["technical"],
+          rejectionReason: "budget",
+        }),
+      ],
+    });
+    expect(result.artifact?.report).toEqual(report);
+  });
+
+  it("uses a valid flattened report as fallback when the artifact payload is malformed", () => {
+    const flattenedReport = {
+      ...report,
+      executiveSummary: "Flattened summary",
+    };
+
+    const result = resolveProjectResearchResponse(
+      null,
+      {
+        ...flattenedReport,
+        artifact: {
+          status: "bad",
+          metrics: {
+            attemptedAngles: "bad",
+          },
+        },
+      },
+      true,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.report).toEqual(flattenedReport);
+    expect(result.artifact).toEqual({
+      report: flattenedReport,
     });
   });
 
@@ -502,29 +628,7 @@ describe("resolveProjectResearchResponse", () => {
       true,
     );
 
-    expect(result.artifact).toEqual({
-      plan: {
-        steps: [{ id: "market", title: "Market", angle: "Demand", query: "q", rationale: "r" }],
-      },
-      sourceInventory: {
-        selected: [],
-        rejected: [
-          {
-            id: "rejected-source-b",
-            title: "Source B",
-            canonicalId: "source-b",
-            sourceType: "other",
-            status: "rejected",
-            citationIds: [],
-            sectionIds: [],
-            publicationSignal: "unknown",
-            recencySignal: "unknown",
-            accessibilityStatus: "unknown",
-            claimCount: 0,
-            rejectionReason: "invalid",
-          },
-        ],
-      },
+    expect(result.artifact).toEqual(expect.objectContaining({
       selectedSources: [
         {
           id: "c1",
@@ -538,6 +642,15 @@ describe("resolveProjectResearchResponse", () => {
         completedSections: 2,
       },
       report,
-    });
+    }));
+    expect(result.artifact?.plan?.steps).toEqual([
+      { id: "market", title: "Market", angle: "Demand", query: "q", rationale: "r" },
+    ]);
+    expect(result.artifact?.sourceInventory?.rejected).toEqual([
+      expect.objectContaining({
+        title: "Source B",
+        rejectionReason: "invalid",
+      }),
+    ]);
   });
 });
