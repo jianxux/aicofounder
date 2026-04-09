@@ -39,7 +39,10 @@ function createDiagram(): ProjectDiagram {
         style: { color: "green", shape: "circle" },
       },
     ],
-    edges: [],
+    edges: [
+      { id: "edge:root->branch", from: "diagram-root", to: "branch:notes", type: "parent_child" },
+      { id: "edge:branch->detail", from: "branch:notes", to: "detail:1", type: "association" },
+    ],
     layout: {
       algorithm: "mind_map",
       direction: "horizontal",
@@ -88,5 +91,63 @@ describe("GeneratedDiagram", () => {
     expect(onNodeDragStart).toHaveBeenCalledTimes(1);
     expect(onNodeDragStart.mock.calls[0]?.[0]).toBe("reference:1");
     expect(onParentPointerDown).not.toHaveBeenCalled();
+  });
+
+  it("renders an edge layer behind nodes and styles supported edge types", () => {
+    render(<GeneratedDiagram diagram={createDiagram()} />);
+
+    const edgeLayer = screen.getByTestId("generated-diagram-edge-layer");
+    const edges = screen.getAllByTestId("generated-diagram-edge");
+    const parentChildEdge = edgeLayer.querySelector('[data-diagram-edge-id="edge:root->branch"]');
+    const associationEdge = edgeLayer.querySelector('[data-diagram-edge-id="edge:branch->detail"]');
+
+    expect(edgeLayer).toHaveClass("pointer-events-none");
+    expect(edges).toHaveLength(2);
+    expect(parentChildEdge).toHaveAttribute("d", "M 100 120 C 230 120 110 180 240 180");
+    expect(parentChildEdge).toHaveAttribute("stroke-width", "2.5");
+    expect(parentChildEdge).not.toHaveAttribute("stroke-dasharray");
+    expect(associationEdge).toHaveAttribute("stroke-dasharray", "8 8");
+  });
+
+  it("skips edges that reference missing nodes and renders no edge layer for empty lists", () => {
+    const diagramWithMissingEdge = createDiagram();
+
+    diagramWithMissingEdge.edges = [
+      { id: "edge:missing", from: "diagram-root", to: "missing-node", type: "parent_child" },
+    ];
+
+    const { rerender } = render(<GeneratedDiagram diagram={diagramWithMissingEdge} />);
+
+    expect(screen.queryByTestId("generated-diagram-edge-layer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("generated-diagram-edge")).not.toBeInTheDocument();
+
+    rerender(
+      <GeneratedDiagram
+        diagram={{
+          ...createDiagram(),
+          edges: [],
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("generated-diagram-edge-layer")).not.toBeInTheDocument();
+  });
+
+  it("uses the same node size defaults and custom dimensions for rendered geometry", () => {
+    const diagram = createDiagram();
+    diagram.nodes = [
+      { ...diagram.nodes[0], x: 100, y: 120, width: 320, height: 120 },
+      { ...diagram.nodes[1], x: 100, y: 360, height: 96 },
+    ];
+    diagram.edges = [{ id: "edge:vertical", from: "diagram-root", to: "branch:notes", type: "parent_child" }];
+
+    render(<GeneratedDiagram diagram={diagram} />);
+
+    const [topicNode, branchNode] = screen.getAllByTestId("generated-diagram-node");
+    const edge = screen.getByTestId("generated-diagram-edge");
+
+    expect(topicNode).toHaveStyle({ width: "320px", minHeight: "120px" });
+    expect(branchNode).toHaveStyle({ width: "220px", minHeight: "96px" });
+    expect(edge).toHaveAttribute("d", "M 100 120 C 100 204 100 276 100 360");
   });
 });

@@ -555,6 +555,34 @@ describe("Canvas", () => {
     });
   });
 
+  it("keeps rendered diagram edges aligned while a generated node is dragged", () => {
+    render(<CanvasStateHarness initialDiagram={createDiagram()} />);
+
+    const board = getBoard();
+    mockBoardRect(board);
+    const researchBranch = screen
+      .getAllByTestId("generated-diagram-node")
+      .find((node) => node.getAttribute("data-diagram-node-id") === "branch:research");
+    const edge = screen
+      .getByTestId("generated-diagram-edge-layer")
+      .querySelector('[data-diagram-edge-id="edge:diagram-root->branch:research"]');
+
+    expect(researchBranch).toBeDefined();
+    expect(edge).toHaveAttribute("d", "M 980 840 C 980 1008 520 1152 520 1320");
+
+    fireEvent.pointerDown(researchBranch!, { pointerId: 1, clientX: 540, clientY: 1340 });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 620, clientY: 1420 }));
+    });
+
+    expect(edge).toHaveAttribute("d", "M 980 840 C 980 1036 600 1204 600 1400");
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1 }));
+    });
+  });
+
   it("clamps generated diagram node dragging using centered diagram node bounds", () => {
     const diagram = createDiagram();
     const onChangeDiagram = vi.fn();

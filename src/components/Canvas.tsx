@@ -7,6 +7,7 @@ import GeneratedDiagram from "@/components/GeneratedDiagram";
 import Section from "@/components/Section";
 import StickyNote from "@/components/StickyNote";
 import WebsiteBuilder from "@/components/WebsiteBuilder";
+import { getDiagramNodeHeight, getDiagramNodeWidth } from "@/components/generatedDiagramGeometry";
 import type {
   DocumentCardData,
   NoteColor,
@@ -108,14 +109,6 @@ function createWebsiteBuilder(): WebsiteBuilderData {
 
 function clampCanvasCoordinate(value: number): number {
   return Math.max(12, value);
-}
-
-function getDiagramNodeWidth(node: NonNullable<ProjectDiagram["nodes"]>[number]): number {
-  return node.width ?? (node.type === "topic" ? 260 : 220);
-}
-
-function getDiagramNodeHeight(node: NonNullable<ProjectDiagram["nodes"]>[number]): number {
-  return node.height ?? 64;
 }
 
 function clampDiagramCoordinate(value: number, size: number): number {

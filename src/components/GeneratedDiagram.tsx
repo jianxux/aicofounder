@@ -2,6 +2,12 @@
 
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DiagramNode, ProjectDiagram } from "@/lib/types";
+import {
+  getDiagramEdgePath,
+  getDiagramEdgePresentation,
+  getDiagramNodeHeight,
+  getDiagramNodeWidth,
+} from "@/components/generatedDiagramGeometry";
 
 type GeneratedDiagramProps = {
   diagram: ProjectDiagram;
@@ -36,21 +42,49 @@ function getNodeShape(node: DiagramNode): string {
   return "rounded-[24px]";
 }
 
-function getNodeWidth(node: DiagramNode): number {
-  return node.width ?? (node.type === "topic" ? 260 : 220);
-}
-
-function getNodeMinHeight(node: DiagramNode): number {
-  return node.height ?? 64;
-}
-
 export default function GeneratedDiagram({ diagram, onNodeDragStart = () => undefined }: GeneratedDiagramProps) {
+  const nodesById = new Map(diagram.nodes.map((node) => [node.id, node]));
+  const renderedEdges = diagram.edges
+    .map((edge) => {
+      const path = getDiagramEdgePath(edge, nodesById, diagram.layout.direction);
+
+      if (!path) {
+        return null;
+      }
+
+      const presentation = getDiagramEdgePresentation(edge.type);
+
+      return (
+        <path
+          key={edge.id}
+          data-testid="generated-diagram-edge"
+          data-diagram-edge-id={edge.id}
+          d={path}
+          className={`fill-none ${presentation.className}`}
+          strokeWidth={presentation.strokeWidth}
+          strokeDasharray={presentation.dashArray}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      );
+    })
+    .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
+
   return (
     <div
       data-testid="generated-diagram"
       className="pointer-events-none absolute inset-0 z-0"
       aria-label="Generated project diagram"
     >
+      {renderedEdges.length > 0 ? (
+        <svg
+          data-testid="generated-diagram-edge-layer"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+        >
+          {renderedEdges}
+        </svg>
+      ) : null}
       {diagram.nodes.map((node) => (
         <article
           key={node.id}
@@ -64,8 +98,8 @@ export default function GeneratedDiagram({ diagram, onNodeDragStart = () => unde
           style={{
             left: node.x,
             top: node.y,
-            width: getNodeWidth(node),
-            minHeight: getNodeMinHeight(node),
+            width: getDiagramNodeWidth(node),
+            minHeight: getDiagramNodeHeight(node),
             transform: "translate(-50%, -50%)",
           }}
         >
