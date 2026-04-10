@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase } from "@/lib/types";
 
@@ -10,6 +11,7 @@ type ChatPanelProps = {
   activePhaseId: string;
   activeArtifactLabel: string;
   activeArtifactType: "validation-scorecard" | "customer-research-memo";
+  activeArtifactHasOutput: boolean;
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   onRemind: () => void;
@@ -27,6 +29,7 @@ export default function ChatPanel({
   activePhaseId,
   activeArtifactLabel,
   activeArtifactType,
+  activeArtifactHasOutput,
   onSendMessage,
   isLoading,
   onRemind,
@@ -45,10 +48,21 @@ export default function ChatPanel({
     [activePhaseId, phases],
   );
   const isResearchMemoActive = activeArtifactType === "customer-research-memo";
-  const headerTitle = isResearchMemoActive ? "Update the customer research memo" : "Build the validation scorecard";
+  const isRefineMode = activeArtifactHasOutput;
+  const headerTitle = isResearchMemoActive
+    ? isRefineMode
+      ? "Refine the customer research memo"
+      : "Update the customer research memo"
+    : isRefineMode
+      ? "Refine the validation scorecard"
+      : "Build the validation scorecard";
   const headerCopy = isResearchMemoActive
-    ? "Use chat to refine findings, pressure-test assumptions, and capture the latest customer evidence in this memo."
-    : "Use chat to define evidence, scores, and open questions so the validation scorecard stays decision-ready.";
+    ? isRefineMode
+      ? "Use structured memo follow-ups or freeform chat to resolve contradictions and sharpen the next research move."
+      : "Use chat to refine findings, pressure-test assumptions, and capture the latest customer evidence in this memo."
+    : isRefineMode
+      ? "Use structured scorecard follow-ups or freeform chat to strengthen evidence, scores, and the next validation move."
+      : "Use chat to define evidence, scores, and open questions so the validation scorecard stays decision-ready.";
   const placeholder = isResearchMemoActive
     ? "Add findings, contradictions, or next questions for the customer research memo..."
     : "Add evidence, scores, or next validation checks for the scorecard...";
@@ -78,6 +92,9 @@ export default function ChatPanel({
             Active artifact
           </span>
           <span className="text-sm font-medium text-stone-700">{activeArtifactLabel}</span>
+          <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+            {isRefineMode ? "Refine mode" : "Create mode"}
+          </span>
         </div>
         <h2 className="mt-3 text-2xl font-semibold text-stone-900">{headerTitle}</h2>
         <p className="mt-2 text-sm leading-6 text-stone-600">
@@ -96,7 +113,9 @@ export default function ChatPanel({
                   isUser ? "bg-sky-600 text-white" : "bg-stone-100 text-stone-800"
                 }`}
               >
-                {message.content}
+                <div className="whitespace-pre-wrap">
+                  {message.content}
+                </div>
               </div>
             </div>
           );
@@ -113,6 +132,14 @@ export default function ChatPanel({
       </div>
 
       <div className="border-t border-stone-200 px-6 py-5">
+        {isRefineMode ? (
+          <ArtifactRefinementForm
+            key={activeArtifactType}
+            artifactType={activeArtifactType}
+            isLoading={isLoading}
+            onSubmit={onSendMessage}
+          />
+        ) : null}
         <div className="mb-3 flex flex-wrap items-center gap-4">
           <button
             type="button"
@@ -147,7 +174,7 @@ export default function ChatPanel({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex items-end gap-3">
+        <form onSubmit={handleSubmit} className="flex items-end gap-3" aria-label="Freeform chat">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}

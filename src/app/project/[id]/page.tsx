@@ -57,13 +57,19 @@ function getArtifactLabel(artifact: ProjectArtifact) {
   return artifact.type === "customer-research-memo" ? "Customer research memo" : "Validation scorecard";
 }
 
-function getArtifactDescription(artifact: ProjectArtifact | null) {
+function getArtifactDescription(artifact: ProjectArtifact | null, isRefineMode: boolean) {
   if (!artifact) {
     return "Choose the artifact you want the workspace to update next.";
   }
 
-  return artifact.type === "customer-research-memo"
-    ? "Chat and research now work toward the customer research memo, while the canvas keeps supporting context nearby."
+  if (artifact.type === "customer-research-memo") {
+    return isRefineMode
+      ? "The workspace is in refine mode for the customer research memo. Use structured follow-ups or freeform chat to resolve contradictions and fill evidence gaps."
+      : "Chat and research now work toward the customer research memo, while the canvas keeps supporting context nearby.";
+  }
+
+  return isRefineMode
+    ? "The workspace is in refine mode for the validation scorecard. Use structured follow-ups or freeform chat to tighten evidence, scores, and next checks."
     : "Chat now works toward the validation scorecard, so you can turn loose notes into explicit evidence, scores, and next checks.";
 }
 
@@ -151,10 +157,12 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
 function ArtifactWorkspaceHeader({
   artifacts,
   activeArtifact,
+  isRefineMode,
   onSetActiveArtifact,
 }: {
   artifacts: ProjectArtifact[];
   activeArtifact: ProjectArtifact | null;
+  isRefineMode: boolean;
   onSetActiveArtifact: (artifactId: string) => void;
 }) {
   return (
@@ -166,12 +174,19 @@ function ArtifactWorkspaceHeader({
             <h2 className="mt-2 text-xl font-semibold text-stone-950">
               {activeArtifact ? getArtifactLabel(activeArtifact) : "Choose an artifact"}
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">{getArtifactDescription(activeArtifact)}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+              {getArtifactDescription(activeArtifact, isRefineMode)}
+            </p>
           </div>
           {activeArtifact ? (
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
-              Workspace target
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+                Workspace target
+              </span>
+              <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+                {isRefineMode ? "Refine mode" : "Create mode"}
+              </span>
+            </div>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -332,6 +347,7 @@ export default function ProjectWorkspacePage() {
   );
   const activeArtifact = useMemo(() => (project ? getActiveProjectArtifact(project) : null), [project]);
   const activeResearchMemo = activeArtifact?.type === "customer-research-memo" ? activeArtifact : null;
+  const activeArtifactHasOutput = useMemo(() => isArtifactPopulated(activeArtifact), [activeArtifact]);
 
   const handleNameChange = (name: string) => {
     if (!project) {
@@ -379,6 +395,14 @@ export default function ProjectWorkspacePage() {
           messages: nextMessages,
           phase: activePhaseId,
           projectName: currentProject.name,
+          artifact: artifactAtSend
+            ? {
+                id: artifactAtSend.id,
+                type: artifactAtSend.type,
+                label: getArtifactLabel(artifactAtSend),
+              }
+            : null,
+          isRefineMode: artifactWasPopulated,
         }),
         signal: controller.signal,
       });
@@ -954,6 +978,7 @@ export default function ProjectWorkspacePage() {
         <ArtifactWorkspaceHeader
           artifacts={project.artifacts ?? []}
           activeArtifact={activeArtifact}
+          isRefineMode={activeArtifactHasOutput}
           onSetActiveArtifact={handleSetActiveArtifact}
         />
 
@@ -964,6 +989,7 @@ export default function ProjectWorkspacePage() {
             activePhaseId={activePhaseId}
             activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
             activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
+            activeArtifactHasOutput={activeArtifactHasOutput}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             onRemind={handleRemind}
@@ -1018,6 +1044,7 @@ export default function ProjectWorkspacePage() {
               activePhaseId={activePhaseId}
               activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
               activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
+              activeArtifactHasOutput={activeArtifactHasOutput}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
               onRemind={handleRemind}

@@ -66,6 +66,7 @@ type RenderOptions = {
   isLoading?: boolean;
   activeArtifactLabel?: string;
   activeArtifactType?: "validation-scorecard" | "customer-research-memo";
+  activeArtifactHasOutput?: boolean;
 };
 
 const renderChatPanel = ({
@@ -75,6 +76,7 @@ const renderChatPanel = ({
   isLoading = false,
   activeArtifactLabel = "Validation scorecard",
   activeArtifactType = "validation-scorecard",
+  activeArtifactHasOutput = false,
 }: RenderOptions = {}) => {
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
@@ -90,6 +92,7 @@ const renderChatPanel = ({
       activePhaseId={activePhaseId}
       activeArtifactLabel={activeArtifactLabel}
       activeArtifactType={activeArtifactType}
+      activeArtifactHasOutput={activeArtifactHasOutput}
       onSendMessage={onSendMessage}
       isLoading={isLoading}
       onRemind={onRemind}
@@ -116,6 +119,7 @@ describe("ChatPanel", () => {
       expect(screen.getByText("Build the validation scorecard")).toBeInTheDocument();
       expect(screen.getByText("Active artifact")).toBeInTheDocument();
       expect(screen.getByText("Validation scorecard")).toBeInTheDocument();
+      expect(screen.getByText("Create mode")).toBeInTheDocument();
     });
 
     it("switches the framing when the customer research memo is active", () => {
@@ -134,8 +138,9 @@ describe("ChatPanel", () => {
     it("renders user messages with user styling", () => {
       renderChatPanel();
 
-      const bubble = screen.getByText("Build me a landing page");
-      const row = bubble.parentElement;
+      const content = screen.getByText("Build me a landing page");
+      const bubble = content.parentElement;
+      const row = bubble?.parentElement;
 
       expect(bubble).toHaveClass("bg-sky-600");
       expect(row).toHaveClass("justify-end");
@@ -144,11 +149,38 @@ describe("ChatPanel", () => {
     it("renders assistant messages with assistant styling", () => {
       renderChatPanel();
 
-      const bubble = screen.getByText("Let's define the target audience first.");
-      const row = bubble.parentElement;
+      const content = screen.getByText("Let's define the target audience first.");
+      const bubble = content.parentElement;
+      const row = bubble?.parentElement;
 
       expect(bubble).toHaveClass("bg-stone-100");
       expect(row).toHaveClass("justify-start");
+    });
+
+    it("preserves multiline formatting in chat bubbles", () => {
+      renderChatPanel({
+        messages: [
+          {
+            id: "assistant-multiline",
+            sender: "assistant",
+            content: "Line one\nLine two",
+            createdAt: "2024-01-01T00:02:00.000Z",
+          },
+        ],
+      });
+
+      const bubble = screen.getByText((_, element) => {
+        if (!element?.classList.contains("whitespace-pre-wrap")) {
+          return false;
+        }
+
+        const content = element.textContent ?? "";
+        return content.includes("Line one") && content.includes("Line two");
+      });
+
+      expect(bubble).toHaveClass("whitespace-pre-wrap");
+      expect(bubble).toHaveTextContent("Line one");
+      expect(bubble).toHaveTextContent("Line two");
     });
 
     it("renders an empty messages list without crashing", () => {
@@ -157,6 +189,41 @@ describe("ChatPanel", () => {
       expect(screen.getByText("AI Cofounder")).toBeInTheDocument();
       expect(screen.queryByText("Build me a landing page")).not.toBeInTheDocument();
       expect(screen.queryByText("Let's define the target audience first.")).not.toBeInTheDocument();
+    });
+
+    it("does not render the structured form for empty artifacts", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: false,
+      });
+
+      expect(screen.queryByRole("form", { name: "Structured refinement" })).not.toBeInTheDocument();
+      expect(screen.getByRole("form", { name: "Freeform chat" })).toBeInTheDocument();
+      expect(screen.getByText("Create mode")).toBeInTheDocument();
+    });
+
+    it("renders the structured form for a populated validation scorecard", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: true,
+      });
+
+      expect(screen.getByRole("form", { name: "Structured refinement" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Strongest signal")).toBeInTheDocument();
+      expect(screen.getByLabelText("Biggest risk")).toBeInTheDocument();
+      expect(screen.getAllByText("Refine mode")).toHaveLength(2);
+      expect(screen.getByRole("form", { name: "Freeform chat" })).toBeInTheDocument();
+    });
+
+    it("renders the structured form for a populated customer research memo", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+      });
+
+      expect(screen.getByRole("form", { name: "Structured refinement" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Contradiction to resolve")).toBeInTheDocument();
+      expect(screen.getByLabelText("Missing evidence")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Update memo" })).toBeInTheDocument();
     });
   });
 
@@ -233,12 +300,14 @@ describe("ChatPanel", () => {
     });
 
     it("disables the textarea and send button when isLoading is true", () => {
-      renderChatPanel({ isLoading: true });
+      renderChatPanel({ isLoading: true, activeArtifactHasOutput: true });
 
       expect(
         screen.getByPlaceholderText("Add evidence, scores, or next validation checks for the scorecard..."),
       ).toBeDisabled();
       expect(screen.getByRole("button", { name: "Update scorecard" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Submit structured refinement" })).toBeDisabled();
+      expect(screen.getByLabelText("Strongest signal")).toBeDisabled();
       expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
       expect(screen.getByRole("button", { name: /update customer research memo/i })).toBeDisabled();
     });
@@ -247,6 +316,191 @@ describe("ChatPanel", () => {
       renderChatPanel({ isLoading: false });
 
       expect(screen.queryByLabelText("AI is thinking")).not.toBeInTheDocument();
+    });
+
+    it("composes a focused refinement message on structured submit", () => {
+      const { onSendMessage } = renderChatPanel({
+        activeArtifactHasOutput: true,
+      });
+
+      fireEvent.change(screen.getByLabelText("Strongest signal"), {
+        target: { value: "Founders repeatedly mention manual follow-up pain." },
+      });
+      fireEvent.change(screen.getByLabelText("Next validation step"), {
+        target: { value: "Run five calls focused on switching triggers." },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Submit structured refinement" }));
+
+      expect(onSendMessage).toHaveBeenCalledWith(
+        "Refine the validation scorecard with this update:\n" +
+          "Strongest signal: Founders repeatedly mention manual follow-up pain.\n" +
+          "Next validation step: Run five calls focused on switching triggers.",
+      );
+      expect(screen.getByLabelText("Strongest signal")).toHaveValue("");
+      expect(screen.getByLabelText("Next validation step")).toHaveValue("");
+    });
+
+    it("trims and includes all validation refinement fields when provided", () => {
+      const { onSendMessage } = renderChatPanel({
+        activeArtifactHasOutput: true,
+      });
+
+      fireEvent.change(screen.getByLabelText("Strongest signal"), {
+        target: { value: "  High interview conversion  " },
+      });
+      fireEvent.change(screen.getByLabelText("Biggest risk"), {
+        target: { value: "  Weak willingness to pay  " },
+      });
+      fireEvent.change(screen.getByLabelText("Score"), {
+        target: { value: "  3.5/5  " },
+      });
+      fireEvent.change(screen.getByLabelText("Confidence"), {
+        target: { value: "  Medium  " },
+      });
+      fireEvent.change(screen.getByLabelText("Next validation step"), {
+        target: { value: "  Run pricing tests next week.  " },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Submit structured refinement" }));
+
+      expect(onSendMessage).toHaveBeenCalledWith(
+        "Refine the validation scorecard with this update:\n" +
+          "Strongest signal: High interview conversion\n" +
+          "Biggest risk: Weak willingness to pay\n" +
+          "Score: 3.5/5\n" +
+          "Confidence: Medium\n" +
+          "Next validation step: Run pricing tests next week.",
+      );
+    });
+
+    it("composes a focused research memo refinement message on structured submit", () => {
+      const { onSendMessage } = renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+      });
+
+      fireEvent.change(screen.getByLabelText("Contradiction to resolve"), {
+        target: { value: "  Teams want automation but fear losing control.  " },
+      });
+      fireEvent.change(screen.getByLabelText("Missing evidence"), {
+        target: { value: "  No budget-owner interviews yet.  " },
+      });
+      fireEvent.change(screen.getByLabelText("Target user question"), {
+        target: { value: "  What breaks your current workflow most often?  " },
+      });
+      fireEvent.change(screen.getByLabelText("Next research question"), {
+        target: { value: "  Which trigger would make you switch tools this quarter?  " },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Submit structured refinement" }));
+
+      expect(onSendMessage).toHaveBeenCalledWith(
+        "Refine the customer research memo with this update:\n" +
+          "Contradiction to resolve: Teams want automation but fear losing control.\n" +
+          "Missing evidence: No budget-owner interviews yet.\n" +
+          "Target user question: What breaks your current workflow most often?\n" +
+          "Next research question: Which trigger would make you switch tools this quarter?",
+      );
+      expect(screen.getByLabelText("Contradiction to resolve")).toHaveValue("");
+      expect(screen.getByLabelText("Next research question")).toHaveValue("");
+    });
+
+    it("keeps structured submit disabled for whitespace-only refinement input", () => {
+      const { onSendMessage } = renderChatPanel({
+        activeArtifactHasOutput: true,
+      });
+
+      fireEvent.change(screen.getByLabelText("Strongest signal"), {
+        target: { value: "   " },
+      });
+
+      const submitButton = screen.getByRole("button", { name: "Submit structured refinement" });
+
+      expect(submitButton).toBeDisabled();
+      fireEvent.click(submitButton);
+      expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
+    it("disables structured submit while loading", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: true,
+        isLoading: true,
+      });
+
+      expect(screen.getByRole("button", { name: "Submit structured refinement" })).toBeDisabled();
+      expect(screen.getByLabelText("Strongest signal")).toBeDisabled();
+    });
+
+    it("switching active artifacts swaps refinement fields correctly", () => {
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+      const phases = createPhases();
+      const messages = createMessages();
+      const { rerender } = render(
+        <ChatPanel
+          messages={messages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={true}
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      fireEvent.change(screen.getByLabelText("Strongest signal"), {
+        target: { value: "Strong retention signal" },
+      });
+
+      rerender(
+        <ChatPanel
+          messages={messages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Customer research memo"
+          activeArtifactType="customer-research-memo"
+          activeArtifactHasOutput={true}
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.queryByLabelText("Strongest signal")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Contradiction to resolve")).toHaveValue("");
+
+      rerender(
+        <ChatPanel
+          messages={messages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={true}
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByLabelText("Strongest signal")).toHaveValue("");
     });
   });
 

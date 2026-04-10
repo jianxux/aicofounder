@@ -52,6 +52,7 @@ vi.mock("@/components/ChatPanel", () => ({
   default: ({
     activeArtifactLabel,
     activeArtifactType,
+    activeArtifactHasOutput,
     onSendMessage,
     onRemind,
     onBrainstorm,
@@ -62,6 +63,7 @@ vi.mock("@/components/ChatPanel", () => ({
   }: {
     activeArtifactLabel: string;
     activeArtifactType: "validation-scorecard" | "customer-research-memo";
+    activeArtifactHasOutput: boolean;
     onSendMessage?: (content: string) => void;
     onRemind?: () => void;
     onBrainstorm?: () => void;
@@ -73,6 +75,7 @@ vi.mock("@/components/ChatPanel", () => ({
     <div data-testid="chat-panel">
       <div data-testid="chat-artifact-label">{activeArtifactLabel}</div>
       <div data-testid="chat-artifact-type">{activeArtifactType}</div>
+      <div data-testid="chat-artifact-mode">{activeArtifactHasOutput ? "refine" : "create"}</div>
       <button type="button" onClick={() => onSendMessage?.("Tell me more about demand.")}>
         Send chat
       </button>
@@ -665,6 +668,26 @@ describe("ProjectWorkspacePage", () => {
       );
     });
 
+    const fetchMock = fetch as unknown as { mock: { calls: Array<[string, { body: string }]> } };
+    const chatRequest = fetchMock.mock.calls.find(([url]) => url === "/api/chat");
+    const chatPayload = JSON.parse(chatRequest?.[1]?.body ?? "{}");
+
+    expect(chatPayload).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ sender: "user", content: "Tell me more about demand." }),
+        ]),
+        phase: "discovery",
+        projectName: "Launchpad",
+        artifact: {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          label: "Validation scorecard",
+        },
+        isRefineMode: false,
+      }),
+    );
+
     expect(mockSaveProject).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: expect.arrayContaining([
@@ -972,6 +995,75 @@ describe("ProjectWorkspacePage", () => {
         }),
       );
     });
+  });
+
+  it("keeps create mode when the active artifact is empty", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("create");
+    expect(screen.getByText("Create mode")).toBeInTheDocument();
+  });
+
+  it("shows refine mode in the workspace header when the active artifact is populated", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "Demand looks real.",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("refine");
+    expect(screen.getByText("Refine mode")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The workspace is in refine mode for the validation scorecard. Use structured follow-ups or freeform chat to tighten evidence, scores, and next checks.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("persists canvas edits, tracks note events, and toggles the mobile canvas panel", async () => {

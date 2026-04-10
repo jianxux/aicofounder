@@ -76,7 +76,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] P0: Add instrumentation and acceptance metrics for the new artifact flow, including artifact creation rate and follow-up edit rate
 - [x] P0: Redesign first-run intake to keep one primary idea prompt while supporting optional URL, target user, and main uncertainty fields
 - [x] P0: Define attachment constraints and privacy/storage rules before introducing file uploads into first-run intake
-- [ ] P0: After first output, route users into structured artifact refinement fields while preserving a freeform chat fallback
+- [x] P0: After first output, route users into structured artifact refinement fields while preserving a freeform chat fallback
 - [ ] P1: Give generated artifacts stable IDs, persisted status, and revision history so follow-up prompts edit the same object by default
 - [ ] P1: Add artifact-context follow-up mode so users can ask questions about a specific report/plan without losing grounding in that artifact
 - [ ] P1: Define the minimum shared project-state primitives needed to support 2 synchronized views for one artifact family
