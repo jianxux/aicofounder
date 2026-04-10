@@ -21,6 +21,7 @@ function getResearchReport(value: unknown): ResearchReportData | undefined {
     caveats: value.caveats,
     contradictions: value.contradictions,
     unansweredQuestions: value.unansweredQuestions,
+    trust: value.trust,
   };
 }
 

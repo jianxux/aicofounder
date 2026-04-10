@@ -55,6 +55,33 @@ const report = {
       claimCount: 1,
     },
   ],
+  keyFindings: [
+    {
+      id: "finding-1",
+      statement: "Demand is increasing.",
+      citationIds: ["citation-1"],
+      sectionIds: ["market"],
+      strength: "moderate" as const,
+    },
+  ],
+  trust: {
+    sourceIds: ["selected-industry-report"],
+    majorClaimIds: ["finding-1"],
+    evidenceStrength: {
+      overall: "moderate" as const,
+      summary: "Evidence is moderate: 1 major claim, 1 source, and 1 citation retained. 0 contradictions and 0 unresolved questions remain.",
+      claimCount: 1,
+      sourceCount: 1,
+      citationCount: 1,
+      strongClaimCount: 0,
+      moderateClaimCount: 1,
+      weakClaimCount: 0,
+      contradictionsCount: 0,
+      unresolvedQuestionCount: 0,
+    },
+    contradictionIds: [],
+    unresolvedQuestionIds: [],
+  },
 };
 
 const artifact = {
@@ -207,8 +234,18 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Execution risk is moderate.")).toBeInTheDocument();
     expect(screen.getByText("Market demand")).toBeInTheDocument();
     expect(screen.getAllByText("Industry report").length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText("Trust scaffolding")).toBeInTheDocument();
+    expect(screen.getByText("Major claims")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Evidence is moderate: 1 major claim, 1 source, and 1 citation retained. 0 contradictions and 0 unresolved questions remain.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "S1" }).length).toBeGreaterThan(0);
+    expect(screen.getByText("No contradictions surfaced in the retained evidence.")).toBeInTheDocument();
+    expect(screen.getByText("No unresolved questions were captured for this run.")).toBeInTheDocument();
     expect(screen.getByText("Evidence inventory")).toBeInTheDocument();
-    expect(screen.getByText("Source collection")).toBeInTheDocument();
+    expect(screen.getByText("Source list")).toBeInTheDocument();
     expect(screen.getByText("Citation index")).toBeInTheDocument();
     expect(screen.getByText("Rejected sources")).toBeInTheDocument();
     expect(screen.getByText("Run notes")).toBeInTheDocument();
@@ -262,6 +299,25 @@ describe("ResearchReport", () => {
           ...report,
           citations: [],
           sources: [],
+          keyFindings: [],
+          trust: {
+            sourceIds: [],
+            majorClaimIds: [],
+            evidenceStrength: {
+              overall: "weak",
+              summary: "Evidence is weak: 0 major claims, 0 sources, and 0 citations retained.",
+              claimCount: 0,
+              sourceCount: 0,
+              citationCount: 0,
+              strongClaimCount: 0,
+              moderateClaimCount: 0,
+              weakClaimCount: 0,
+              contradictionsCount: 0,
+              unresolvedQuestionCount: 0,
+            },
+            contradictionIds: [],
+            unresolvedQuestionIds: [],
+          },
           sections: [{ ...report.sections[0], citations: [] }],
         }}
         artifact={{ status: "completed", metrics: { attemptedAngles: 1, selectedSources: 0, rejectedSources: 0 } }}
@@ -271,6 +327,9 @@ describe("ResearchReport", () => {
     expect(screen.getByText("No normalized sources were retained for this run.")).toBeInTheDocument();
     expect(screen.getByText("No citations were retained for this run.")).toBeInTheDocument();
     expect(screen.getByText("No citations were retained for this section.")).toBeInTheDocument();
+    expect(screen.getByText("No supported major claims were retained for this run.")).toBeInTheDocument();
+    expect(screen.getByText("No contradictions surfaced in the retained evidence.")).toBeInTheDocument();
+    expect(screen.getByText("No unresolved questions were captured for this run.")).toBeInTheDocument();
   });
 
   it("renders richer memo analysis from artifact source inventory fallbacks", () => {
@@ -382,17 +441,19 @@ describe("ResearchReport", () => {
       />,
     );
 
-    expect(screen.getByText("Key findings")).toBeInTheDocument();
+    expect(screen.getByText("Major claims")).toBeInTheDocument();
     expect(screen.getByText("Budget is moving toward workflow tools.")).toBeInTheDocument();
     expect(screen.getByText("Caveats")).toBeInTheDocument();
     expect(screen.getByText("Most data comes from larger teams.")).toBeInTheDocument();
     expect(screen.getByText("Contradictions")).toBeInTheDocument();
     expect(screen.getByText("SMBs report weaker urgency.")).toBeInTheDocument();
-    expect(screen.getByText("Unanswered questions")).toBeInTheDocument();
+    expect(screen.getByText("Unresolved questions")).toBeInTheDocument();
     expect(screen.getByText("How much budget is controlled by operations leaders?")).toBeInTheDocument();
     expect(
       screen.getByText("Recommended next actions surfaced 1 open question for follow-up research."),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Evidence is moderate: 1 major claim, 1 source, and 1 citation retained\./)).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "S1" }).length).toBeGreaterThan(0);
     expect(screen.getAllByText("peer reviewed").length).toBeGreaterThan(0);
     expect(screen.getAllByText("registration required").length).toBeGreaterThan(0);
     expect(screen.getAllByText("published 2025-01-10").length).toBeGreaterThan(0);

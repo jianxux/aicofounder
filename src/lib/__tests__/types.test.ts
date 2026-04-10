@@ -190,6 +190,24 @@ describe("lib/types guards", () => {
       executiveSummary: "A concise summary.",
       researchQuestion: "What are the key opportunities and risks?",
       generatedAt: "2025-01-02T00:00:00.000Z",
+      trust: {
+        sourceIds: ["source-1"],
+        majorClaimIds: [],
+        evidenceStrength: {
+          overall: "weak",
+          summary: "Evidence is weak.",
+          claimCount: 0,
+          sourceCount: 1,
+          citationCount: 1,
+          strongClaimCount: 0,
+          moderateClaimCount: 0,
+          weakClaimCount: 0,
+          contradictionsCount: 0,
+          unresolvedQuestionCount: 0,
+        },
+        contradictionIds: [],
+        unresolvedQuestionIds: [],
+      },
     },
   };
 

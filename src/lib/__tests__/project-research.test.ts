@@ -23,6 +23,24 @@ const report = {
       claimCount: 1,
     },
   ],
+  trust: {
+    sourceIds: ["selected-source-a"],
+    majorClaimIds: [],
+    evidenceStrength: {
+      overall: "weak" as const,
+      summary: "Evidence is weak.",
+      claimCount: 0,
+      sourceCount: 1,
+      citationCount: 1,
+      strongClaimCount: 0,
+      moderateClaimCount: 0,
+      weakClaimCount: 0,
+      contradictionsCount: 0,
+      unresolvedQuestionCount: 0,
+    },
+    contradictionIds: [],
+    unresolvedQuestionIds: [],
+  },
 };
 
 describe("resolveProjectResearchResponse", () => {

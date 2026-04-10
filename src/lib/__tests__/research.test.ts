@@ -395,6 +395,24 @@ End`);
             sectionIds: ["section-1"],
           },
         ],
+        trust: {
+          sourceIds: ["selected-source-a"],
+          majorClaimIds: ["finding-1"],
+          evidenceStrength: {
+            overall: "moderate",
+            summary: "Evidence is moderate.",
+            claimCount: 1,
+            sourceCount: 1,
+            citationCount: 1,
+            strongClaimCount: 0,
+            moderateClaimCount: 1,
+            weakClaimCount: 0,
+            contradictionsCount: 1,
+            unresolvedQuestionCount: 1,
+          },
+          contradictionIds: ["contradiction-1"],
+          unresolvedQuestionIds: ["question-1"],
+        },
       }),
     ).toBe(true);
     expect(
@@ -426,6 +444,32 @@ End`);
             sectionIds: [""],
           },
         ],
+      }),
+    ).toBe(false);
+    expect(
+      validateResearchReport({
+        sections: [],
+        executiveSummary: "Summary",
+        researchQuestion: "Demand?",
+        generatedAt: "2026-04-08T16:12:00.000Z",
+        trust: {
+          sourceIds: ["selected-source-a"],
+          majorClaimIds: ["finding-1"],
+          evidenceStrength: {
+            overall: "moderate",
+            summary: "",
+            claimCount: 1,
+            sourceCount: 1,
+            citationCount: 1,
+            strongClaimCount: 0,
+            moderateClaimCount: 1,
+            weakClaimCount: 0,
+            contradictionsCount: 0,
+            unresolvedQuestionCount: 0,
+          },
+          contradictionIds: [],
+          unresolvedQuestionIds: [],
+        },
       }),
     ).toBe(false);
   });
@@ -611,6 +655,29 @@ describe("runResearch", () => {
         sectionIds: ["market"],
       },
     ]);
+    expect(artifact.report.trust).toEqual({
+      sourceIds: [
+        "selected-source-a",
+        "selected-source-b",
+        "selected-source-c",
+        "selected-source-d",
+      ],
+      majorClaimIds: ["market-proof"],
+      evidenceStrength: {
+        overall: "moderate",
+        summary: "Evidence is moderate: 1 major claim, 4 sources, and 4 citations retained. 0 contradictions and 1 unresolved question remain.",
+        claimCount: 1,
+        sourceCount: 4,
+        citationCount: 4,
+        strongClaimCount: 1,
+        moderateClaimCount: 0,
+        weakClaimCount: 0,
+        contradictionsCount: 0,
+        unresolvedQuestionCount: 1,
+      },
+      contradictionIds: [],
+      unresolvedQuestionIds: ["follow-up"],
+    });
     expect(artifact.metrics.selectedSources).toBe(4);
     expect(artifact.failures).toEqual([]);
     expect(client.createMock).toHaveBeenCalledTimes(4);
@@ -785,6 +852,8 @@ describe("runResearch", () => {
 
     expect(artifact.status).toBe("failed");
     expect(artifact.report.sections).toEqual([]);
+    expect(artifact.report.trust?.evidenceStrength.overall).toBe("weak");
+    expect(artifact.report.trust?.unresolvedQuestionIds).toEqual(["no-evidence"]);
     expect(artifact.failures.at(-1)).toEqual({
       stage: "gather",
       code: "no-evidence",
@@ -861,6 +930,18 @@ describe("runResearch", () => {
         strength: "weak",
       },
     ]);
+    expect(artifact.report.trust?.evidenceStrength).toEqual({
+      overall: "weak",
+      summary: "Evidence is weak: 3 major claims, 3 sources, and 3 citations retained. 0 contradictions and 0 unresolved questions remain.",
+      claimCount: 3,
+      sourceCount: 3,
+      citationCount: 3,
+      strongClaimCount: 0,
+      moderateClaimCount: 0,
+      weakClaimCount: 3,
+      contradictionsCount: 0,
+      unresolvedQuestionCount: 0,
+    });
     expect(client.createMock).toHaveBeenCalledTimes(4);
     expect(client.createMock.mock.calls[3]?.[0]?.messages[1]?.content).toBe("Generate the structured synthesis JSON.");
   });

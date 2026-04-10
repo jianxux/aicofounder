@@ -75,6 +75,27 @@ export type ResearchUnansweredQuestion = {
   sectionIds?: string[];
 };
 
+export type ResearchTrustEvidenceSummary = {
+  overall: ResearchEvidenceStrength;
+  summary: string;
+  claimCount: number;
+  sourceCount: number;
+  citationCount: number;
+  strongClaimCount: number;
+  moderateClaimCount: number;
+  weakClaimCount: number;
+  contradictionsCount: number;
+  unresolvedQuestionCount: number;
+};
+
+export type ResearchTrustScaffolding = {
+  sourceIds: string[];
+  majorClaimIds: string[];
+  evidenceStrength: ResearchTrustEvidenceSummary;
+  contradictionIds: string[];
+  unresolvedQuestionIds: string[];
+};
+
 export type ResearchReport = {
   sections: ResearchSection[];
   executiveSummary: string;
@@ -86,6 +107,7 @@ export type ResearchReport = {
   caveats?: ResearchCaveat[];
   contradictions?: ResearchContradiction[];
   unansweredQuestions?: ResearchUnansweredQuestion[];
+  trust?: ResearchTrustScaffolding;
 };
 
 export type ResearchAngle = {
@@ -403,7 +425,8 @@ export function isValidReport(value: unknown): value is ResearchReport {
       (Array.isArray(candidate.contradictions) && candidate.contradictions.every((item) => isValidContradiction(item)))) &&
     (typeof candidate.unansweredQuestions === "undefined" ||
       (Array.isArray(candidate.unansweredQuestions) &&
-        candidate.unansweredQuestions.every((item) => isValidUnansweredQuestion(item))))
+        candidate.unansweredQuestions.every((item) => isValidUnansweredQuestion(item)))) &&
+    (typeof candidate.trust === "undefined" || isValidTrustScaffolding(candidate.trust))
   );
 }
 
@@ -510,6 +533,43 @@ function isValidSource(value: unknown): value is ResearchSource {
       candidate.rejectionReason === "duplicate" ||
       candidate.rejectionReason === "budget" ||
       candidate.rejectionReason === "invalid")
+  );
+}
+
+function isValidTrustEvidenceSummary(value: unknown): value is ResearchTrustEvidenceSummary {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    EVIDENCE_STRENGTH_VALUES.includes(candidate.overall as ResearchEvidenceStrength) &&
+    isNonEmptyString(candidate.summary) &&
+    typeof candidate.claimCount === "number" &&
+    typeof candidate.sourceCount === "number" &&
+    typeof candidate.citationCount === "number" &&
+    typeof candidate.strongClaimCount === "number" &&
+    typeof candidate.moderateClaimCount === "number" &&
+    typeof candidate.weakClaimCount === "number" &&
+    typeof candidate.contradictionsCount === "number" &&
+    typeof candidate.unresolvedQuestionCount === "number"
+  );
+}
+
+function isValidTrustScaffolding(value: unknown): value is ResearchTrustScaffolding {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    isStringArray(candidate.sourceIds, true) &&
+    isStringArray(candidate.majorClaimIds, true) &&
+    isValidTrustEvidenceSummary(candidate.evidenceStrength) &&
+    isStringArray(candidate.contradictionIds, true) &&
+    isStringArray(candidate.unresolvedQuestionIds, true)
   );
 }
 
@@ -1346,6 +1406,81 @@ function collectReportCitations(sections: ResearchSection[]): ResearchCitation[]
   return sections.flatMap((section) => section.citations);
 }
 
+function buildEvidenceStrengthSummary({
+  keyFindings,
+  sources,
+  citations,
+  contradictions,
+  unansweredQuestions,
+}: {
+  keyFindings: ResearchKeyFinding[];
+  sources: ResearchSource[];
+  citations: ResearchCitation[];
+  contradictions: ResearchContradiction[];
+  unansweredQuestions: ResearchUnansweredQuestion[];
+}): ResearchTrustEvidenceSummary {
+  const strongClaimCount = keyFindings.filter((finding) => finding.strength === "strong").length;
+  const moderateClaimCount = keyFindings.filter((finding) => finding.strength === "moderate").length;
+  const weakClaimCount = keyFindings.filter((finding) => finding.strength === "weak").length;
+
+  let overall: ResearchEvidenceStrength = "weak";
+
+  if (
+    keyFindings.length > 0 &&
+    strongClaimCount >= Math.max(1, moderateClaimCount) &&
+    weakClaimCount === 0 &&
+    contradictions.length === 0 &&
+    unansweredQuestions.length === 0
+  ) {
+    overall = "strong";
+  } else if (keyFindings.length > 0 && weakClaimCount < keyFindings.length) {
+    overall = "moderate";
+  }
+
+  const summary = `Evidence is ${overall}: ${keyFindings.length} major claim${
+    keyFindings.length === 1 ? "" : "s"
+  }, ${sources.length} source${sources.length === 1 ? "" : "s"}, and ${citations.length} citation${
+    citations.length === 1 ? "" : "s"
+  } retained. ${contradictions.length} contradiction${contradictions.length === 1 ? "" : "s"} and ${
+    unansweredQuestions.length
+  } unresolved question${unansweredQuestions.length === 1 ? "" : "s"} remain.`;
+
+  return {
+    overall,
+    summary,
+    claimCount: keyFindings.length,
+    sourceCount: sources.length,
+    citationCount: citations.length,
+    strongClaimCount,
+    moderateClaimCount,
+    weakClaimCount,
+    contradictionsCount: contradictions.length,
+    unresolvedQuestionCount: unansweredQuestions.length,
+  };
+}
+
+function buildTrustScaffolding(report: Omit<ResearchReport, "trust">): ResearchTrustScaffolding {
+  const citations = report.citations ?? collectReportCitations(report.sections);
+  const sources = report.sources ?? [];
+  const keyFindings = report.keyFindings ?? [];
+  const contradictions = report.contradictions ?? [];
+  const unansweredQuestions = report.unansweredQuestions ?? [];
+
+  return {
+    sourceIds: sources.map((source) => source.id),
+    majorClaimIds: keyFindings.map((finding) => finding.id),
+    evidenceStrength: buildEvidenceStrengthSummary({
+      keyFindings,
+      sources,
+      citations,
+      contradictions,
+      unansweredQuestions,
+    }),
+    contradictionIds: contradictions.map((item) => item.id),
+    unresolvedQuestionIds: unansweredQuestions.map((item) => item.id),
+  };
+}
+
 export async function runResearch(
   client: ResearchOpenAIClient,
   input: ResearchRunInput,
@@ -1366,25 +1501,30 @@ export async function runResearch(
       steps: [],
     };
 
+    const report: ResearchReport = {
+      sections: [],
+      executiveSummary: DEFAULT_EXECUTIVE_SUMMARY,
+      researchQuestion: fallbackPlan.researchQuestion,
+      generatedAt,
+      sources: [],
+      keyFindings: [],
+      caveats: [
+        {
+          id: "invalid-input",
+          statement: message,
+        },
+      ],
+      contradictions: [],
+      unansweredQuestions: [],
+    };
+
+    report.trust = buildTrustScaffolding(report);
+
     return {
       status: "failed",
       generatedAt,
       plan: fallbackPlan,
-      report: {
-        sections: [],
-        executiveSummary: DEFAULT_EXECUTIVE_SUMMARY,
-        researchQuestion: fallbackPlan.researchQuestion,
-        generatedAt,
-        keyFindings: [],
-        caveats: [
-          {
-            id: "invalid-input",
-            statement: message,
-          },
-        ],
-        contradictions: [],
-        unansweredQuestions: [],
-      },
+      report,
       selectedSources: [],
       rejectedSources: [],
       sourceInventory: { selected: [], rejected: [] },
@@ -1435,28 +1575,33 @@ export async function runResearch(
       message: "No research sections passed validation",
     });
 
+    const report: ResearchReport = {
+      sections: [],
+      executiveSummary: DEFAULT_EXECUTIVE_SUMMARY,
+      researchQuestion: plan.researchQuestion,
+      generatedAt,
+      sources: [],
+      keyFindings: [],
+      caveats: failures.map((failure, index) => ({
+        id: `failure-${index + 1}`,
+        statement: failure.message,
+      })),
+      contradictions: [],
+      unansweredQuestions: [
+        {
+          id: "no-evidence",
+          question: "Which sources or customer interviews are still needed to answer the research question credibly?",
+        },
+      ],
+    };
+
+    report.trust = buildTrustScaffolding(report);
+
     return {
       status: "failed",
       generatedAt,
       plan,
-      report: {
-        sections: [],
-        executiveSummary: DEFAULT_EXECUTIVE_SUMMARY,
-        researchQuestion: plan.researchQuestion,
-        generatedAt,
-        keyFindings: [],
-        caveats: failures.map((failure, index) => ({
-          id: `failure-${index + 1}`,
-          statement: failure.message,
-        })),
-        contradictions: [],
-        unansweredQuestions: [
-          {
-            id: "no-evidence",
-            question: "Which sources or customer interviews are still needed to answer the research question credibly?",
-          },
-        ],
-      },
+      report,
       selectedSources,
       rejectedSources,
       sourceInventory: { selected: [], rejected: [] },
@@ -1523,6 +1668,8 @@ export async function runResearch(
     contradictions: structuredSummary.contradictions ?? [],
     unansweredQuestions: structuredSummary.unansweredQuestions ?? [],
   };
+
+  report.trust = buildTrustScaffolding(report);
 
   if (!isValidReport(report)) {
     failures.push({

@@ -69,6 +69,10 @@ function getCitationAnchor(citationId: string) {
   return `citation-${citationId}`;
 }
 
+function getSourceAnchor(sourceId: string) {
+  return `source-${sourceId}`;
+}
+
 function getProgressStateClasses(state: ProgressState) {
   if (state === "complete") {
     return {
@@ -127,6 +131,44 @@ function getReportCitations(report?: ResearchReportData | null) {
   }
 
   return dedupeById((report?.sections ?? []).flatMap((section) => section.citations));
+}
+
+function getOrderedSelectedSources(report?: ResearchReportData | null, artifact?: ProjectResearchArtifact) {
+  const sourceInventory = getSourceInventory(report, artifact);
+  const sourcesById = new Map(sourceInventory.selected.map((source) => [source.id, source] as const));
+  const orderedSourceIds = report?.trust?.sourceIds ?? sourceInventory.selected.map((source) => source.id);
+
+  return dedupeById([
+    ...orderedSourceIds.map((sourceId) => sourcesById.get(sourceId)).filter((source): source is ResearchSource => Boolean(source)),
+    ...sourceInventory.selected,
+  ]);
+}
+
+function getFallbackEvidenceSummary(report: ResearchReportData | null | undefined, sourceCount: number, citationCount: number) {
+  const claimCount = report?.keyFindings?.length ?? 0;
+  const contradictionsCount = report?.contradictions?.length ?? 0;
+  const unresolvedQuestionCount = report?.unansweredQuestions?.length ?? 0;
+  const overall =
+    claimCount === 0
+      ? "weak"
+      : contradictionsCount === 0 && unresolvedQuestionCount === 0 && (report?.keyFindings ?? []).every((finding) => finding.strength === "strong")
+        ? "strong"
+        : "moderate";
+
+  return {
+    overall,
+    summary: `Evidence is ${overall}: ${claimCount} major claim${claimCount === 1 ? "" : "s"}, ${sourceCount} source${
+      sourceCount === 1 ? "" : "s"
+    }, and ${citationCount} citation${citationCount === 1 ? "" : "s"} retained.`,
+    claimCount,
+    sourceCount,
+    citationCount,
+    strongClaimCount: (report?.keyFindings ?? []).filter((finding) => finding.strength === "strong").length,
+    moderateClaimCount: (report?.keyFindings ?? []).filter((finding) => finding.strength === "moderate").length,
+    weakClaimCount: (report?.keyFindings ?? []).filter((finding) => finding.strength === "weak").length,
+    contradictionsCount,
+    unresolvedQuestionCount,
+  } as const;
 }
 
 function getSourceInventory(report?: ResearchReportData | null, artifact?: ProjectResearchArtifact) {
@@ -407,6 +449,36 @@ function CitationReferences({ citationIds, citationsById }: { citationIds: strin
   );
 }
 
+function SourceReferences({
+  sourceIds,
+  sourceIndexById,
+}: {
+  sourceIds: string[];
+  sourceIndexById: Map<string, number>;
+}) {
+  if (sourceIds.length === 0) {
+    return <p className="mt-3 text-xs leading-5 text-stone-500">No linked sources.</p>;
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {sourceIds.map((sourceId) => {
+        const sourceIndex = sourceIndexById.get(sourceId);
+
+        return (
+          <a
+            key={sourceId}
+            href={`#${getSourceAnchor(sourceId)}`}
+            className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700 underline decoration-stone-300 underline-offset-4"
+          >
+            {sourceIndex ? `S${sourceIndex}` : sourceId}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function ResearchSummary({
   status,
   errorMessage,
@@ -508,10 +580,22 @@ export default function ResearchReport({
   const selectedSources = artifact?.selectedSources ?? [];
   const rejectedSources = artifact?.rejectedSources ?? [];
   const sourceInventory = getSourceInventory(report, artifact);
+  const orderedSelectedSources = getOrderedSelectedSources(report, artifact);
   const failures = artifact?.failures ?? [];
   const metrics = artifact?.metrics;
   const reportCitations = getReportCitations(report);
   const citationsById = new Map(reportCitations.map((citation) => [citation.id, citation] as const));
+  const sourceIndexById = new Map(orderedSelectedSources.map((source, index) => [source.id, index + 1] as const));
+  const citationSourceIds = new Map<string, string[]>();
+
+  orderedSelectedSources.forEach((source) => {
+    source.citationIds.forEach((citationId) => {
+      citationSourceIds.set(citationId, [...(citationSourceIds.get(citationId) ?? []), source.id]);
+    });
+  });
+
+  const evidenceSummary =
+    report?.trust?.evidenceStrength ?? getFallbackEvidenceSummary(report, orderedSelectedSources.length, reportCitations.length);
   const hasArtifactDetails =
     Boolean(artifact?.status) ||
     Boolean(artifact?.generatedAt) ||
@@ -576,41 +660,82 @@ export default function ResearchReport({
           </div>
 
           <div className="mt-4 space-y-4">
-            {report.keyFindings?.length ||
-            report.caveats?.length ||
-            report.contradictions?.length ||
-            report.unansweredQuestions?.length ? (
-              <section className="grid gap-4 lg:grid-cols-2">
-                {report.keyFindings?.length ? (
-                  <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Key findings</div>
-                    <div className="mt-3 space-y-3">
-                      {report.keyFindings.map((finding) => (
-                        <div key={finding.id} className="rounded-2xl bg-[#fcfaf6] px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-medium text-stone-800">{finding.statement}</span>
-                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
-                              finding.strength === "strong"
-                                ? "high"
-                                : finding.strength === "moderate"
-                                  ? "medium"
-                                  : "low",
-                            )}`}>
-                              {finding.strength}
-                            </span>
-                          </div>
-                          <CitationReferences citationIds={finding.citationIds} citationsById={citationsById} />
-                        </div>
-                      ))}
-                    </div>
+            <section className="grid gap-4 lg:grid-cols-[1.35fr,1fr]">
+              <div className="rounded-3xl border border-stone-200 bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Trust scaffolding</div>
+                <div className="mt-3 rounded-2xl bg-[#fcfaf6] px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
+                        evidenceSummary.overall === "strong"
+                          ? "high"
+                          : evidenceSummary.overall === "moderate"
+                            ? "medium"
+                            : "low",
+                      )}`}
+                    >
+                      {evidenceSummary.overall} evidence
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                      {evidenceSummary.claimCount} major claims
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                      {evidenceSummary.sourceCount} sources
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                      {evidenceSummary.citationCount} citations
+                    </span>
                   </div>
-                ) : null}
+                  <p className="mt-3 text-sm leading-6 text-stone-700">{evidenceSummary.summary}</p>
+                </div>
 
-                {report.caveats?.length ? (
-                  <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">Caveats</div>
+                <div className="mt-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Major claims</div>
+                  {(report.keyFindings ?? []).length > 0 ? (
+                    <div className="mt-3 space-y-3">
+                      {report.keyFindings?.map((finding) => {
+                        const linkedSourceIds = dedupeById(
+                          finding.citationIds
+                            .flatMap((citationId) => citationSourceIds.get(citationId) ?? [])
+                            .map((sourceId) => ({ id: sourceId })),
+                        ).map((source) => source.id);
+
+                        return (
+                          <div key={finding.id} className="rounded-2xl bg-[#fcfaf6] px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-stone-800">{finding.statement}</span>
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-medium capitalize ${getRelevanceClasses(
+                                  finding.strength === "strong"
+                                    ? "high"
+                                    : finding.strength === "moderate"
+                                      ? "medium"
+                                      : "low",
+                                )}`}
+                              >
+                                {finding.strength}
+                              </span>
+                            </div>
+                            <SourceReferences sourceIds={linkedSourceIds} sourceIndexById={sourceIndexById} />
+                            <CitationReferences citationIds={finding.citationIds} citationsById={citationsById} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-stone-600">
+                      No supported major claims were retained for this run.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">Caveats</div>
+                  {(report.caveats ?? []).length > 0 ? (
                     <div className="mt-3 space-y-2">
-                      {report.caveats.map((caveat) => (
+                      {report.caveats?.map((caveat) => (
                         <div key={caveat.id} className="rounded-2xl bg-white px-4 py-3">
                           <p className="text-sm leading-6 text-amber-900">{caveat.statement}</p>
                           {caveat.citationIds?.length ? (
@@ -619,42 +744,72 @@ export default function ResearchReport({
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : null}
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-amber-900">
+                      No caveats were captured from the retained evidence.
+                    </p>
+                  )}
+                </div>
 
-                {report.contradictions?.length ? (
-                  <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-800">Contradictions</div>
+                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-800">Contradictions</div>
+                  {(report.contradictions ?? []).length > 0 ? (
                     <div className="mt-3 space-y-2">
-                      {report.contradictions.map((contradiction) => (
-                        <div key={contradiction.id} className="rounded-2xl bg-white px-4 py-3">
-                          <p className="text-sm leading-6 text-rose-900">{contradiction.statement}</p>
-                          <CitationReferences citationIds={contradiction.citationIds} citationsById={citationsById} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                      {report.contradictions?.map((contradiction) => {
+                        const linkedSourceIds = dedupeById(
+                          contradiction.citationIds
+                            .flatMap((citationId) => citationSourceIds.get(citationId) ?? [])
+                            .map((sourceId) => ({ id: sourceId })),
+                        ).map((source) => source.id);
 
-                {report.unansweredQuestions?.length ? (
-                  <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
-                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                      Unanswered questions
+                        return (
+                          <div key={contradiction.id} className="rounded-2xl bg-white px-4 py-3">
+                            <p className="text-sm leading-6 text-rose-900">{contradiction.statement}</p>
+                            <SourceReferences sourceIds={linkedSourceIds} sourceIndexById={sourceIndexById} />
+                            <CitationReferences citationIds={contradiction.citationIds} citationsById={citationsById} />
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {report.unansweredQuestions.map((question) => (
-                        <div key={question.id} className="rounded-2xl bg-white px-4 py-3">
-                          <p className="text-sm leading-6 text-stone-700">{question.question}</p>
-                          {question.citationIds?.length ? (
-                            <CitationReferences citationIds={question.citationIds} citationsById={citationsById} />
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-rose-900">
+                      No contradictions surfaced in the retained evidence.
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                    Unresolved questions
                   </div>
-                ) : null}
-              </section>
-            ) : null}
+                  {(report.unansweredQuestions ?? []).length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {report.unansweredQuestions?.map((question) => {
+                        const linkedSourceIds = dedupeById(
+                          (question.citationIds ?? [])
+                            .flatMap((citationId) => citationSourceIds.get(citationId) ?? [])
+                            .map((sourceId) => ({ id: sourceId })),
+                        ).map((source) => source.id);
+
+                        return (
+                          <div key={question.id} className="rounded-2xl bg-white px-4 py-3">
+                            <p className="text-sm leading-6 text-stone-700">{question.question}</p>
+                            <SourceReferences sourceIds={linkedSourceIds} sourceIndexById={sourceIndexById} />
+                            {question.citationIds?.length ? (
+                              <CitationReferences citationIds={question.citationIds} citationsById={citationsById} />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm leading-6 text-stone-600">
+                      No unresolved questions were captured for this run.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
 
             {hasArtifactDetails ? (
               <section className="grid gap-4 lg:grid-cols-2">
@@ -690,13 +845,13 @@ export default function ResearchReport({
                   ) : null}
                 </div>
 
-                {sourceInventory.selected.length > 0 ? (
+                {orderedSelectedSources.length > 0 ? (
                   <div className="rounded-3xl border border-stone-200 bg-white p-4">
                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
                       Evidence inventory
                     </div>
                     <div className="mt-3 space-y-2">
-                      {sourceInventory.selected.slice(0, 4).map((source) => (
+                      {orderedSelectedSources.slice(0, 4).map((source) => (
                         <div key={source.id} className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium text-stone-800">{source.title}</p>
@@ -762,13 +917,16 @@ export default function ResearchReport({
 
             <section className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-3xl border border-stone-200 bg-white p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Source collection</div>
-                {sourceInventory.selected.length > 0 ? (
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Source list</div>
+                {orderedSelectedSources.length > 0 ? (
                   <div className="mt-3 space-y-2">
-                    {sourceInventory.selected.map((source) => (
-                      <div key={source.id} className="rounded-2xl bg-[#fcfaf6] px-3 py-3">
+                    {orderedSelectedSources.map((source) => (
+                      <div key={source.id} id={getSourceAnchor(source.id)} className="rounded-2xl bg-[#fcfaf6] px-3 py-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium text-stone-800">{source.title}</p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
+                            S{sourceIndexById.get(source.id)}
+                          </span>
                           {formatSourceMeta(source).map((meta) => (
                             <span key={`${source.id}-${meta}`} className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
                               {meta}

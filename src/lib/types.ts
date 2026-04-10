@@ -485,6 +485,32 @@ const isResearchRecencySignal = (value: unknown): value is NonNullable<ResearchS
 const isResearchEvidenceStrength = (value: unknown): value is NonNullable<NonNullable<ResearchReport["keyFindings"]>[number]["strength"]> =>
   value === "strong" || value === "moderate" || value === "weak";
 
+const isResearchTrustScaffolding = (value: unknown): value is NonNullable<ResearchReport["trust"]> => {
+  if (!isRecord(value) || !Array.isArray(value.sourceIds) || !Array.isArray(value.majorClaimIds)) {
+    return false;
+  }
+
+  return (
+    value.sourceIds.every((sourceId) => typeof sourceId === "string") &&
+    value.majorClaimIds.every((claimId) => typeof claimId === "string") &&
+    isRecord(value.evidenceStrength) &&
+    isResearchEvidenceStrength(value.evidenceStrength.overall) &&
+    typeof value.evidenceStrength.summary === "string" &&
+    typeof value.evidenceStrength.claimCount === "number" &&
+    typeof value.evidenceStrength.sourceCount === "number" &&
+    typeof value.evidenceStrength.citationCount === "number" &&
+    typeof value.evidenceStrength.strongClaimCount === "number" &&
+    typeof value.evidenceStrength.moderateClaimCount === "number" &&
+    typeof value.evidenceStrength.weakClaimCount === "number" &&
+    typeof value.evidenceStrength.contradictionsCount === "number" &&
+    typeof value.evidenceStrength.unresolvedQuestionCount === "number" &&
+    Array.isArray(value.contradictionIds) &&
+    value.contradictionIds.every((contradictionId) => typeof contradictionId === "string") &&
+    Array.isArray(value.unresolvedQuestionIds) &&
+    value.unresolvedQuestionIds.every((questionId) => typeof questionId === "string")
+  );
+};
+
 const isResearchCitation = (value: unknown): boolean => {
   if (!isRecord(value)) {
     return false;
@@ -572,7 +598,8 @@ const isResearchReportLike = (value: unknown): value is Partial<ResearchReport> 
             typeof item.question === "string" &&
             (item.citationIds === undefined || (Array.isArray(item.citationIds) && item.citationIds.every((citationId) => typeof citationId === "string"))) &&
             (item.sectionIds === undefined || (Array.isArray(item.sectionIds) && item.sectionIds.every((sectionId) => typeof sectionId === "string"))),
-        )))
+        ))) &&
+    (value.trust === undefined || isResearchTrustScaffolding(value.trust))
   );
 };
 
