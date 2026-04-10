@@ -132,7 +132,7 @@ function deriveRetrievalContext(
   const summary = summaryHits[0]?.summary;
   if (summary) {
     return {
-      projectId: summary.projectId,
+      projectId: summary.projectId ?? undefined,
       sessionId: summary.sessionId ?? undefined,
     };
   }
@@ -140,7 +140,7 @@ function deriveRetrievalContext(
   const entry = entryHits[0]?.entry;
   if (entry) {
     return {
-      projectId: entry.projectId,
+      projectId: entry.projectId ?? undefined,
       sessionId: entry.sessionId ?? undefined,
     };
   }

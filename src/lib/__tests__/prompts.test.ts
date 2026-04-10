@@ -53,6 +53,17 @@ describe("buildSystemPrompt", () => {
     expect(buildSystemPrompt("build", "Orbit", "   ")).not.toContain("Relevant memory context:");
   });
 
+  it("includes active artifact guidance when artifact context is provided", () => {
+    expect(
+      buildSystemPrompt("build", "Orbit", "", {
+        id: "artifact-validation-scorecard",
+        type: "validation-scorecard",
+        label: "Validation scorecard",
+        isRefineMode: true,
+      }),
+    ).toContain("Refine that same artifact by default instead of creating a new one.");
+  });
+
   it("omits the project name guidance when not provided", () => {
     expect(buildSystemPrompt("build")).not.toContain("Reference ");
   });

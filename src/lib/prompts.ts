@@ -1,3 +1,5 @@
+import type { ProjectArtifactType } from "@/lib/types";
+
 const BASE_PROMPT_SECTIONS = [
   "You are an AI cofounder — a sharp, critical thinking partner for building startups.",
   "You challenge assumptions ruthlessly but constructively.",
@@ -42,7 +44,19 @@ const PHASE_PROMPTS: Record<string, string[]> = {
   ],
 };
 
-export function buildSystemPrompt(phase: string, projectName?: string, memoryContextBlock?: string): string {
+type PromptArtifactContext = {
+  id: string;
+  type: ProjectArtifactType;
+  label: string;
+  isRefineMode?: boolean;
+};
+
+export function buildSystemPrompt(
+  phase: string,
+  projectName?: string,
+  memoryContextBlock?: string,
+  artifactContext?: PromptArtifactContext | null,
+): string {
   const promptSections = [...BASE_PROMPT_SECTIONS];
 
   if (projectName?.trim()) {
@@ -58,6 +72,14 @@ export function buildSystemPrompt(phase: string, projectName?: string, memoryCon
 
   if (memoryContextBlock?.trim()) {
     promptSections.push(memoryContextBlock.trim());
+  }
+
+  if (artifactContext) {
+    promptSections.push(
+      artifactContext.isRefineMode
+        ? `The active artifact is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Refine that same artifact by default instead of creating a new one.`
+        : `The active artifact is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Treat this response as the current artifact being created, not a separate output.`,
+    );
   }
 
   return promptSections.join(" ");

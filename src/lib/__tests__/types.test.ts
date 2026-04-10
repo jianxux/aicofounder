@@ -327,14 +327,46 @@ describe("lib/types guards", () => {
       type: "validation-scorecard",
       title: "Validation scorecard",
       updatedAt: "2025-01-03T00:00:00.000Z",
+      status: "completed",
+      currentRevision: {
+        id: "artifact-validation-scorecard-revision-1",
+        number: 1,
+        createdAt: "2025-01-03T00:00:00.000Z",
+        status: "completed",
+      },
       criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+      revisionHistory: [
+        {
+          id: "artifact-validation-scorecard-revision-1",
+          number: 1,
+          createdAt: "2025-01-03T00:00:00.000Z",
+          status: "completed",
+          criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+        },
+      ],
     };
     const researchArtifact: types.CustomerResearchMemoArtifact = {
       id: "artifact-customer-research-memo",
       type: "customer-research-memo",
       title: "Customer research memo",
       updatedAt: "2025-01-03T00:00:00.000Z",
+      status: "completed",
+      currentRevision: {
+        id: "artifact-customer-research-memo-revision-1",
+        number: 1,
+        createdAt: "2025-01-03T00:00:00.000Z",
+        status: "completed",
+      },
       research: researchReport,
+      revisionHistory: [
+        {
+          id: "artifact-customer-research-memo-revision-1",
+          number: 1,
+          createdAt: "2025-01-03T00:00:00.000Z",
+          status: "completed",
+          research: researchReport,
+        },
+      ],
     };
 
     expect(types.isValidationScorecardArtifact(validationArtifact)).toBe(true);
@@ -355,6 +387,104 @@ describe("lib/types guards", () => {
     const { artifact, ...legacyResearch } = researchReport;
 
     expect(types.isProjectResearch(legacyResearch)).toBe(true);
+  });
+
+  it("normalizes legacy artifacts into canonical revision-backed records", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      updatedAt: "2025-01-05T00:00:00.000Z",
+      research: researchReport,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-04T00:00:00.000Z",
+          summary: "Legacy summary",
+          criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+        },
+      ] as types.ProjectArtifact[],
+    });
+
+    const scorecard = types.getProjectArtifactByType(normalized, "validation-scorecard");
+    const memo = types.getProjectArtifactByType(normalized, "customer-research-memo");
+
+    expect(scorecard).toEqual(expect.objectContaining({
+      id: "artifact-validation-scorecard",
+      status: "completed",
+      currentRevision: expect.objectContaining({
+        number: 1,
+        status: "completed",
+      }),
+    }));
+    expect(scorecard?.revisionHistory).toEqual([
+      expect.objectContaining({
+        number: 1,
+        summary: "Legacy summary",
+      }),
+    ]);
+    expect(memo).toEqual(expect.objectContaining({
+      id: "artifact-customer-research-memo",
+      status: "completed",
+      research: researchReport,
+    }));
+    expect(memo?.revisionHistory).toEqual([
+      expect.objectContaining({
+        number: 1,
+        research: researchReport,
+      }),
+    ]);
+    expect(normalized.activeArtifactId).toBe("artifact-customer-research-memo");
+  });
+
+  it("normalizes partial persisted artifacts and derives project research from the memo artifact", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      research: null,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Legacy scorecard",
+          updatedAt: "2025-01-04T00:00:00.000Z",
+          summary: "Recovered summary",
+        },
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Legacy memo",
+          updatedAt: "2025-01-05T00:00:00.000Z",
+          research: researchReport,
+          currentRevisionId: "missing-from-history",
+        },
+      ] as unknown as types.ProjectArtifact[],
+      activeArtifactId: "artifact-customer-research-memo",
+    } as types.Project);
+
+    expect(types.getProjectArtifactByType(normalized, "validation-scorecard")).toEqual(
+      expect.objectContaining({
+        title: "Legacy scorecard",
+        summary: "Recovered summary",
+        revisionHistory: [
+          expect.objectContaining({
+            number: 1,
+            summary: "Recovered summary",
+          }),
+        ],
+      }),
+    );
+    expect(types.getProjectArtifactByType(normalized, "customer-research-memo")).toEqual(
+      expect.objectContaining({
+        title: "Legacy memo",
+        research: researchReport,
+        currentRevision: expect.objectContaining({
+          number: 1,
+          status: "completed",
+        }),
+      }),
+    );
+    expect(normalized.research).toEqual(researchReport);
+    expect(normalized.activeArtifactId).toBe("artifact-customer-research-memo");
   });
 
   it("accepts a partial persisted research artifact", () => {
@@ -607,7 +737,7 @@ describe("lib/types guards", () => {
         } as unknown as types.ProjectArtifact,
       ],
       activeArtifactId: "missing-artifact",
-    });
+    } as types.Project);
 
     expect(normalized.artifacts).toHaveLength(2);
     expect(types.getProjectArtifactByType(normalized, "customer-research-memo")).toMatchObject({
@@ -642,7 +772,7 @@ describe("lib/types guards", () => {
         },
       ],
       activeArtifactId: "artifact-validation-scorecard",
-    });
+    } as types.Project);
 
     expect(types.getProjectArtifactByType(normalized, "validation-scorecard")).toMatchObject({
       title: "Custom scorecard",

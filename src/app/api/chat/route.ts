@@ -4,6 +4,7 @@ import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
 import { validateEnv } from "@/lib/env";
 import { buildPromptMemory } from "@/lib/prompt-memory";
 import { buildSystemPrompt } from "@/lib/prompts";
+import type { ProjectArtifactType } from "@/lib/types";
 
 type RequestMessage = {
   sender: "user" | "assistant";
@@ -16,6 +17,12 @@ type ChatRequestBody = {
   projectName?: string;
   memoryEntries?: MemoryEntry[];
   memorySummaries?: MemorySummary[];
+  artifact?: {
+    id: string;
+    type: ProjectArtifactType;
+    label: string;
+  } | null;
+  isRefineMode?: boolean;
 };
 
 type OpenAIChatMessage = {
@@ -46,7 +53,7 @@ type StreamingOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { messages, phase = "", projectName, memoryEntries, memorySummaries }: ChatRequestBody =
+    const { messages, phase = "", projectName, memoryEntries, memorySummaries, artifact, isRefineMode }: ChatRequestBody =
       await request.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -67,7 +74,10 @@ export async function POST(request: Request) {
     });
 
     const requestMessages: OpenAIChatMessage[] = [
-      { role: "system", content: buildSystemPrompt(phase, projectName, promptMemory.block) },
+      {
+        role: "system",
+        content: buildSystemPrompt(phase, projectName, promptMemory.block, artifact ? { ...artifact, isRefineMode } : null),
+      },
       ...messages.slice(-20).map((message) => ({
         role: message.sender === "user" ? ("user" as const) : ("assistant" as const),
         content: message.content,

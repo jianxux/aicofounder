@@ -247,7 +247,7 @@ vi.mock("@/components/ResearchReport", () => ({
   ),
 }));
 
-function makeProject(overrides: Partial<Project> = {}): Project {
+function makeProject(overrides: Partial<Project> & { artifacts?: unknown } = {}): Project {
   return normalizeProject({
     id: "project-1",
     name: "Launchpad",
@@ -285,7 +285,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  });
+  } as Project);
 }
 
 describe("ProjectWorkspacePage", () => {
@@ -391,6 +391,23 @@ describe("ProjectWorkspacePage", () => {
     );
     expect(mockSaveProject).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            status: "completed",
+            currentRevision: expect.objectContaining({
+              number: 2,
+              status: "completed",
+            }),
+            revisionHistory: expect.arrayContaining([
+              expect.objectContaining({
+                number: 2,
+                status: "completed",
+              }),
+            ]),
+          }),
+        ]),
         research: expect.objectContaining({
           status: "success",
           sourceContext: "Analyze demand for AI note taking for lawyers.",
@@ -493,8 +510,11 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("failed");
     expect(screen.getAllByTestId("research-attempted-angles")[0]).toHaveTextContent("2");
     expect(screen.getAllByTestId("research-last-updated")[0]).toHaveTextContent("2025-01-09T00:00:00.000Z");
-    expect(mockSaveProject).toHaveBeenLastCalledWith(
+    const savedProject = mockSaveProject.mock.lastCall?.[0] as Project | undefined;
+
+    expect(savedProject).toEqual(
       expect.objectContaining({
+        activeArtifactId: "artifact-customer-research-memo",
         research: expect.objectContaining({
           status: "error",
           sourceContext: "Current phase: Discovery. Open tasks: Interview users.",
@@ -510,6 +530,47 @@ describe("ProjectWorkspacePage", () => {
           }),
         }),
       }),
+    );
+    expect(savedProject?.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          status: "failed",
+          currentRevision: expect.objectContaining({
+            number: 2,
+            status: "failed",
+          }),
+          research: expect.objectContaining({
+            status: "error",
+            report: expect.objectContaining({
+              executiveSummary: "Stored summary",
+            }),
+          }),
+          revisionHistory: [
+            expect.objectContaining({
+              number: 1,
+              status: "completed",
+              research: expect.objectContaining({
+                status: "success",
+                report: expect.objectContaining({
+                  executiveSummary: "Stored summary",
+                }),
+              }),
+            }),
+            expect.objectContaining({
+              number: 2,
+              status: "failed",
+              research: expect.objectContaining({
+                status: "error",
+                artifact: expect.objectContaining({
+                  status: "failed",
+                }),
+              }),
+            }),
+          ],
+        }),
+      ]),
     );
   });
 
@@ -690,6 +751,24 @@ describe("ProjectWorkspacePage", () => {
 
     expect(mockSaveProject).toHaveBeenCalledWith(
       expect.objectContaining({
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            summary: "First reply",
+            status: "completed",
+            currentRevision: expect.objectContaining({
+              number: 2,
+              status: "completed",
+            }),
+            revisionHistory: expect.arrayContaining([
+              expect.objectContaining({
+                number: 2,
+                summary: "First reply",
+              }),
+            ]),
+          }),
+        ]),
         messages: expect.arrayContaining([
           expect.objectContaining({ sender: "user", content: "Tell me more about demand." }),
           expect.objectContaining({ sender: "assistant", content: "First reply" }),
@@ -1071,7 +1150,7 @@ describe("ProjectWorkspacePage", () => {
 
     render(<ProjectWorkspacePage />);
 
-    await screen.findByTestId("canvas");
+    const [desktopChatPanel] = await screen.findAllByTestId("chat-panel");
 
     fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
 
@@ -1080,27 +1159,27 @@ describe("ProjectWorkspacePage", () => {
     const mobileResearchButtons = screen.getAllByRole("button", { name: "Customer research memo" });
     fireEvent.click(mobileResearchButtons[mobileResearchButtons.length - 1]);
 
-    await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("empty");
-    });
+    const researchStatuses = await screen.findAllByTestId("research-status");
+    expect(researchStatuses[researchStatuses.length - 1]).toHaveTextContent("empty");
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Change notes" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Change sections" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Change documents" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Change builders" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Create note" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Drag note" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Activate missing phase" })[0]);
+    const canvases = await screen.findAllByTestId("canvas");
+    const mobileCanvas = within(canvases[canvases.length - 1]);
+
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Change notes" }));
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Change sections" }));
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Change documents" }));
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Change builders" }));
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Create note" }));
+    fireEvent.click(mobileCanvas.getByRole("button", { name: "Drag note" }));
+    fireEvent.click(within(desktopChatPanel).getByRole("button", { name: "Activate missing phase" }));
     fireEvent.click(screen.getByRole("button", { name: "Chat" }));
 
-    await waitFor(() => {
-      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ notes: expect.arrayContaining([expect.objectContaining({ id: "note-2" })]) }));
-      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ id: "section-2" })]) }));
-      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ documents: expect.arrayContaining([expect.objectContaining({ id: "doc-2" })]) }));
-      expect(mockSaveProject).toHaveBeenCalledWith(
-        expect.objectContaining({ websiteBuilders: expect.arrayContaining([expect.objectContaining({ id: "site-2" })]) }),
-      );
-    });
+    expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ notes: expect.arrayContaining([expect.objectContaining({ id: "note-2" })]) }));
+    expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ id: "section-2" })]) }));
+    expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ documents: expect.arrayContaining([expect.objectContaining({ id: "doc-2" })]) }));
+    expect(mockSaveProject).toHaveBeenCalledWith(
+      expect.objectContaining({ websiteBuilders: expect.arrayContaining([expect.objectContaining({ id: "site-2" })]) }),
+    );
 
     expect(mockTrackEvent).toHaveBeenCalledWith(
       "note_created",
@@ -1116,5 +1195,7 @@ describe("ProjectWorkspacePage", () => {
         y: 44,
       }),
     );
+
+    expect((await screen.findAllByTestId("chat-panel")).at(-1)).toBeInTheDocument();
   });
 });

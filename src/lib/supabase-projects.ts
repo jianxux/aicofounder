@@ -168,7 +168,7 @@ function mapPhases(phases: DbPhase[] | null | undefined, tasks: DbPhaseTask[] | 
 function mapProjectRow(project: ProjectRow, tasks: DbPhaseTask[] | null | undefined): Project {
   const canvas = mapCanvasItems(project.canvas_items);
 
-  return {
+  return normalizeProject({
     id: project.id,
     name: project.name,
     description: project.description,
@@ -180,7 +180,9 @@ function mapProjectRow(project: ProjectRow, tasks: DbPhaseTask[] | null | undefi
     websiteBuilders: canvas.websiteBuilders,
     messages: mapMessages(project.messages),
     phases: mapPhases(project.phases, tasks),
-  };
+    artifacts: Array.isArray(project.artifacts) ? (project.artifacts as Project["artifacts"]) : undefined,
+    activeArtifactId: project.active_artifact_id ?? undefined,
+  } as Project);
 }
 
 function mergeLocalProjectState(project: Project): Project {
@@ -192,9 +194,15 @@ function mergeLocalProjectState(project: Project): Project {
 
   return normalizeProject({
     ...project,
-    research: localProject.research ?? project.research ?? null,
-    artifacts: localProject.artifacts ?? project.artifacts,
-    activeArtifactId: localProject.activeArtifactId ?? project.activeArtifactId,
+    research: project.research ?? localProject.research ?? null,
+    artifacts:
+      project.research == null && localProject.research != null
+        ? localProject.artifacts ?? project.artifacts
+        : project.artifacts,
+    activeArtifactId:
+      project.research == null && localProject.research != null
+        ? localProject.activeArtifactId ?? project.activeArtifactId
+        : project.activeArtifactId,
     diagram: localProject.diagram ?? project.diagram,
   });
 }
@@ -206,6 +214,8 @@ function mapProjectToDbProject(project: Project, userId: string): DbProject {
     name: project.name,
     description: project.description,
     phase: project.phase,
+    artifacts: project.artifacts ?? null,
+    active_artifact_id: project.activeArtifactId ?? null,
     created_at: project.updatedAt,
     updated_at: project.updatedAt,
   };

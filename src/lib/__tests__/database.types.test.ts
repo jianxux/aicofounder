@@ -10,6 +10,8 @@ describe("lib/database.types guards", () => {
     name: "AI Cofounder",
     description: "Planning workspace",
     phase: "Getting started",
+    artifacts: [],
+    active_artifact_id: "artifact-validation-scorecard",
     created_at: "2025-01-01T00:00:00.000Z",
     updated_at: "2025-01-01T00:00:00.000Z",
   };
@@ -152,6 +154,8 @@ describe("lib/database.types guards", () => {
     expect(dbTypes.isDbProject({ ...project, name: null })).toBe(false);
     expect(dbTypes.isDbProject({ ...project, description: 2 })).toBe(false);
     expect(dbTypes.isDbProject({ ...project, phase: false })).toBe(false);
+    expect(dbTypes.isDbProject({ ...project, artifacts: {} })).toBe(false);
+    expect(dbTypes.isDbProject({ ...project, active_artifact_id: 1 })).toBe(false);
     expect(dbTypes.isDbProject({ ...project, created_at: 3 })).toBe(false);
     expect(dbTypes.isDbProject({ ...project, updated_at: null })).toBe(false);
   });

@@ -91,7 +91,26 @@ function repairStoredProject(value: unknown): Project | null {
   }
 
   const repairedValue = { ...value, diagram: createDefaultProjectDiagram() };
-  return isProject(repairedValue) ? normalizeProject(repairedValue) : null;
+
+  if (isProject(repairedValue)) {
+    return normalizeProject(repairedValue);
+  }
+
+  if (
+    typeof repairedValue.id === "string" &&
+    typeof repairedValue.name === "string" &&
+    typeof repairedValue.description === "string" &&
+    typeof repairedValue.phase === "string" &&
+    typeof repairedValue.updatedAt === "string" &&
+    Array.isArray(repairedValue.notes) &&
+    Array.isArray(repairedValue.documents) &&
+    Array.isArray(repairedValue.messages) &&
+    Array.isArray(repairedValue.phases)
+  ) {
+    return normalizeProject(repairedValue as Project);
+  }
+
+  return null;
 }
 
 export function createProjectRecord(): Project {
@@ -146,8 +165,9 @@ export function saveStoredProjects(projects: Project[]) {
 }
 
 export function upsertProject(project: Project) {
+  const normalizedProject = normalizeProject(project);
   const projects = getStoredProjects();
-  const next = [...projects.filter((entry) => entry.id !== project.id), project].sort(
+  const next = [...projects.filter((entry) => entry.id !== normalizedProject.id), normalizedProject].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
   saveStoredProjects(next);

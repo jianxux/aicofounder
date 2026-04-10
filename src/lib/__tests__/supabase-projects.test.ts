@@ -16,7 +16,7 @@ type Operation = {
   args: unknown[];
 };
 
-function makeProject(overrides: Partial<Project> = {}): Project {
+function makeProject(overrides: Partial<Project> & { artifacts?: unknown } = {}): Project {
   return normalizeProject({
     id: "project-1",
     name: "Launchpad",
@@ -108,7 +108,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  });
+  } as Project);
 }
 
 function makeProjectRow(projectId = "project-1"): DbProject & {
@@ -383,114 +383,123 @@ describe("lib/supabase-projects", () => {
     expect(createBrowserClient).toHaveBeenCalledTimes(2);
     expect(mockSupabase.auth.getUser).toHaveBeenCalledTimes(1);
     expect(projects).toHaveLength(1);
-    expect(projects[0]).toEqual({
-      id: "project-1",
-      name: "Mapped Project",
-      description: "Mapped from Supabase",
-      phase: "Plan",
-      updatedAt: "2025-01-10T00:00:00.000Z",
-      notes: [
-        {
-          id: "note-db",
-          title: "",
-          content: "Mapped note",
-          color: "yellow",
-          x: 11,
-          y: 12,
-        },
-      ],
-      sections: [
-        {
-          id: "section-db",
-          title: "Section",
-          color: "pink",
-          x: 21,
-          y: 22,
-          width: 0,
-          height: 0,
-        },
-      ],
-      documents: [
-        {
-          id: "document-db",
-          title: "Doc",
-          content: "",
-          x: 31,
-          y: 32,
-        },
-      ],
-      websiteBuilders: [
-        {
-          id: "website-db",
-          title: "Builder",
-          blocks: [
+    expect(projects[0]).toEqual(
+      expect.objectContaining(
+        normalizeProject({
+          id: "project-1",
+          name: "Mapped Project",
+          description: "Mapped from Supabase",
+          phase: "Plan",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          notes: [
             {
-              id: "block-1",
-              type: "hero",
-              heading: "",
-              body: "Hero body",
-              buttonText: "Go",
-            },
-            {
-              id: "block-3",
-              type: "text",
-              heading: "Text block",
-              body: "",
+              id: "note-db",
+              title: "",
+              content: "Mapped note",
+              color: "yellow",
+              x: 11,
+              y: 12,
             },
           ],
-          x: 41,
-          y: 42,
-        },
-      ],
-      messages: [
-        {
-          id: "message-early",
-          sender: "user",
-          content: "First",
-          createdAt: "2025-01-10T00:00:01.000Z",
-        },
-        {
-          id: "message-late",
-          sender: "assistant",
-          content: "Second",
-          createdAt: "2025-01-10T00:00:02.000Z",
-        },
-      ],
-      phases: [
-        {
-          id: "phase-a",
-          title: "Research",
-          tasks: [{ id: "task-c", label: "Research task", done: true }],
-        },
-        {
-          id: "phase-b",
-          title: "Build",
-          tasks: [
-            { id: "task-a", label: "First build task", done: true },
-            { id: "task-b", label: "Second build task", done: false },
+          sections: [
+            {
+              id: "section-db",
+              title: "Section",
+              color: "pink",
+              x: 21,
+              y: 22,
+              width: 0,
+              height: 0,
+            },
           ],
-        },
-      ],
-      research: null,
-      artifacts: [
-        {
+          documents: [
+            {
+              id: "document-db",
+              title: "Doc",
+              content: "",
+              x: 31,
+              y: 32,
+            },
+          ],
+          websiteBuilders: [
+            {
+              id: "website-db",
+              title: "Builder",
+              blocks: [
+                {
+                  id: "block-1",
+                  type: "hero",
+                  heading: "",
+                  body: "Hero body",
+                  buttonText: "Go",
+                },
+                {
+                  id: "block-3",
+                  type: "text",
+                  heading: "Text block",
+                  body: "",
+                },
+              ],
+              x: 41,
+              y: 42,
+            },
+          ],
+          messages: [
+            {
+              id: "message-early",
+              sender: "user",
+              content: "First",
+              createdAt: "2025-01-10T00:00:01.000Z",
+            },
+            {
+              id: "message-late",
+              sender: "assistant",
+              content: "Second",
+              createdAt: "2025-01-10T00:00:02.000Z",
+            },
+          ],
+          phases: [
+            {
+              id: "phase-a",
+              title: "Research",
+              tasks: [{ id: "task-c", label: "Research task", done: true }],
+            },
+            {
+              id: "phase-b",
+              title: "Build",
+              tasks: [
+                { id: "task-a", label: "First build task", done: true },
+                { id: "task-b", label: "Second build task", done: false },
+              ],
+            },
+          ],
+          research: null,
+          diagram: createDefaultProjectDiagram(),
+        } as Project),
+      ),
+    );
+    expect(projects[0]?.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
           id: "artifact-validation-scorecard",
           type: "validation-scorecard",
-          title: "Validation scorecard",
-          updatedAt: "2025-01-10T00:00:00.000Z",
-          criteria: [],
-        },
-        {
+          status: "draft",
+          currentRevision: expect.objectContaining({
+            number: 1,
+            status: "draft",
+          }),
+        }),
+        expect.objectContaining({
           id: "artifact-customer-research-memo",
           type: "customer-research-memo",
-          title: "Customer research memo",
-          updatedAt: "2025-01-10T00:00:00.000Z",
-          research: null,
-        },
-      ],
-      activeArtifactId: "artifact-validation-scorecard",
-      diagram: createDefaultProjectDiagram(),
-    });
+          status: "draft",
+          currentRevision: expect.objectContaining({
+            number: 1,
+            status: "draft",
+          }),
+        }),
+      ]),
+    );
 
     expect(operations).toContainEqual({
       table: "projects",
@@ -718,15 +727,17 @@ describe("lib/supabase-projects", () => {
       table: "projects",
       method: "upsert",
       args: [
-        {
+        expect.objectContaining({
           id: "project-1",
           user_id: "user-1",
           name: "Launchpad",
           description: "AI-assisted startup planning",
           phase: "Build",
+          active_artifact_id: "artifact-validation-scorecard",
+          artifacts: expect.any(Array),
           created_at: "2025-01-15T12:00:00.000Z",
           updated_at: "2025-01-15T12:00:00.000Z",
-        } satisfies DbProject,
+        } satisfies Partial<DbProject>),
       ],
     });
 

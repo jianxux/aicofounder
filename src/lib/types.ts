@@ -175,20 +175,44 @@ export type ValidationScorecardCriterion = {
   notes?: string;
 };
 
-export type ValidationScorecardArtifact = {
+export type ProjectArtifactStatus = "draft" | "completed" | "partial" | "failed";
+
+export type ArtifactRevisionMetadata = {
   id: string;
-  type: "validation-scorecard";
+  number: number;
+  createdAt: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ValidationScorecardArtifactRevision = ArtifactRevisionMetadata & {
+  summary?: string;
+  criteria: ValidationScorecardCriterion[];
+};
+
+export type CustomerResearchMemoArtifactRevision = ArtifactRevisionMetadata & {
+  research: ProjectResearch | null;
+};
+
+export type ProjectArtifactBase = {
+  id: string;
   title: string;
   updatedAt: string;
+  status: ProjectArtifactStatus;
+  currentRevision: ArtifactRevisionMetadata;
+};
+
+export type ValidationScorecardArtifact = {
+  revisionHistory: ValidationScorecardArtifactRevision[];
+  type: "validation-scorecard";
+} & ProjectArtifactBase & {
   summary?: string;
   criteria: ValidationScorecardCriterion[];
 };
 
 export type CustomerResearchMemoArtifact = {
-  id: string;
+  revisionHistory: CustomerResearchMemoArtifactRevision[];
   type: "customer-research-memo";
-  title: string;
-  updatedAt: string;
+} & ProjectArtifactBase & {
   research: ProjectResearch | null;
 };
 
@@ -219,6 +243,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
+function createStableRecordId(prefix: string, fallbackSeed: string) {
+  return `${prefix}-${fallbackSeed}`;
+}
+
+function asArtifactRecord(
+  value: unknown,
+  expectedType: ProjectArtifactType,
+): (Record<string, unknown> & { type: ProjectArtifactType }) | undefined {
+  if (!isRecord(value) || value.type !== expectedType) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown> & { type: ProjectArtifactType };
+}
 
 export const isSender = (value: unknown): value is Sender =>
   value === "user" || value === "assistant";
@@ -759,6 +798,51 @@ export const isValidationScorecardCriterion = (value: unknown): value is Validat
   );
 };
 
+export const isProjectArtifactStatus = (value: unknown): value is ProjectArtifactStatus =>
+  value === "draft" || value === "completed" || value === "partial" || value === "failed";
+
+export const isArtifactRevisionMetadata = (value: unknown): value is ArtifactRevisionMetadata => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.number === "number" &&
+    typeof value.createdAt === "string" &&
+    isProjectArtifactStatus(value.status)
+  );
+};
+
+export const isValidationScorecardArtifactRevision = (value: unknown): value is ValidationScorecardArtifactRevision => {
+  if (!isRecord(value) || !Array.isArray(value.criteria)) {
+    return false;
+  }
+
+  return (
+    isArtifactRevisionMetadata(value) &&
+    (value.summary === undefined || typeof value.summary === "string") &&
+    value.criteria.every(isValidationScorecardCriterion)
+  );
+};
+
+export const isCustomerResearchMemoArtifactRevision = (value: unknown): value is CustomerResearchMemoArtifactRevision => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return isArtifactRevisionMetadata(value) && (value.research === null || isProjectResearch(value.research));
+};
+
+function hasValidCurrentRevisionFields(value: Record<string, unknown>) {
+  return (
+    typeof value.currentRevisionId === "string" &&
+    typeof value.currentRevisionNumber === "number" &&
+    typeof value.currentRevisionCreatedAt === "string" &&
+    isProjectArtifactStatus(value.status)
+  );
+}
+
 export const isValidationScorecardArtifact = (value: unknown): value is ValidationScorecardArtifact => {
   if (!isRecord(value) || !Array.isArray(value.criteria)) {
     return false;
@@ -769,6 +853,14 @@ export const isValidationScorecardArtifact = (value: unknown): value is Validati
     value.type === "validation-scorecard" &&
     typeof value.title === "string" &&
     typeof value.updatedAt === "string" &&
+    (!("status" in value) || isProjectArtifactStatus(value.status)) &&
+    (!("currentRevision" in value) || isArtifactRevisionMetadata(value.currentRevision)) &&
+    (!("revisionHistory" in value) ||
+      (Array.isArray(value.revisionHistory) && value.revisionHistory.every(isValidationScorecardArtifactRevision))) &&
+    (!hasValidCurrentRevisionFields(value) ||
+      (typeof value.currentRevisionId === "string" &&
+        typeof value.currentRevisionNumber === "number" &&
+        typeof value.currentRevisionCreatedAt === "string")) &&
     (value.summary === undefined || typeof value.summary === "string") &&
     value.criteria.every(isValidationScorecardCriterion)
   );
@@ -784,6 +876,14 @@ export const isCustomerResearchMemoArtifact = (value: unknown): value is Custome
     value.type === "customer-research-memo" &&
     typeof value.title === "string" &&
     typeof value.updatedAt === "string" &&
+    (!("status" in value) || isProjectArtifactStatus(value.status)) &&
+    (!("currentRevision" in value) || isArtifactRevisionMetadata(value.currentRevision)) &&
+    (!("revisionHistory" in value) ||
+      (Array.isArray(value.revisionHistory) && value.revisionHistory.every(isCustomerResearchMemoArtifactRevision))) &&
+    (!hasValidCurrentRevisionFields(value) ||
+      (typeof value.currentRevisionId === "string" &&
+        typeof value.currentRevisionNumber === "number" &&
+        typeof value.currentRevisionCreatedAt === "string")) &&
     (value.research === null || isProjectResearch(value.research))
   );
 };
@@ -844,35 +944,124 @@ export function createDefaultProjectDiagram(): ProjectDiagram {
 }
 
 function normalizeValidationScorecardArtifact(
-  existingArtifact: ProjectArtifact | undefined,
+  existingArtifact: unknown,
   fallbackUpdatedAt: string,
 ): ValidationScorecardArtifact {
-  const artifact = isValidationScorecardArtifact(existingArtifact) ? existingArtifact : undefined;
+  const artifactRecord = asArtifactRecord(existingArtifact, "validation-scorecard");
+  const artifact = isValidationScorecardArtifact(artifactRecord) ? artifactRecord : undefined;
+  const revisionHistory = Array.isArray(artifactRecord?.revisionHistory)
+    ? artifactRecord.revisionHistory.filter(isValidationScorecardArtifactRevision)
+    : [];
+  const summary = artifact?.summary ?? (typeof artifactRecord?.summary === "string" ? artifactRecord.summary : undefined);
+  const criteria = artifact?.criteria ?? (Array.isArray(artifactRecord?.criteria)
+    ? artifactRecord.criteria.filter(isValidationScorecardCriterion)
+    : []);
+  const updatedAt = typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt;
+  const status =
+    artifact?.status ??
+    (isProjectArtifactStatus(artifactRecord?.status) ? artifactRecord.status : undefined) ??
+    (summary?.trim() || criteria.length > 0 ? "completed" : "draft");
+  const initialRevision: ValidationScorecardArtifactRevision = {
+    id: createStableRecordId(
+      "artifact-revision",
+      `${(typeof artifactRecord?.id === "string" ? artifactRecord.id : undefined) ?? DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID}-1`,
+    ),
+    number: 1,
+    createdAt:
+      typeof artifactRecord?.updatedAt === "string"
+        ? artifactRecord.updatedAt
+        : typeof artifactRecord?.currentRevisionCreatedAt === "string"
+          ? artifactRecord.currentRevisionCreatedAt
+          : fallbackUpdatedAt,
+    status,
+    ...(summary ? { summary } : {}),
+    criteria,
+  };
+  const normalizedRevisionHistory = revisionHistory.length > 0 ? revisionHistory : [initialRevision];
+  const currentRevision =
+    normalizedRevisionHistory.find((entry) => entry.id === artifact?.currentRevision?.id) ??
+    normalizedRevisionHistory.find((entry) => entry.id === (typeof artifactRecord?.currentRevisionId === "string" ? artifactRecord.currentRevisionId : undefined)) ??
+    normalizedRevisionHistory[normalizedRevisionHistory.length - 1] ??
+    initialRevision;
 
   return {
-    id: artifact?.id ?? DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID,
+    id: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID,
     type: "validation-scorecard",
-    title: artifact?.title ?? "Validation scorecard",
-    updatedAt: artifact?.updatedAt ?? fallbackUpdatedAt,
-    ...(artifact?.summary ? { summary: artifact.summary } : {}),
-    criteria: artifact?.criteria ?? [],
+    title: typeof artifactRecord?.title === "string" ? artifactRecord.title : "Validation scorecard",
+    updatedAt,
+    status: currentRevision.status,
+    currentRevision: {
+      id: currentRevision.id,
+      number: currentRevision.number,
+      createdAt: currentRevision.createdAt,
+      status: currentRevision.status,
+    },
+    ...(summary ? { summary } : {}),
+    criteria,
+    revisionHistory: normalizedRevisionHistory,
   };
 }
 
 function normalizeCustomerResearchMemoArtifact(
   research: ProjectResearch | null,
-  existingArtifact: ProjectArtifact | undefined,
+  existingArtifact: unknown,
   fallbackUpdatedAt: string,
 ): CustomerResearchMemoArtifact {
-  const artifact = isCustomerResearchMemoArtifact(existingArtifact) ? existingArtifact : undefined;
-  const memoResearch = research ?? artifact?.research ?? null;
+  const artifactRecord = asArtifactRecord(existingArtifact, "customer-research-memo");
+  const artifact = isCustomerResearchMemoArtifact(artifactRecord) ? artifactRecord : undefined;
+  const artifactResearch = artifact?.research ?? (artifactRecord?.research === null || isProjectResearch(artifactRecord?.research)
+    ? artifactRecord.research
+    : undefined);
+  const memoResearch = research ?? artifactResearch ?? null;
+  const derivedStatus =
+    artifact?.status ??
+    (isProjectArtifactStatus(artifactRecord?.status) ? artifactRecord.status : undefined) ??
+    memoResearch?.artifact?.status ??
+    (memoResearch?.status === "error"
+      ? "failed"
+      : memoResearch?.report
+        ? "completed"
+        : "draft");
+  const revisionHistory = Array.isArray(artifactRecord?.revisionHistory)
+    ? artifactRecord.revisionHistory.filter(isCustomerResearchMemoArtifactRevision)
+    : [];
+  const initialRevision: CustomerResearchMemoArtifactRevision = {
+    id: createStableRecordId(
+      "artifact-revision",
+      `${(typeof artifactRecord?.id === "string" ? artifactRecord.id : undefined) ?? DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID}-1`,
+    ),
+    number: 1,
+    createdAt:
+      memoResearch?.updatedAt ??
+      (typeof artifactRecord?.updatedAt === "string"
+        ? artifactRecord.updatedAt
+        : typeof artifactRecord?.currentRevisionCreatedAt === "string"
+          ? artifactRecord.currentRevisionCreatedAt
+          : fallbackUpdatedAt),
+    status: derivedStatus,
+    research: memoResearch,
+  };
+  const normalizedRevisionHistory = revisionHistory.length > 0 ? revisionHistory : [initialRevision];
+  const currentRevision =
+    normalizedRevisionHistory.find((entry) => entry.id === artifact?.currentRevision?.id) ??
+    normalizedRevisionHistory.find((entry) => entry.id === (typeof artifactRecord?.currentRevisionId === "string" ? artifactRecord.currentRevisionId : undefined)) ??
+    normalizedRevisionHistory[normalizedRevisionHistory.length - 1] ??
+    initialRevision;
 
   return {
-    id: artifact?.id ?? DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
+    id: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
     type: "customer-research-memo",
-    title: artifact?.title ?? "Customer research memo",
-    updatedAt: memoResearch?.updatedAt ?? artifact?.updatedAt ?? fallbackUpdatedAt,
+    title: typeof artifactRecord?.title === "string" ? artifactRecord.title : "Customer research memo",
+    updatedAt: memoResearch?.updatedAt ?? (typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt),
+    status: currentRevision.status,
+    currentRevision: {
+      id: currentRevision.id,
+      number: currentRevision.number,
+      createdAt: currentRevision.createdAt,
+      status: currentRevision.status,
+    },
     research: memoResearch,
+    revisionHistory: normalizedRevisionHistory,
   };
 }
 
@@ -892,14 +1081,19 @@ export function getActiveProjectArtifact(project: Pick<Project, "artifacts" | "a
 }
 
 export function normalizeProject(value: Project): Project {
-  const research = value.research ?? null;
-  const existingArtifacts = new Map(
-    (value.artifacts ?? []).filter(isProjectArtifact).map((artifact) => [artifact.type, artifact] as const),
-  );
+  const existingArtifacts = new Map<ProjectArtifactType, unknown>();
+  for (const artifact of value.artifacts ?? []) {
+    if (!isRecord(artifact) || !isProjectArtifactType(artifact.type)) {
+      continue;
+    }
+
+    existingArtifacts.set(artifact.type, artifact);
+  }
   const artifacts: ProjectArtifact[] = [
     normalizeValidationScorecardArtifact(existingArtifacts.get("validation-scorecard"), value.updatedAt),
-    normalizeCustomerResearchMemoArtifact(research, existingArtifacts.get("customer-research-memo"), value.updatedAt),
+    normalizeCustomerResearchMemoArtifact(value.research ?? null, existingArtifacts.get("customer-research-memo"), value.updatedAt),
   ];
+  const research = value.research ?? getProjectArtifactByType({ artifacts }, "customer-research-memo")?.research ?? null;
   const activeArtifactId = artifacts.some((artifact) => artifact.id === value.activeArtifactId)
     ? value.activeArtifactId
     : research

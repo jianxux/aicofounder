@@ -10,7 +10,7 @@ import {
 
 const STORAGE_KEY = "aicofounder.projects";
 
-function makeProject(overrides: Partial<Project> = {}): Project {
+function makeProject(overrides: Partial<Project> & { artifacts?: unknown } = {}): Project {
   return normalizeProject({
     id: "project-1",
     name: "Project",
@@ -56,7 +56,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  });
+  } as Project);
 }
 
 describe("lib/projects", () => {
@@ -179,6 +179,108 @@ describe("lib/projects", () => {
       expect(getStoredProjects()).toEqual(projects);
     });
 
+    it("round-trips persisted artifacts, active artifact id, and revision history through local storage", () => {
+      const project = makeProject({
+        activeArtifactId: "artifact-customer-research-memo",
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-03T00:00:00.000Z",
+            status: "completed",
+            currentRevision: {
+              id: "artifact-validation-scorecard-revision-2",
+              number: 2,
+              createdAt: "2025-01-03T00:00:00.000Z",
+              status: "completed",
+            },
+            summary: "Revised summary",
+            criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+            revisionHistory: [
+              {
+                id: "artifact-validation-scorecard-revision-1",
+                number: 1,
+                createdAt: "2025-01-02T00:00:00.000Z",
+                status: "draft",
+                criteria: [],
+              },
+              {
+                id: "artifact-validation-scorecard-revision-2",
+                number: 2,
+                createdAt: "2025-01-03T00:00:00.000Z",
+                status: "completed",
+                summary: "Revised summary",
+                criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+              },
+            ],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-04T00:00:00.000Z",
+            status: "completed",
+            currentRevision: {
+              id: "artifact-customer-research-memo-revision-2",
+              number: 2,
+              createdAt: "2025-01-04T00:00:00.000Z",
+              status: "completed",
+            },
+            research: {
+              status: "success",
+              researchQuestion: "What matters most?",
+              sourceContext: "Reload this",
+              updatedAt: "2025-01-04T00:00:00.000Z",
+              report: {
+                sections: [],
+                executiveSummary: "Signals are strong.",
+                researchQuestion: "What matters most?",
+                generatedAt: "2025-01-04T00:00:00.000Z",
+              },
+            },
+            revisionHistory: [
+              {
+                id: "artifact-customer-research-memo-revision-1",
+                number: 1,
+                createdAt: "2025-01-02T00:00:00.000Z",
+                status: "draft",
+                research: null,
+              },
+              {
+                id: "artifact-customer-research-memo-revision-2",
+                number: 2,
+                createdAt: "2025-01-04T00:00:00.000Z",
+                status: "completed",
+                research: {
+                  status: "success",
+                  researchQuestion: "What matters most?",
+                  sourceContext: "Reload this",
+                  updatedAt: "2025-01-04T00:00:00.000Z",
+                  report: {
+                    sections: [],
+                    executiveSummary: "Signals are strong.",
+                    researchQuestion: "What matters most?",
+                    generatedAt: "2025-01-04T00:00:00.000Z",
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      });
+      saveStoredProjects([project]);
+
+      const [storedProject] = getStoredProjects();
+
+      expect(storedProject?.activeArtifactId).toBe("artifact-customer-research-memo");
+      expect(storedProject?.artifacts?.find((artifact) => artifact.type === "validation-scorecard")?.revisionHistory).toHaveLength(2);
+      expect(storedProject?.artifacts?.find((artifact) => artifact.type === "customer-research-memo")?.currentRevision.id).toBe(
+        "artifact-customer-research-memo-revision-2",
+      );
+      expect(storedProject?.research?.report?.executiveSummary).toBe("Signals are strong.");
+    });
+
     it("normalizes legacy projects that do not yet include diagram data", () => {
       const { diagram, ...legacyProject } = makeProject();
       localStorage.setItem(STORAGE_KEY, JSON.stringify([legacyProject]));
@@ -211,6 +313,61 @@ describe("lib/projects", () => {
 
       expect(storedProjects).toHaveLength(1);
       expect(storedProjects[0]?.id).toBe("project-with-bad-diagram");
+    });
+
+    it("normalizes persisted partial artifact rows without dropping the project", () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify([
+          {
+            ...makeProject(),
+            artifacts: [
+              {
+                id: "artifact-validation-scorecard",
+                type: "validation-scorecard",
+                title: "Legacy scorecard",
+                updatedAt: "2025-01-03T00:00:00.000Z",
+                summary: "Recovered from storage",
+              },
+              {
+                id: "artifact-customer-research-memo",
+                type: "customer-research-memo",
+                title: "Legacy memo",
+                updatedAt: "2025-01-04T00:00:00.000Z",
+                currentRevisionId: "missing-history-revision",
+              },
+            ],
+            activeArtifactId: "artifact-customer-research-memo",
+          },
+        ]),
+      );
+
+      const [storedProject] = getStoredProjects();
+
+      expect(storedProject?.artifacts?.find((artifact) => artifact.type === "validation-scorecard")).toEqual(
+        expect.objectContaining({
+          title: "Legacy scorecard",
+          summary: "Recovered from storage",
+          revisionHistory: [
+            expect.objectContaining({
+              number: 1,
+              summary: "Recovered from storage",
+            }),
+          ],
+        }),
+      );
+      expect(storedProject?.artifacts?.find((artifact) => artifact.type === "customer-research-memo")).toEqual(
+        expect.objectContaining({
+          title: "Legacy memo",
+          revisionHistory: [
+            expect.objectContaining({
+              number: 1,
+              status: "draft",
+            }),
+          ],
+        }),
+      );
+      expect(storedProject?.activeArtifactId).toBe("artifact-customer-research-memo");
     });
   });
 

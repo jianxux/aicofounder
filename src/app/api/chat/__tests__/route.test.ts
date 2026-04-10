@@ -169,7 +169,7 @@ describe("POST /api/chat", () => {
       memoryEntries: undefined,
       memorySummaries: undefined,
     });
-    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "");
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "", null);
     expect(payload.messages[0]).toEqual({ role: "system", content: "mocked system prompt" });
     expect(payload.messages[1]).toEqual({ role: "user", content: "message-3" });
     expect(payload.messages.at(-1)).toEqual({ role: "assistant", content: "message-22" });
@@ -204,7 +204,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(buildSystemPromptMock).toHaveBeenCalledWith("launch", "Orbit", "");
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("launch", "Orbit", "", null);
     expect(create).toHaveBeenCalledTimes(1);
     expect(create.mock.calls[0][0].messages[0]).toEqual({
       role: "system",
@@ -351,6 +351,47 @@ describe("POST /api/chat", () => {
       memoryEntries: [{ id: "entry-1" }],
       memorySummaries: [{ id: "summary-1" }],
     });
-    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "Relevant memory context:\nKey facts");
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "Relevant memory context:\nKey facts", null);
+  });
+
+  it("passes active artifact context into the system prompt", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    const create = vi.fn().mockResolvedValue(
+      createAsyncIterableStream([{ choices: [{ delta: { content: "ready" } }] }]),
+    );
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/chat/route");
+    const response = await POST(
+      createRequest({
+        messages: [{ sender: "user", content: "Refine the scorecard" }],
+        artifact: {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          label: "Validation scorecard",
+        },
+        isRefineMode: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "", {
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+      label: "Validation scorecard",
+      isRefineMode: true,
+    });
   });
 });

@@ -4,6 +4,8 @@ export type DbProject = {
   name: string;
   description: string;
   phase: string;
+  artifacts?: unknown[] | null;
+  active_artifact_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -173,6 +175,8 @@ export const isDbProject = (value: unknown): value is DbProject => {
     typeof value.name === "string" &&
     typeof value.description === "string" &&
     typeof value.phase === "string" &&
+    (value.artifacts === undefined || value.artifacts === null || Array.isArray(value.artifacts)) &&
+    (value.active_artifact_id === undefined || value.active_artifact_id === null || typeof value.active_artifact_id === "string") &&
     typeof value.created_at === "string" &&
     typeof value.updated_at === "string"
   );

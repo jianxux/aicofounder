@@ -36,6 +36,7 @@ import {
   getProjectArtifactByType,
   normalizeProject,
 } from "@/lib/types";
+import { applyCustomerResearchMemoUpdate, applyValidationScorecardChatUpdate } from "@/lib/project-artifacts";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -471,6 +472,22 @@ export default function ProjectWorkspacePage() {
 
       processChunk(decoder.decode());
 
+      if (assistantContent.trim() && artifactAtSend?.type === "validation-scorecard") {
+        const baseProject = projectRef.current;
+
+        if (baseProject) {
+          const scorecardUpdate = applyValidationScorecardChatUpdate(
+            baseProject,
+            assistantContent,
+            new Date().toISOString(),
+          );
+
+          if (scorecardUpdate.changed) {
+            persistProject(scorecardUpdate.project);
+          }
+        }
+      }
+
       if (assistantContent.trim() && artifactAtSend) {
         void trackEvent(artifactWasPopulated ? ARTIFACT_FOLLOW_UP_EDIT_EVENT : ARTIFACT_CREATED_EVENT, {
           page: `/project/${projectId}`,
@@ -671,20 +688,21 @@ export default function ProjectWorkspacePage() {
         const baseProject = projectRef.current ?? currentProject;
 
         if (baseProject) {
+          const nextResearch = {
+            status: "error" as const,
+            errorMessage: result.errorMessage ?? "Failed to run deep research",
+            researchQuestion,
+            sourceContext,
+            updatedAt: displayedReportUpdatedAt,
+            artifact: result.artifact,
+            report: result.report,
+          };
+          const memoUpdate = applyCustomerResearchMemoUpdate(baseProject, nextResearch);
+
           persistProject({
-            ...baseProject,
-            research: {
-              status: "error",
-              errorMessage: result.errorMessage ?? "Failed to run deep research",
-              researchQuestion,
-              sourceContext,
-              updatedAt: displayedReportUpdatedAt,
-              artifact: result.artifact,
-              report: result.report,
-            },
-            activeArtifactId: getCustomerResearchMemoArtifactId(baseProject),
+            ...memoUpdate.project,
             messages: [
-              ...baseProject.messages,
+              ...memoUpdate.project.messages,
               createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
             ],
           });
@@ -700,20 +718,17 @@ export default function ProjectWorkspacePage() {
       }
 
       const latestProject = projectRef.current ?? currentProject;
-      const nextProject = {
-        ...latestProject,
-        research: {
-          status: "success" as const,
-          artifact: result.artifact,
-          report,
-          researchQuestion: report.researchQuestion,
-          sourceContext,
-          updatedAt: report.generatedAt,
-        },
-        activeArtifactId: getCustomerResearchMemoArtifactId(latestProject),
+      const nextResearch = {
+        status: "success" as const,
+        artifact: result.artifact,
+        report,
+        researchQuestion: report.researchQuestion,
+        sourceContext,
+        updatedAt: report.generatedAt,
       };
+      const memoUpdate = applyCustomerResearchMemoUpdate(latestProject, nextResearch);
 
-      persistProject(nextProject);
+      persistProject(memoUpdate.project);
       void trackEvent(memoWasPopulated ? ARTIFACT_FOLLOW_UP_EDIT_EVENT : ARTIFACT_CREATED_EVENT, {
         page: `/project/${projectId}`,
         project_id: projectId,
@@ -725,20 +740,21 @@ export default function ProjectWorkspacePage() {
       const baseProject = projectRef.current ?? currentProject;
 
       if (baseProject) {
+        const nextResearch = {
+          status: "error" as const,
+          errorMessage: error instanceof Error ? error.message : "Failed to run deep research",
+          researchQuestion,
+          sourceContext,
+          updatedAt: new Date().toISOString(),
+          artifact: existingResearch?.artifact,
+          report: existingResearch?.report,
+        };
+        const memoUpdate = applyCustomerResearchMemoUpdate(baseProject, nextResearch);
+
         persistProject({
-          ...baseProject,
-          research: {
-            status: "error",
-            errorMessage: error instanceof Error ? error.message : "Failed to run deep research",
-            researchQuestion,
-            sourceContext,
-            updatedAt: new Date().toISOString(),
-            artifact: existingResearch?.artifact,
-            report: existingResearch?.report,
-          },
-          activeArtifactId: getCustomerResearchMemoArtifactId(baseProject),
+          ...memoUpdate.project,
           messages: [
-            ...baseProject.messages,
+            ...memoUpdate.project.messages,
             createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
           ],
         });
