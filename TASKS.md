@@ -64,6 +64,6 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] Add tests for diagram generation, drag/drop behavior, and persistence
 
 ### 5D. Competitive Research
-- [ ] Research competitors in AI idea validation / cofounder / startup research products and document implementation patterns worth copying
-- [ ] Produce competitor comparison memo covering features, UX patterns, research workflows, agent memory behavior, and canvas/diagram interfaces
+- [x] Research competitors in AI idea validation / cofounder / startup research products and document implementation patterns worth copying
+- [x] Produce competitor comparison memo covering features, UX patterns, research workflows, agent memory behavior, and canvas/diagram interfaces
 - [ ] Convert competitor insights into prioritized product recommendations and new follow-up tasks in this file
