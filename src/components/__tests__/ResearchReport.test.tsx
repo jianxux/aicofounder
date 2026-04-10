@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ResearchReport from "@/components/ResearchReport";
 
@@ -90,6 +90,12 @@ describe("ResearchReport", () => {
 
     expect(screen.getByText("Customer research memo")).toBeInTheDocument();
     expect(screen.getByText(/No customer research memo yet/i)).toBeInTheDocument();
+    expect(screen.getByText("Research progress")).toBeInTheDocument();
+    expect(screen.getByText("Objective")).toBeInTheDocument();
+    expect(screen.getByText("Recommended next actions")).toBeInTheDocument();
+    expect(
+      screen.getByText("Start a research run to track objective, scope, evidence, synthesis, and next actions."),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Create customer research memo" }));
 
@@ -101,21 +107,88 @@ describe("ResearchReport", () => {
 
     expect(screen.getByRole("button", { name: "Updating memo..." })).toBeDisabled();
     expect(screen.getByText("Updating the customer research memo for this project.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Research run in progress. Stage details will update as the memo is assembled."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Source scope")).toBeInTheDocument();
+    expect(screen.getAllByText("In progress").length).toBeGreaterThan(0);
   });
 
-  it("renders the failure state", () => {
+  it("preserves completed loading stages from partial artifact progress", () => {
+    render(
+      <ResearchReport
+        status="loading"
+        researchQuestion="Investigate the market"
+        artifact={{
+          status: "partial",
+          metrics: { attemptedAngles: 2, completedSections: 0, selectedSources: 3, rejectedSources: 1 },
+          plan: {
+            steps: [
+              { id: "market", title: "Market demand", angle: "Demand signals", query: "q", rationale: "r" },
+              { id: "competition", title: "Competition", angle: "Competitive scan", query: "q2", rationale: "r2" },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText("Complete")).toHaveLength(3);
+
+    const synthesisStage = screen.getByText("Synthesis").closest("div");
+    expect(synthesisStage).not.toBeNull();
+    expect(within(synthesisStage as HTMLElement).getByText("In progress")).toBeInTheDocument();
+
+    const actionsStage = screen.getByText("Recommended next actions").closest("div");
+    expect(actionsStage).not.toBeNull();
+    expect(within(actionsStage as HTMLElement).getByText("Pending")).toBeInTheDocument();
+  });
+
+  it("renders the failure state and indicates where the run stopped", () => {
     render(
       <ResearchReport
         status="error"
         errorMessage="Provider timeout"
+        artifact={{
+          status: "failed",
+          failures: [{ stage: "gather", code: "provider-error", message: "Provider timeout" }],
+          metrics: { attemptedAngles: 2, completedSections: 0, selectedSources: 0, rejectedSources: 0 },
+          plan: {
+            steps: [
+              { id: "market", title: "Market demand", angle: "Demand signals", query: "q", rationale: "r" },
+              { id: "competition", title: "Competition", angle: "Competitive scan", query: "q2", rationale: "r2" },
+            ],
+          },
+        }}
         researchQuestion="Investigate the market"
         sourceContext="Current phase: Discovery"
       />,
     );
 
-    expect(screen.getByText("Provider timeout")).toBeInTheDocument();
-    expect(screen.getByText("Investigate the market")).toBeInTheDocument();
+    expect(screen.getAllByText("Provider timeout").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Investigate the market").length).toBeGreaterThan(0);
     expect(screen.getByText("Current phase: Discovery")).toBeInTheDocument();
+    expect(screen.getByText("Run stopped during evidence gathering: Provider timeout")).toBeInTheDocument();
+    expect(screen.getByText("Stopped here")).toBeInTheDocument();
+  });
+
+  it("does not mark source scope complete when attemptedAngles is zero", () => {
+    render(
+      <ResearchReport
+        status="success"
+        researchQuestion="Investigate the market"
+        artifact={{
+          status: "completed",
+          metrics: { attemptedAngles: 0, completedSections: 0, selectedSources: 0, rejectedSources: 0 },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("0 research angles attempted.")).toBeInTheDocument();
+
+    const scopeStage = screen.getByText("Source scope").closest("div");
+    expect(scopeStage).not.toBeNull();
+    expect(within(scopeStage as HTMLElement).getByText("Pending")).toBeInTheDocument();
+    expect(screen.getAllByText("Complete")).toHaveLength(1);
   });
 
   it("renders the persisted report and toggles sections", () => {
@@ -139,6 +212,12 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Citation index")).toBeInTheDocument();
     expect(screen.getByText("Rejected sources")).toBeInTheDocument();
     expect(screen.getByText("Run notes")).toBeInTheDocument();
+    expect(
+      screen.getByText("Run completed with issues during evidence gathering: One section failed validation"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Recommended next actions should validate 1 caveat before committing to a decision."),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("3 angles")).toBeInTheDocument();
     expect(screen.getByText("1 rejected")).toBeInTheDocument();
     expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
@@ -156,13 +235,19 @@ describe("ResearchReport", () => {
         status="error"
         errorMessage="Provider timeout"
         report={report}
-        artifact={{ status: "failed", generatedAt: "2025-01-20T12:00:00.000Z", metrics: { attemptedAngles: 2 } }}
+        artifact={{
+          status: "failed",
+          generatedAt: "2025-01-20T12:00:00.000Z",
+          metrics: { attemptedAngles: 2 },
+          failures: [{ stage: "gather", code: "provider-error", message: "Provider timeout" }],
+        }}
         lastUpdatedAt="2025-01-15T12:00:00.000Z"
       />,
     );
 
-    expect(screen.getByText("Provider timeout")).toBeInTheDocument();
+    expect(screen.getAllByText("Provider timeout").length).toBeGreaterThan(0);
     expect(screen.getByText("Executive summary")).toBeInTheDocument();
+    expect(screen.getByText("Run stopped during evidence gathering: Provider timeout")).toBeInTheDocument();
     expect(screen.getByText("2 angles")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry customer research memo" })).toBeInTheDocument();
     expect(screen.getByText(`Research conducted ${formatTimestamp("2025-01-15T12:00:00.000Z")}`)).toBeInTheDocument();
@@ -305,9 +390,19 @@ describe("ResearchReport", () => {
     expect(screen.getByText("SMBs report weaker urgency.")).toBeInTheDocument();
     expect(screen.getByText("Unanswered questions")).toBeInTheDocument();
     expect(screen.getByText("How much budget is controlled by operations leaders?")).toBeInTheDocument();
+    expect(
+      screen.getByText("Recommended next actions surfaced 1 open question for follow-up research."),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("peer reviewed").length).toBeGreaterThan(0);
     expect(screen.getAllByText("registration required").length).toBeGreaterThan(0);
     expect(screen.getAllByText("published 2025-01-10").length).toBeGreaterThan(0);
     expect(screen.getByText("Research conducted not-a-date")).toBeInTheDocument();
+  });
+
+  it("renders source context without a research question", () => {
+    render(<ResearchReport status="empty" sourceContext="User asked for a market scan." />);
+
+    expect(screen.getByText("Research context")).toBeInTheDocument();
+    expect(screen.getByText("User asked for a market scan.")).toBeInTheDocument();
   });
 });

@@ -15,6 +15,16 @@ type ResearchReportProps = {
   onRunResearch?: () => void;
 };
 
+type ProgressStageId = "objective" | "scope" | "evidence" | "synthesis" | "actions";
+type ProgressState = "complete" | "current" | "pending" | "failed";
+
+type ResearchProgressStage = {
+  id: ProgressStageId;
+  label: string;
+  state: ProgressState;
+  detail: string;
+};
+
 function getRelevanceClasses(relevance: "high" | "medium" | "low") {
   if (relevance === "high") {
     return "bg-emerald-100 text-emerald-800";
@@ -57,6 +67,42 @@ function formatSourceMeta(source: Pick<
 
 function getCitationAnchor(citationId: string) {
   return `citation-${citationId}`;
+}
+
+function getProgressStateClasses(state: ProgressState) {
+  if (state === "complete") {
+    return {
+      badge: "border-emerald-200 bg-emerald-100 text-emerald-800",
+      dot: "bg-emerald-600",
+      card: "border-emerald-200 bg-emerald-50",
+      label: "Complete",
+    };
+  }
+
+  if (state === "current") {
+    return {
+      badge: "border-sky-200 bg-sky-100 text-sky-800",
+      dot: "bg-sky-600",
+      card: "border-sky-200 bg-sky-50",
+      label: "In progress",
+    };
+  }
+
+  if (state === "failed") {
+    return {
+      badge: "border-rose-200 bg-rose-100 text-rose-800",
+      dot: "bg-rose-600",
+      card: "border-rose-200 bg-rose-50",
+      label: "Stopped here",
+    };
+  }
+
+  return {
+    badge: "border-stone-200 bg-white text-stone-500",
+    dot: "bg-stone-300",
+    card: "border-stone-200 bg-white",
+    label: "Pending",
+  };
 }
 
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
@@ -115,6 +161,229 @@ function getSourceInventory(report?: ResearchReportData | null, artifact?: Proje
     selected,
     rejected: [],
   };
+}
+
+function getLatestFailure(artifact?: ProjectResearchArtifact) {
+  const failures = artifact?.failures ?? [];
+
+  return failures.length > 0 ? failures[failures.length - 1] : undefined;
+}
+
+function getNextActionsSummary(report?: ResearchReportData | null, artifact?: ProjectResearchArtifact) {
+  if (report?.unansweredQuestions?.length) {
+    return `Recommended next actions surfaced ${report.unansweredQuestions.length} open question${
+      report.unansweredQuestions.length === 1 ? "" : "s"
+    } for follow-up research.`;
+  }
+
+  if (report?.caveats?.length) {
+    return `Recommended next actions should validate ${report.caveats.length} caveat${
+      report.caveats.length === 1 ? "" : "s"
+    } before committing to a decision.`;
+  }
+
+  const latestFailure = getLatestFailure(artifact);
+
+  if (latestFailure) {
+    return `Recommended next actions are blocked until ${latestFailure.stage} issues are resolved.`;
+  }
+
+  if (report) {
+    return "Recommended next actions are ready from the current memo and supporting evidence.";
+  }
+
+  return "Recommended next actions will appear after the memo is synthesized.";
+}
+
+function getResearchProgressStages({
+  status,
+  report,
+  artifact,
+  researchQuestion,
+}: Pick<ResearchReportProps, "status" | "report" | "artifact" | "researchQuestion">): ResearchProgressStage[] {
+  const sourceInventory = getSourceInventory(report, artifact);
+  const metrics = artifact?.metrics;
+  const latestFailure = getLatestFailure(artifact);
+  const hasObjective = Boolean((researchQuestion ?? report?.researchQuestion)?.trim());
+  const attemptedAngles = metrics?.attemptedAngles;
+  const hasPlan = Boolean(artifact?.plan?.steps?.length) || (typeof attemptedAngles === "number" && attemptedAngles > 0);
+  const hasEvidence =
+    sourceInventory.selected.length > 0 ||
+    sourceInventory.rejected.length > 0 ||
+    (metrics?.selectedSources ?? 0) > 0 ||
+    (metrics?.rejectedSources ?? 0) > 0 ||
+    (metrics?.completedSections ?? 0) > 0;
+  const hasSynthesis = Boolean(report?.sections?.length) || Boolean(report?.executiveSummary?.trim());
+  const hasActions = Boolean(report) || Boolean(latestFailure);
+  const scopeDetail = artifact?.plan?.steps?.length
+    ? `${artifact.plan.steps.length} planned research angle${artifact.plan.steps.length === 1 ? "" : "s"} defined.`
+    : typeof attemptedAngles === "number"
+      ? `${attemptedAngles} research angle${attemptedAngles === 1 ? "" : "s"} attempted.`
+      : "Source scope has not been defined yet.";
+  const evidenceDetail = hasEvidence
+    ? `${metrics?.selectedSources ?? sourceInventory.selected.length} selected source${
+        (metrics?.selectedSources ?? sourceInventory.selected.length) === 1 ? "" : "s"
+      } and ${metrics?.rejectedSources ?? sourceInventory.rejected.length} rejected.`
+    : "Evidence gathering has not retained sources yet.";
+  const synthesisDetail = hasSynthesis
+    ? `${report?.sections?.length ?? metrics?.completedSections ?? 0} synthesized section${
+        (report?.sections?.length ?? metrics?.completedSections ?? 0) === 1 ? "" : "s"
+      } are available in the memo.`
+    : "Synthesis has not produced a memo yet.";
+  const actionsDetail = getNextActionsSummary(report, artifact);
+
+  const stages: ResearchProgressStage[] = [
+    {
+      id: "objective",
+      label: "Objective",
+      state: hasObjective ? "complete" : status === "loading" ? "current" : "pending",
+      detail: hasObjective
+        ? researchQuestion ?? report?.researchQuestion ?? "Research objective captured."
+        : "Waiting for a research objective.",
+    },
+    {
+      id: "scope",
+      label: "Source scope",
+      state: "pending",
+      detail: scopeDetail,
+    },
+    {
+      id: "evidence",
+      label: "Evidence gathering",
+      state: "pending",
+      detail: evidenceDetail,
+    },
+    {
+      id: "synthesis",
+      label: "Synthesis",
+      state: "pending",
+      detail: synthesisDetail,
+    },
+    {
+      id: "actions",
+      label: "Recommended next actions",
+      state: "pending",
+      detail: actionsDetail,
+    },
+  ];
+
+  if (hasPlan) {
+    stages[1].state = "complete";
+  }
+
+  if (hasEvidence) {
+    stages[2].state = "complete";
+  }
+
+  if (hasSynthesis) {
+    stages[3].state = "complete";
+  }
+
+  if (hasActions) {
+    stages[4].state = hasSynthesis ? "complete" : "pending";
+  }
+
+  if (status === "loading") {
+    const currentIndex = stages.findIndex((stage) => stage.state !== "complete");
+
+    if (currentIndex >= 0) {
+      stages[currentIndex] = {
+        ...stages[currentIndex],
+        state: "current",
+      };
+    }
+
+    return stages;
+  }
+
+  if (latestFailure) {
+    const failureIndex =
+      latestFailure.stage === "plan" ? 1 : latestFailure.stage === "gather" ? 2 : latestFailure.stage === "report" ? 3 : -1;
+
+    if (failureIndex >= 0) {
+      const stoppedState = status === "error" || artifact?.status === "failed" ? "failed" : "current";
+
+      stages[failureIndex] = {
+        ...stages[failureIndex],
+        state: stoppedState,
+        detail: latestFailure.message,
+      };
+
+      for (let index = failureIndex + 1; index < stages.length; index += 1) {
+        stages[index] = {
+          ...stages[index],
+          state: "pending",
+        };
+      }
+
+      if (failureIndex < stages.length - 1) {
+        stages[4] = {
+          ...stages[4],
+          state: "pending",
+          detail: getNextActionsSummary(report, artifact),
+        };
+      }
+    }
+  }
+
+  return stages;
+}
+
+function ResearchProgress({
+  status,
+  report,
+  artifact,
+  researchQuestion,
+}: Pick<ResearchReportProps, "status" | "report" | "artifact" | "researchQuestion">) {
+  const stages = getResearchProgressStages({ status, report, artifact, researchQuestion });
+  const latestFailure = getLatestFailure(artifact);
+  const stoppedAtStage = stages.find((stage) => stage.state === "failed" || stage.state === "current");
+  const summary =
+    status === "loading"
+      ? "Research run in progress. Stage details will update as the memo is assembled."
+      : latestFailure && (status === "error" || artifact?.status === "failed")
+        ? `Run stopped during ${stoppedAtStage?.label.toLowerCase() ?? "research"}: ${latestFailure.message}`
+        : latestFailure
+          ? `Run completed with issues during ${stoppedAtStage?.label.toLowerCase() ?? "research"}: ${latestFailure.message}`
+          : report
+            ? "Research run completed across all five stages."
+            : "Start a research run to track objective, scope, evidence, synthesis, and next actions.";
+
+  return (
+    <section className="rounded-3xl border border-stone-200 bg-white p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Research progress</div>
+          <p className="mt-2 text-sm leading-6 text-stone-600">{summary}</p>
+        </div>
+        <span className="rounded-full bg-[#fcfaf6] px-3 py-1 text-xs font-medium text-stone-600">5 stages</span>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-5">
+        {stages.map((stage, index) => {
+          const stageClasses = getProgressStateClasses(stage.state);
+
+          return (
+            <div key={stage.id} className={`rounded-3xl border p-4 ${stageClasses.card}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${stageClasses.dot}`} aria-hidden="true" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Stage {index + 1}
+                  </span>
+                </div>
+                <span className={`rounded-full border px-2 py-1 text-[11px] font-medium ${stageClasses.badge}`}>
+                  {stageClasses.label}
+                </span>
+              </div>
+              <h3 className="mt-3 text-sm font-semibold text-stone-900">{stage.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">{stage.detail}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function CitationReferences({ citationIds, citationsById }: { citationIds: string[]; citationsById: Map<string, ResearchCitation> }) {
@@ -199,13 +468,17 @@ function ResearchSummary({
           </div>
         ) : null}
 
-        {researchQuestion ? (
+        {researchQuestion || sourceContext || lastUpdatedAt ? (
           <div className="rounded-3xl bg-white px-4 py-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Research question</div>
-            <p className="mt-2 text-sm leading-6 text-stone-700">{researchQuestion}</p>
+            {researchQuestion ? (
+              <>
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Research question</div>
+                <p className="mt-2 text-sm leading-6 text-stone-700">{researchQuestion}</p>
+              </>
+            ) : null}
             {sourceContext ? (
               <>
-                <div className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                <div className={`${researchQuestion ? "mt-4 " : ""}text-xs font-semibold uppercase tracking-[0.2em] text-stone-500`}>
                   Research context
                 </div>
                 <p className="mt-2 line-clamp-4 text-sm leading-6 text-stone-600">{sourceContext}</p>
@@ -271,6 +544,13 @@ export default function ResearchReport({
         researchQuestion={researchQuestion ?? report?.researchQuestion}
         sourceContext={sourceContext}
         onRunResearch={onRunResearch}
+      />
+
+      <ResearchProgress
+        status={status}
+        report={report}
+        artifact={artifact}
+        researchQuestion={researchQuestion ?? report?.researchQuestion}
       />
 
       {(status === "success" || status === "error") && report ? (
