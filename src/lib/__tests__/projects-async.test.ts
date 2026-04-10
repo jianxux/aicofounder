@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createDefaultProjectDiagram, type Project } from "@/lib/types";
+import { createDefaultProjectDiagram, normalizeProject, type Project } from "@/lib/types";
 
 function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
+  return normalizeProject({
     id: "project-1",
     name: "Project",
     description: "Description",
@@ -39,7 +39,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  };
+  });
 }
 
 async function loadProjectsModule(options: {

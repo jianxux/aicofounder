@@ -164,6 +164,36 @@ export type ProjectResearchArtifact = {
   failures?: ResearchRunArtifact["failures"];
 };
 
+export const PROJECT_ARTIFACT_TYPES = ["validation-scorecard", "customer-research-memo"] as const;
+
+export type ProjectArtifactType = (typeof PROJECT_ARTIFACT_TYPES)[number];
+
+export type ValidationScorecardCriterion = {
+  id: string;
+  label: string;
+  score?: number;
+  notes?: string;
+};
+
+export type ValidationScorecardArtifact = {
+  id: string;
+  type: "validation-scorecard";
+  title: string;
+  updatedAt: string;
+  summary?: string;
+  criteria: ValidationScorecardCriterion[];
+};
+
+export type CustomerResearchMemoArtifact = {
+  id: string;
+  type: "customer-research-memo";
+  title: string;
+  updatedAt: string;
+  research: ProjectResearch | null;
+};
+
+export type ProjectArtifact = ValidationScorecardArtifact | CustomerResearchMemoArtifact;
+
 export type Project = {
   id: string;
   name: string;
@@ -177,8 +207,13 @@ export type Project = {
   messages: ChatMessage[];
   phases: Phase[];
   research?: ProjectResearch | null;
+  artifacts?: ProjectArtifact[];
+  activeArtifactId?: string;
   diagram?: ProjectDiagram;
 };
+
+const DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID = "artifact-validation-scorecard";
+const DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID = "artifact-customer-research-memo";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -415,6 +450,9 @@ export const isPhase = (value: unknown): value is Phase => {
     value.tasks.every(isPhaseTask)
   );
 };
+
+export const isProjectArtifactType = (value: unknown): value is ProjectArtifactType =>
+  PROJECT_ARTIFACT_TYPES.includes(value as ProjectArtifactType);
 
 const isResearchRelevance = (value: unknown): value is "high" | "medium" | "low" =>
   value === "high" || value === "medium" || value === "low";
@@ -681,6 +719,51 @@ export const isProjectResearch = (value: unknown): value is ProjectResearch => {
   );
 };
 
+export const isValidationScorecardCriterion = (value: unknown): value is ValidationScorecardCriterion => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.label === "string" &&
+    (value.score === undefined || isFiniteNumber(value.score)) &&
+    (value.notes === undefined || typeof value.notes === "string")
+  );
+};
+
+export const isValidationScorecardArtifact = (value: unknown): value is ValidationScorecardArtifact => {
+  if (!isRecord(value) || !Array.isArray(value.criteria)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    value.type === "validation-scorecard" &&
+    typeof value.title === "string" &&
+    typeof value.updatedAt === "string" &&
+    (value.summary === undefined || typeof value.summary === "string") &&
+    value.criteria.every(isValidationScorecardCriterion)
+  );
+};
+
+export const isCustomerResearchMemoArtifact = (value: unknown): value is CustomerResearchMemoArtifact => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    value.type === "customer-research-memo" &&
+    typeof value.title === "string" &&
+    typeof value.updatedAt === "string" &&
+    (value.research === null || isProjectResearch(value.research))
+  );
+};
+
+export const isProjectArtifact = (value: unknown): value is ProjectArtifact =>
+  isValidationScorecardArtifact(value) || isCustomerResearchMemoArtifact(value);
+
 export const isProject = (value: unknown): value is Project => {
   if (
     !isRecord(value) ||
@@ -706,6 +789,8 @@ export const isProject = (value: unknown): value is Project => {
     value.messages.every(isChatMessage) &&
     value.phases.every(isPhase) &&
     (value.research == null || isProjectResearch(value.research)) &&
+    (value.artifacts == null || (Array.isArray(value.artifacts) && value.artifacts.every(isProjectArtifact))) &&
+    (value.activeArtifactId === undefined || typeof value.activeArtifactId === "string") &&
     (value.diagram === undefined || isProjectDiagram(value.diagram))
   );
 };
@@ -731,13 +816,77 @@ export function createDefaultProjectDiagram(): ProjectDiagram {
   };
 }
 
+function normalizeValidationScorecardArtifact(
+  existingArtifact: ProjectArtifact | undefined,
+  fallbackUpdatedAt: string,
+): ValidationScorecardArtifact {
+  const artifact = isValidationScorecardArtifact(existingArtifact) ? existingArtifact : undefined;
+
+  return {
+    id: artifact?.id ?? DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID,
+    type: "validation-scorecard",
+    title: artifact?.title ?? "Validation scorecard",
+    updatedAt: artifact?.updatedAt ?? fallbackUpdatedAt,
+    ...(artifact?.summary ? { summary: artifact.summary } : {}),
+    criteria: artifact?.criteria ?? [],
+  };
+}
+
+function normalizeCustomerResearchMemoArtifact(
+  research: ProjectResearch | null,
+  existingArtifact: ProjectArtifact | undefined,
+  fallbackUpdatedAt: string,
+): CustomerResearchMemoArtifact {
+  const artifact = isCustomerResearchMemoArtifact(existingArtifact) ? existingArtifact : undefined;
+  const memoResearch = research ?? artifact?.research ?? null;
+
+  return {
+    id: artifact?.id ?? DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
+    type: "customer-research-memo",
+    title: artifact?.title ?? "Customer research memo",
+    updatedAt: memoResearch?.updatedAt ?? artifact?.updatedAt ?? fallbackUpdatedAt,
+    research: memoResearch,
+  };
+}
+
+export function getProjectArtifactByType(
+  project: Pick<Project, "artifacts">,
+  type: ProjectArtifactType,
+): ProjectArtifact | undefined {
+  return project.artifacts?.find((artifact) => artifact.type === type);
+}
+
+export function getActiveProjectArtifact(project: Pick<Project, "artifacts" | "activeArtifactId">): ProjectArtifact | null {
+  if (!project.artifacts?.length) {
+    return null;
+  }
+
+  return project.artifacts.find((artifact) => artifact.id === project.activeArtifactId) ?? project.artifacts[0] ?? null;
+}
+
 export function normalizeProject(value: Project): Project {
+  const research = value.research ?? null;
+  const existingArtifacts = new Map(
+    (value.artifacts ?? []).filter(isProjectArtifact).map((artifact) => [artifact.type, artifact] as const),
+  );
+  const artifacts: ProjectArtifact[] = [
+    normalizeValidationScorecardArtifact(existingArtifacts.get("validation-scorecard"), value.updatedAt),
+    normalizeCustomerResearchMemoArtifact(research, existingArtifacts.get("customer-research-memo"), value.updatedAt),
+  ];
+  const activeArtifactId = artifacts.some((artifact) => artifact.id === value.activeArtifactId)
+    ? value.activeArtifactId
+    : research
+      ? artifacts[1]?.id
+      : artifacts[0]?.id;
+
   return {
     ...value,
     sections: value.sections ?? [],
     documents: value.documents ?? [],
     websiteBuilders: value.websiteBuilders ?? [],
-    research: value.research ?? null,
+    research,
+    artifacts,
+    activeArtifactId,
     diagram: value.diagram ?? createDefaultProjectDiagram(),
   };
 }

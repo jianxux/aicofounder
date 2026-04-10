@@ -1,4 +1,4 @@
-import { createDefaultProjectDiagram, isProject, type Project } from "@/lib/types";
+import { createDefaultProjectDiagram, isProject, normalizeProject, type Project } from "@/lib/types";
 import {
   createAndStoreProject,
   createProjectRecord,
@@ -11,7 +11,7 @@ import {
 const STORAGE_KEY = "aicofounder.projects";
 
 function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
+  return normalizeProject({
     id: "project-1",
     name: "Project",
     description: "Description",
@@ -56,7 +56,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  };
+  });
 }
 
 describe("lib/projects", () => {
@@ -85,6 +85,11 @@ describe("lib/projects", () => {
       expect(project.notes.map((note) => note.title)).toEqual(["Idea", "Problem statement"]);
       expect(project.documents).toEqual([]);
       expect(project.research).toBeNull();
+      expect(project.artifacts?.map((artifact) => artifact.type)).toEqual([
+        "validation-scorecard",
+        "customer-research-memo",
+      ]);
+      expect(project.activeArtifactId).toBe("artifact-validation-scorecard");
       expect(project.diagram).toEqual({
         nodes: [],
         edges: [],

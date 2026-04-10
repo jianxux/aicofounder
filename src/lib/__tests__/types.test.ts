@@ -297,6 +297,42 @@ describe("lib/types guards", () => {
     expect(types.isProject({ ...project, research: researchReport })).toBe(true);
   });
 
+  it("accepts the supported project artifact types and rejects unknown ones", () => {
+    expect(types.isProjectArtifactType("validation-scorecard")).toBe(true);
+    expect(types.isProjectArtifactType("customer-research-memo")).toBe(true);
+    expect(types.isProjectArtifactType("research-report")).toBe(false);
+  });
+
+  it("accepts valid project artifacts and rejects unknown artifact types", () => {
+    const validationArtifact: types.ValidationScorecardArtifact = {
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+      title: "Validation scorecard",
+      updatedAt: "2025-01-03T00:00:00.000Z",
+      criteria: [{ id: "criterion-1", label: "Urgency", score: 4 }],
+    };
+    const researchArtifact: types.CustomerResearchMemoArtifact = {
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+      title: "Customer research memo",
+      updatedAt: "2025-01-03T00:00:00.000Z",
+      research: researchReport,
+    };
+
+    expect(types.isValidationScorecardArtifact(validationArtifact)).toBe(true);
+    expect(types.isCustomerResearchMemoArtifact(researchArtifact)).toBe(true);
+    expect(types.isProjectArtifact(validationArtifact)).toBe(true);
+    expect(types.isProjectArtifact(researchArtifact)).toBe(true);
+    expect(
+      types.isProjectArtifact({
+        id: "artifact-unknown",
+        type: "unknown-artifact",
+        title: "Unknown",
+        updatedAt: "2025-01-03T00:00:00.000Z",
+      }),
+    ).toBe(false);
+  });
+
   it("accepts a legacy ProjectResearch payload with only a report", () => {
     const { artifact, ...legacyResearch } = researchReport;
 
@@ -313,6 +349,71 @@ describe("lib/types guards", () => {
     ).toBe(true);
   });
 
+  it("accepts a detailed persisted research artifact payload", () => {
+    expect(
+      types.isProjectResearchArtifact({
+        status: "completed",
+        generatedAt: "2025-01-02T00:00:00.000Z",
+        plan: {
+          projectName: "AI Cofounder",
+          projectDescription: "Product planning workspace",
+          researchQuestion: "What are the key opportunities and risks?",
+          budget: {
+            maxAngles: 3,
+            maxSections: 3,
+            maxCitationsPerSection: 2,
+          },
+          steps: [
+            {
+              id: "step-1",
+              title: "Demand scan",
+              angle: "Demand",
+              query: "AI workspace founder demand",
+              rationale: "Check market pull.",
+            },
+          ],
+        },
+        report: researchReport.report,
+        selectedSources: researchReport.artifact?.selectedSources,
+        rejectedSources: [{ reason: "budget", source: "Skipped source", citationId: "citation-2" }],
+        sourceInventory: {
+          selected: [
+            {
+              id: "source-1",
+              title: "Source",
+              canonicalId: "source-1",
+              sourceType: "report",
+              status: "selected",
+              citationIds: ["citation-1"],
+              sectionIds: ["section-1"],
+              claimCount: 1,
+            },
+          ],
+          rejected: [
+            {
+              id: "source-2",
+              title: "Skipped",
+              canonicalId: "source-2",
+              sourceType: "news",
+              status: "rejected",
+              citationIds: [],
+              sectionIds: [],
+              claimCount: 0,
+              rejectionReason: "budget",
+            },
+          ],
+        },
+        metrics: {
+          attemptedAngles: 3,
+          completedSections: 1,
+          selectedSources: 1,
+          rejectedSources: 1,
+        },
+        failures: [{ stage: "gather", code: "provider-error", message: "Timeout" }],
+      }),
+    ).toBe(true);
+  });
+
   it("rejects invalid validation patterns", () => {
     expect(types.isChatMessage({ ...chatMessage, sender: "system" })).toBe(false);
     expect(types.isStickyNoteData({ ...stickyNote, x: "120" })).toBe(false);
@@ -325,6 +426,11 @@ describe("lib/types guards", () => {
       false,
     );
     expect(types.isProjectResearchArtifact({ status: "completed", metrics: { attemptedAngles: "3" } })).toBe(false);
+    expect(types.isProjectResearchArtifact({ plan: { steps: [{ id: 1 }] } })).toBe(false);
+    expect(types.isProjectResearch(null)).toBe(false);
+    expect(types.isValidationScorecardCriterion(null)).toBe(false);
+    expect(types.isValidationScorecardCriterion({ id: "criterion-1", label: "Urgency", score: "4" })).toBe(false);
+    expect(types.isCustomerResearchMemoArtifact({ id: "memo-1", type: "customer-research-memo", title: "Memo", updatedAt: "2025-01-03T00:00:00.000Z", research: {} })).toBe(false);
     expect(types.isDiagramNode({ ...diagramNode, source: { type: "canvas_item", itemKind: "sticky", itemId: "1" } })).toBe(
       false,
     );
@@ -350,6 +456,11 @@ describe("lib/types guards", () => {
       expect(types.isPhase(value)).toBe(false);
       expect(types.isProject(value)).toBe(false);
       expect(types.isSectionData(value)).toBe(false);
+      expect(types.isProjectResearchArtifact(value)).toBe(false);
+      expect(types.isProjectResearch(value)).toBe(false);
+      expect(types.isValidationScorecardCriterion(value)).toBe(false);
+      expect(types.isValidationScorecardArtifact(value)).toBe(false);
+      expect(types.isCustomerResearchMemoArtifact(value)).toBe(false);
     });
   });
 
@@ -450,6 +561,95 @@ describe("lib/types guards", () => {
     expect(normalized.sections).toEqual([]);
     expect(normalized.websiteBuilders).toEqual([]);
     expect(normalized.research).toBeNull();
+    expect(normalized.artifacts?.map((artifact) => artifact.type)).toEqual([
+      "validation-scorecard",
+      "customer-research-memo",
+    ]);
+    expect(normalized.activeArtifactId).toBe("artifact-validation-scorecard");
     expect(normalized.diagram).toEqual(types.createDefaultProjectDiagram());
+  });
+
+  it("normalizes artifacts from research and resolves the active artifact safely", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      research: researchReport,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-03T00:00:00.000Z",
+          criteria: [],
+        },
+        {
+          id: "artifact-unknown",
+          type: "unknown-artifact",
+          title: "Unknown artifact",
+          updatedAt: "2025-01-03T00:00:00.000Z",
+        } as unknown as types.ProjectArtifact,
+      ],
+      activeArtifactId: "missing-artifact",
+    });
+
+    expect(normalized.artifacts).toHaveLength(2);
+    expect(types.getProjectArtifactByType(normalized, "customer-research-memo")).toMatchObject({
+      type: "customer-research-memo",
+      research: researchReport,
+    });
+    expect(types.getActiveProjectArtifact(normalized)).toMatchObject({
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+    });
+  });
+
+  it("preserves a valid active artifact selection and keeps hydrated memo research when project research is missing", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      research: null,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Custom scorecard",
+          updatedAt: "2025-01-04T00:00:00.000Z",
+          summary: "Score what matters first.",
+          criteria: [{ id: "criterion-1", label: "Pain intensity", score: 5, notes: "High urgency." }],
+        },
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Custom memo",
+          updatedAt: "2025-01-05T00:00:00.000Z",
+          research: researchReport,
+        },
+      ],
+      activeArtifactId: "artifact-validation-scorecard",
+    });
+
+    expect(types.getProjectArtifactByType(normalized, "validation-scorecard")).toMatchObject({
+      title: "Custom scorecard",
+      summary: "Score what matters first.",
+    });
+    expect(types.getProjectArtifactByType(normalized, "customer-research-memo")).toMatchObject({
+      title: "Custom memo",
+      research: researchReport,
+    });
+    expect(types.getActiveProjectArtifact(normalized)).toMatchObject({
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+    });
+  });
+
+  it("returns the first normalized artifact when no active artifact id is available and null when there are no artifacts", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      activeArtifactId: undefined,
+    });
+
+    expect(types.getActiveProjectArtifact(normalized)).toMatchObject({
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+    });
+    expect(types.getActiveProjectArtifact({ artifacts: [], activeArtifactId: "missing" })).toBeNull();
   });
 });

@@ -2,13 +2,16 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectWorkspacePage from "@/app/project/[id]/page";
-import { createDefaultProjectDiagram, type Project } from "@/lib/types";
+import { createDefaultProjectDiagram, normalizeProject, type Project } from "@/lib/types";
 
 const push = vi.fn();
 const mockGetProject = vi.fn();
 const mockSaveProject = vi.fn();
 const mockUpsertProject = vi.fn();
 const mockFetchProjectById = vi.fn();
+const mockCreateProjectRecord = vi.fn();
+const mockUseRealtimeProject = vi.fn();
+const mockTrackEvent = vi.fn();
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
@@ -24,15 +27,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/hooks/useRealtimeProject", () => ({
-  useRealtimeProject: vi.fn(),
+  useRealtimeProject: (...args: unknown[]) => mockUseRealtimeProject(...args),
 }));
 
 vi.mock("@/lib/analytics", () => ({
-  trackEvent: vi.fn().mockResolvedValue(undefined),
+  trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }));
 
 vi.mock("@/lib/projects", () => ({
-  createProjectRecord: vi.fn(),
+  createProjectRecord: (...args: unknown[]) => mockCreateProjectRecord(...args),
   getProject: (...args: unknown[]) => mockGetProject(...args),
   saveProject: (...args: unknown[]) => mockSaveProject(...args),
   upsertProject: (...args: unknown[]) => mockUpsertProject(...args),
@@ -43,18 +46,103 @@ vi.mock("@/lib/supabase-projects", () => ({
 }));
 
 vi.mock("@/components/ChatPanel", () => ({
-  default: ({ onResearch }: { onResearch?: () => void }) => (
+  default: ({
+    onSendMessage,
+    onRemind,
+    onBrainstorm,
+    onResearch,
+    onUltraplan,
+    onToggleTask,
+    onSetActivePhase,
+  }: {
+    onSendMessage?: (content: string) => void;
+    onRemind?: () => void;
+    onBrainstorm?: () => void;
+    onResearch?: () => void;
+    onUltraplan?: () => void;
+    onToggleTask?: (phaseId: string, taskId: string) => void;
+    onSetActivePhase?: (phaseId: string) => void;
+  }) => (
     <div data-testid="chat-panel">
+      <button type="button" onClick={() => onSendMessage?.("Tell me more about demand.")}>
+        Send chat
+      </button>
+      <button type="button" onClick={onRemind}>
+        Remind
+      </button>
+      <button type="button" onClick={onBrainstorm}>
+        Trigger brainstorm
+      </button>
       <button type="button" onClick={onResearch}>
         Trigger research
+      </button>
+      <button type="button" onClick={onUltraplan}>
+        Trigger ultraplan
+      </button>
+      <button type="button" onClick={() => onToggleTask?.("discovery", "task-1")}>
+        Toggle first task
+      </button>
+      <button type="button" onClick={() => onSetActivePhase?.("build")}>
+        Activate build phase
+      </button>
+      <button type="button" onClick={() => onSetActivePhase?.("missing")}>
+        Activate missing phase
       </button>
     </div>
   ),
 }));
 
 vi.mock("@/components/Canvas", () => ({
-  default: ({ onChangeDiagram }: { onChangeDiagram?: (diagram: Project["diagram"]) => void }) => (
+  default: ({
+    onChangeNotes,
+    onChangeSections,
+    onChangeDocuments,
+    onChangeWebsiteBuilders,
+    onChangeDiagram,
+    onNoteCreated,
+    onNoteDragged,
+  }: {
+    onChangeNotes?: (notes: Project["notes"]) => void;
+    onChangeSections?: (sections: NonNullable<Project["sections"]>) => void;
+    onChangeDocuments?: (documents: Project["documents"]) => void;
+    onChangeWebsiteBuilders?: (websiteBuilders: NonNullable<Project["websiteBuilders"]>) => void;
+    onChangeDiagram?: (diagram: Project["diagram"]) => void;
+    onNoteCreated?: (note: Project["notes"][number]) => void;
+    onNoteDragged?: (note: Project["notes"][number]) => void;
+  }) => (
     <div data-testid="canvas">
+      <button
+        type="button"
+        onClick={() =>
+          onChangeNotes?.([{ id: "note-2", title: "New note", content: "Updated", color: "blue", x: 10, y: 20 }])
+        }
+      >
+        Change notes
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onChangeSections?.([{ id: "section-2", title: "Section", color: "green", x: 1, y: 2, width: 300, height: 200 }])
+        }
+      >
+        Change sections
+      </button>
+      <button
+        type="button"
+        onClick={() => onChangeDocuments?.([{ id: "doc-2", title: "Doc", content: "Body", x: 5, y: 6 }])}
+      >
+        Change documents
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onChangeWebsiteBuilders?.([
+            { id: "site-2", title: "Site", blocks: [{ id: "block-1", type: "text", heading: "Heading", body: "Body" }], x: 7, y: 8 },
+          ])
+        }
+      >
+        Change builders
+      </button>
       <button
         type="button"
         onClick={() =>
@@ -84,6 +172,18 @@ vi.mock("@/components/Canvas", () => ({
         }
       >
         Move diagram
+      </button>
+      <button
+        type="button"
+        onClick={() => onNoteCreated?.({ id: "note-3", title: "Created", content: "Created", color: "yellow", x: 0, y: 0 })}
+      >
+        Create note
+      </button>
+      <button
+        type="button"
+        onClick={() => onNoteDragged?.({ id: "note-3", title: "Dragged", content: "Dragged", color: "yellow", x: 33.3, y: 44.4 })}
+      >
+        Drag note
       </button>
     </div>
   ),
@@ -136,7 +236,7 @@ vi.mock("@/components/ResearchReport", () => ({
 }));
 
 function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
+  return normalizeProject({
     id: "project-1",
     name: "Launchpad",
     description: "AI-assisted startup planning",
@@ -173,7 +273,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  };
+  });
 }
 
 describe("ProjectWorkspacePage", () => {
@@ -181,6 +281,8 @@ describe("ProjectWorkspacePage", () => {
     vi.clearAllMocks();
     mockSaveProject.mockResolvedValue(undefined);
     mockFetchProjectById.mockResolvedValue(null);
+    mockCreateProjectRecord.mockReturnValue(makeProject({ id: "created-project" }));
+    mockTrackEvent.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -220,6 +322,8 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getByTestId("research-question")).toHaveTextContent("What are the key opportunities and risks?");
     expect(screen.getByTestId("research-context")).toHaveTextContent("Saved locally");
     expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("completed");
+    expect(screen.getAllByText("Customer research memo")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Active artifact")[0]).toBeInTheDocument();
   });
 
   it("runs research from the latest user message and persists the result", async () => {
@@ -253,7 +357,7 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("empty");
+      expect(screen.getAllByText("Validation artifact")[0]).toBeInTheDocument();
     });
 
     fireEvent.click(
@@ -412,5 +516,412 @@ describe("ProjectWorkspacePage", () => {
         }),
       );
     });
+  });
+
+  it("switches to the validation scorecard artifact intentionally in the workspace", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        research: {
+          status: "success",
+          researchQuestion: "What are the key opportunities and risks?",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-11T00:00:00.000Z",
+          artifact: {
+            status: "completed",
+          },
+          report: {
+            sections: [],
+            executiveSummary: "Stored summary",
+            researchQuestion: "What are the key opportunities and risks?",
+            generatedAt: "2025-01-11T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Customer research memo")[0]).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Validation scorecard" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Validation artifact")[0]).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("No validation criteria yet. This scorecard is ready for your first pass.")[0]).toBeInTheDocument();
+    expect(mockSaveProject).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+  });
+
+  it("creates a fallback project when no stored project exists", async () => {
+    mockGetProject.mockResolvedValue(null);
+
+    render(<ProjectWorkspacePage />);
+
+    await waitFor(() => {
+      expect(mockCreateProjectRecord).toHaveBeenCalled();
+    });
+
+    expect(mockUpsertProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "project-1",
+      }),
+    );
+  });
+
+  it("updates the project name and navigates back to the dashboard", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+
+    render(<ProjectWorkspacePage />);
+
+    const input = await screen.findByDisplayValue("Launchpad");
+    fireEvent.change(input, { target: { value: "Renamed project" } });
+    fireEvent.click(screen.getByRole("button", { name: "Back to dashboard" }));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Renamed project",
+        }),
+      );
+    });
+
+    expect(push).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("streams chat responses into the persisted project state", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce({
+        done: false,
+        value: new TextEncoder().encode('data: {"content":"First reply"}\n\ndata: [DONE]\n\n'),
+      })
+      .mockResolvedValueOnce({ done: true, value: undefined });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => ({ read }),
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Send chat" })[0]);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/chat",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+    });
+
+    expect(mockSaveProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ sender: "user", content: "Tell me more about demand." }),
+          expect.objectContaining({ sender: "assistant", content: "First reply" }),
+        ]),
+      }),
+    );
+  });
+
+  it("handles chat request failures with an assistant fallback message", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        body: null,
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Send chat" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({ content: "Sorry, I encountered an error. Please try again." }),
+          ]),
+        }),
+      );
+    });
+  });
+
+  it("adds reminder, brainstorm, and ultraplan results through the workspace actions", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            painPoints: [
+              {
+                id: "pain-1",
+                title: "Workflow pain",
+                description: "Users want tighter loops.",
+                source: "Indie Hackers",
+                severity: 4,
+                frequency: "weekly",
+                quotes: ["I keep losing context between tools."],
+              },
+            ],
+            summary: "Users want a tighter loop.",
+            searchContext: "Founder communities",
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            blocker: {
+              id: "blocker-1",
+              title: "Scope drift",
+              description: "The MVP is too wide.",
+              severity: 4,
+              category: "strategic",
+            },
+            actions: [
+              { id: "action-1", title: "Trim scope", description: "Cut features.", effort: "low", impact: "high", timelineHours: 3 },
+              { id: "action-2", title: "Confirm ICP", description: "Talk to users.", effort: "medium", impact: "high", timelineHours: 5 },
+              { id: "action-3", title: "Define metric", description: "Set one goal.", effort: "low", impact: "medium", timelineHours: 2 },
+            ],
+            rationale: "A narrow MVP reduces risk.",
+            nextStep: "Trim scope this week.",
+          }),
+        }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Remind" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              content: expect.stringContaining("We were working on discovery."),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Trigger brainstorm" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("brainstorm-results")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Trigger ultraplan" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("ultraplan-report")).toBeInTheDocument();
+    });
+  });
+
+  it("handles brainstorm and ultraplan failures by appending assistant recovery messages", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ error: "no brainstorm" }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          json: async () => ({ error: "no ultraplan" }),
+        }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Trigger brainstorm" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject.mock.calls.flatMap(([project]) => project.messages)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ content: "Sorry, I couldn't brainstorm pain points right now. Please try again." }),
+        ]),
+      );
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Trigger ultraplan" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject.mock.calls.flatMap(([project]) => project.messages)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ content: "Sorry, I couldn't create an ultraplan right now. Please try again." }),
+        ]),
+      );
+    });
+  });
+
+  it("toggles tasks, advances phases, and reacts to realtime updates", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        phase: "Discovery",
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: false }],
+          },
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-2", label: "Create MVP", done: false }],
+          },
+        ],
+      }),
+    );
+    mockFetchProjectById.mockResolvedValue(
+      makeProject({
+        name: "Realtime project",
+        phase: "Discovery",
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: true }],
+          },
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-2", label: "Create MVP", done: false }],
+          },
+        ],
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    const realtimeCallback = mockUseRealtimeProject.mock.calls[0]?.[1] as (() => void) | undefined;
+    realtimeCallback?.();
+
+    await waitFor(() => {
+      expect(mockFetchProjectById).toHaveBeenCalledWith("project-1");
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Toggle first task" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Activate build phase" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: "Build",
+        }),
+      );
+    });
+  });
+
+  it("advances to the next phase when the last open task is completed", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        phase: "Discovery",
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: false }],
+          },
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-2", label: "Create MVP", done: false }],
+          },
+        ],
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Toggle first task" })[0]);
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: "Build",
+          messages: expect.arrayContaining([expect.objectContaining({ sender: "assistant" })]),
+        }),
+      );
+    });
+  });
+
+  it("persists canvas edits, tracks note events, and toggles the mobile canvas panel", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findByTestId("canvas");
+    const initialValidationPanels = screen.getAllByText("Validation artifact").length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Validation artifact").length).toBeGreaterThan(initialValidationPanels);
+    });
+
+    const mobileResearchButtons = screen.getAllByRole("button", { name: "Customer research memo" });
+    fireEvent.click(mobileResearchButtons[mobileResearchButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("empty");
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Change notes" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Change sections" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Change documents" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Change builders" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Create note" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Drag note" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Activate missing phase" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ notes: expect.arrayContaining([expect.objectContaining({ id: "note-2" })]) }));
+      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ id: "section-2" })]) }));
+      expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ documents: expect.arrayContaining([expect.objectContaining({ id: "doc-2" })]) }));
+      expect(mockSaveProject).toHaveBeenCalledWith(
+        expect.objectContaining({ websiteBuilders: expect.arrayContaining([expect.objectContaining({ id: "site-2" })]) }),
+      );
+    });
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "note_created",
+      expect.objectContaining({
+        note_id: "note-3",
+      }),
+    );
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "note_dragged",
+      expect.objectContaining({
+        note_id: "note-3",
+        x: 33,
+        y: 44,
+      }),
+    );
   });
 });

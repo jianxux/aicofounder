@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createDefaultProjectDiagram, type Project } from "@/lib/types";
+import { createDefaultProjectDiagram, normalizeProject, type Project } from "@/lib/types";
 import type { DbCanvasItem, DbMessage, DbPhase, DbPhaseTask, DbProject } from "@/lib/database.types";
 
 type QueryResult<T = unknown> = { data: T | null; error: Error | null };
@@ -17,7 +17,7 @@ type Operation = {
 };
 
 function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
+  return normalizeProject({
     id: "project-1",
     name: "Launchpad",
     description: "AI-assisted startup planning",
@@ -108,7 +108,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     research: null,
     diagram: createDefaultProjectDiagram(),
     ...overrides,
-  };
+  });
 }
 
 function makeProjectRow(projectId = "project-1"): DbProject & {
@@ -472,6 +472,23 @@ describe("lib/supabase-projects", () => {
         },
       ],
       research: null,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          criteria: [],
+        },
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Customer research memo",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          research: null,
+        },
+      ],
+      activeArtifactId: "artifact-validation-scorecard",
       diagram: createDefaultProjectDiagram(),
     });
 
@@ -614,7 +631,14 @@ describe("lib/supabase-projects", () => {
     };
     localStorage.setItem(
       "aicofounder.projects",
-      JSON.stringify([makeProject({ id: "project-9", research: localResearch, diagram: localDiagram })]),
+      JSON.stringify([
+        makeProject({
+          id: "project-9",
+          research: localResearch,
+          activeArtifactId: "artifact-customer-research-memo",
+          diagram: localDiagram,
+        }),
+      ]),
     );
     const mockSupabase = createMockSupabase(
       {
@@ -630,6 +654,10 @@ describe("lib/supabase-projects", () => {
     const project = await module.fetchProjectById("project-9");
 
     expect(project?.research).toEqual(localResearch);
+    expect(project?.activeArtifactId).toBe("artifact-customer-research-memo");
+    expect(project?.artifacts?.find((artifact) => artifact.type === "customer-research-memo")).toMatchObject({
+      research: localResearch,
+    });
     expect(project?.diagram).toEqual(localDiagram);
   });
 

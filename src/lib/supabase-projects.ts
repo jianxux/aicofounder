@@ -193,6 +193,8 @@ function mergeLocalProjectState(project: Project): Project {
   return normalizeProject({
     ...project,
     research: localProject.research ?? project.research ?? null,
+    artifacts: localProject.artifacts ?? project.artifacts,
+    activeArtifactId: localProject.activeArtifactId ?? project.activeArtifactId,
     diagram: localProject.diagram ?? project.diagram,
   });
 }

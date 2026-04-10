@@ -22,9 +22,13 @@ import {
   DocumentCardData,
   Phase,
   Project,
+  ProjectArtifact,
   SectionData,
   StickyNoteData,
+  ValidationScorecardArtifact,
   WebsiteBuilderData,
+  getActiveProjectArtifact,
+  getProjectArtifactByType,
   normalizeProject,
 } from "@/lib/types";
 
@@ -42,6 +46,67 @@ function withGeneratedDiagram(project: Project, options?: { brainstormResult?: B
     ...project,
     diagram: generateProjectDiagram(project, options),
   };
+}
+
+function getArtifactLabel(artifact: ProjectArtifact) {
+  return artifact.type === "customer-research-memo" ? "Customer research memo" : "Validation scorecard";
+}
+
+function getResearchPanelStatus(research: Project["research"], isResearchLoading: boolean) {
+  if (isResearchLoading) {
+    return "loading" as const;
+  }
+
+  if (research?.status === "success" && research.report) {
+    return "success" as const;
+  }
+
+  if (research?.status === "error") {
+    return "error" as const;
+  }
+
+  return "empty" as const;
+}
+
+function getCustomerResearchMemoArtifactId(project: Project) {
+  return getProjectArtifactByType(project, "customer-research-memo")?.id ?? "artifact-customer-research-memo";
+}
+
+function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardArtifact }) {
+  return (
+    <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-5">
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Validation artifact</div>
+        <h2 className="mt-2 text-xl font-semibold text-stone-950">{artifact.title}</h2>
+        <p className="mt-2 text-sm leading-6 text-stone-600">
+          Keep a lightweight scorecard here as you pressure-test demand, customer pull, and next validation steps.
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-3xl border border-dashed border-stone-300 bg-[#fcfaf6] p-5">
+        {artifact.summary ? <p className="text-sm leading-6 text-stone-700">{artifact.summary}</p> : null}
+        {artifact.criteria.length > 0 ? (
+          <div className="space-y-3">
+            {artifact.criteria.map((criterion) => (
+              <div key={criterion.id} className="rounded-2xl bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-stone-800">{criterion.label}</p>
+                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
+                    {typeof criterion.score === "number" ? `${criterion.score}/5` : "Unscored"}
+                  </span>
+                </div>
+                {criterion.notes ? <p className="mt-2 text-sm leading-6 text-stone-600">{criterion.notes}</p> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm leading-6 text-stone-600">
+            No validation criteria yet. This scorecard is ready for your first pass.
+          </p>
+        )}
+      </div>
+    </section>
+  );
 }
 
 export default function ProjectWorkspacePage() {
@@ -161,7 +226,7 @@ export default function ProjectWorkspacePage() {
   });
 
   const persistProject = (nextProject: Project) => {
-    const updated = withGeneratedDiagram({ ...nextProject, updatedAt: new Date().toISOString() });
+    const updated = withGeneratedDiagram(normalizeProject({ ...nextProject, updatedAt: new Date().toISOString() }));
     projectRef.current = updated;
     setProject(updated);
     savingRef.current = true;
@@ -178,6 +243,8 @@ export default function ProjectWorkspacePage() {
     () => (project ? generateProjectDiagram(project, { brainstormResult }) : undefined),
     [brainstormResult, project],
   );
+  const activeArtifact = useMemo(() => (project ? getActiveProjectArtifact(project) : null), [project]);
+  const activeResearchMemo = activeArtifact?.type === "customer-research-memo" ? activeArtifact : null;
 
   const handleNameChange = (name: string) => {
     if (!project) {
@@ -488,6 +555,7 @@ export default function ProjectWorkspacePage() {
               artifact: result.artifact,
               report: result.report,
             },
+            activeArtifactId: getCustomerResearchMemoArtifactId(baseProject),
             messages: [
               ...baseProject.messages,
               createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
@@ -515,6 +583,7 @@ export default function ProjectWorkspacePage() {
           sourceContext,
           updatedAt: report.generatedAt,
         },
+        activeArtifactId: getCustomerResearchMemoArtifactId(latestProject),
       };
 
       persistProject(nextProject);
@@ -533,6 +602,7 @@ export default function ProjectWorkspacePage() {
             artifact: existingResearch?.artifact,
             report: existingResearch?.report,
           },
+          activeArtifactId: getCustomerResearchMemoArtifactId(baseProject),
           messages: [
             ...baseProject.messages,
             createMessage("assistant", "Sorry, I couldn't run deep research right now. Please try again."),
@@ -645,6 +715,7 @@ export default function ProjectWorkspacePage() {
   const handleSetActivePhase = (phaseId: string) => {
     setActivePhaseId(phaseId);
 
+    /* v8 ignore next -- defensive guard during transient load states */
     if (!project) {
       return;
     }
@@ -658,6 +729,18 @@ export default function ProjectWorkspacePage() {
     persistProject({
       ...project,
       phase: currentPhase.title,
+    });
+  };
+
+  const handleSetActiveArtifact = (artifactId: string) => {
+    /* v8 ignore next -- defensive guard during transient load states */
+    if (!project) {
+      return;
+    }
+
+    persistProject({
+      ...project,
+      activeArtifactId: artifactId,
     });
   };
 
@@ -758,24 +841,55 @@ export default function ProjectWorkspacePage() {
             onSetActivePhase={handleSetActivePhase}
           />
           <div className="flex flex-col gap-4">
-            <ResearchReport
-              status={
-                isResearchLoading
-                  ? "loading"
-                  : project.research?.status === "success" && project.research.report
-                    ? "success"
-                    : project.research?.status === "error"
-                      ? "error"
-                      : "empty"
-              }
-              report={project.research?.report ?? null}
-              errorMessage={project.research?.errorMessage}
-              lastUpdatedAt={project.research?.updatedAt}
-              researchQuestion={project.research?.researchQuestion}
-              sourceContext={project.research?.sourceContext}
-              artifact={project.research?.artifact}
-              onRunResearch={handleResearch}
-            />
+            <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                      Workspace artifact
+                    </div>
+                    <h2 className="mt-1 text-lg font-semibold text-stone-950">
+                      {activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
+                    </h2>
+                  </div>
+                  {activeArtifact ? (
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+                      Active artifact
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {project.artifacts?.map((artifact) => (
+                    <button
+                      key={artifact.id}
+                      type="button"
+                      onClick={() => handleSetActiveArtifact(artifact.id)}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                        artifact.id === activeArtifact?.id
+                          ? "bg-stone-950 text-white"
+                          : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+                      }`}
+                    >
+                      {getArtifactLabel(artifact)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+            {activeArtifact?.type === "validation-scorecard" ? (
+              <ValidationScorecardPanel artifact={activeArtifact} />
+            ) : (
+              <ResearchReport
+                status={getResearchPanelStatus(activeResearchMemo?.research ?? project.research, isResearchLoading)}
+                report={activeResearchMemo?.research?.report ?? project.research?.report ?? null}
+                errorMessage={activeResearchMemo?.research?.errorMessage ?? project.research?.errorMessage}
+                lastUpdatedAt={activeResearchMemo?.research?.updatedAt ?? project.research?.updatedAt}
+                researchQuestion={activeResearchMemo?.research?.researchQuestion ?? project.research?.researchQuestion}
+                sourceContext={activeResearchMemo?.research?.sourceContext ?? project.research?.sourceContext}
+                artifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
+                onRunResearch={handleResearch}
+              />
+            )}
             {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
@@ -815,24 +929,55 @@ export default function ProjectWorkspacePage() {
             />
           ) : (
             <div className="flex flex-col gap-4">
-              <ResearchReport
-                status={
-                  isResearchLoading
-                    ? "loading"
-                    : project.research?.status === "success" && project.research.report
-                      ? "success"
-                      : project.research?.status === "error"
-                        ? "error"
-                        : "empty"
-                }
-                report={project.research?.report ?? null}
-                errorMessage={project.research?.errorMessage}
-                lastUpdatedAt={project.research?.updatedAt}
-                researchQuestion={project.research?.researchQuestion}
-                sourceContext={project.research?.sourceContext}
-                artifact={project.research?.artifact}
-                onRunResearch={handleResearch}
-              />
+              <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                        Workspace artifact
+                      </div>
+                      <h2 className="mt-1 text-lg font-semibold text-stone-950">
+                        {activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
+                      </h2>
+                    </div>
+                    {activeArtifact ? (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+                        Active artifact
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {project.artifacts?.map((artifact) => (
+                      <button
+                        key={artifact.id}
+                        type="button"
+                        onClick={() => handleSetActiveArtifact(artifact.id)}
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                          artifact.id === activeArtifact?.id
+                            ? "bg-stone-950 text-white"
+                            : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+                        }`}
+                      >
+                        {getArtifactLabel(artifact)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+              {activeArtifact?.type === "validation-scorecard" ? (
+                <ValidationScorecardPanel artifact={activeArtifact} />
+              ) : (
+                <ResearchReport
+                  status={getResearchPanelStatus(activeResearchMemo?.research ?? project.research, isResearchLoading)}
+                  report={activeResearchMemo?.research?.report ?? project.research?.report ?? null}
+                  errorMessage={activeResearchMemo?.research?.errorMessage ?? project.research?.errorMessage}
+                  lastUpdatedAt={activeResearchMemo?.research?.updatedAt ?? project.research?.updatedAt}
+                  researchQuestion={activeResearchMemo?.research?.researchQuestion ?? project.research?.researchQuestion}
+                  sourceContext={activeResearchMemo?.research?.sourceContext ?? project.research?.sourceContext}
+                  artifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
+                  onRunResearch={handleResearch}
+                />
+              )}
               {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
               {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
               <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
