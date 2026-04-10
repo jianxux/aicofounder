@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useState } from "react";
 
+import { summarizeIntakeAttachmentPolicy } from "@/lib/intake-attachment-policy";
+
 export type OnboardingIntake = {
   primaryIdea: string;
   url: string;
@@ -23,6 +25,7 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
   const [url, setUrl] = useState("");
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
+  const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
   const titleId = useId();
   const descriptionId = useId();
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
@@ -218,6 +221,26 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
                 </div>
               </div>
             </div>
+
+            <section className="mt-5 rounded-[28px] border border-amber-200 bg-amber-50/80 p-6">
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-800">
+                Attachments Coming Soon
+              </div>
+              <p className="mt-3 text-sm leading-6 text-stone-700">
+                File uploads are not available in first-run intake yet. These limits and privacy
+                rules set expectations before launch.
+              </p>
+              <ul className="mt-4 space-y-2 text-sm leading-6 text-stone-700">
+                {attachmentPolicySummary.map((bullet) => (
+                  <li key={bullet} className="flex gap-2">
+                    <span aria-hidden="true" className="text-amber-700">
+                      •
+                    </span>
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
             <div className="mt-8 flex items-center justify-between gap-3">
               <button

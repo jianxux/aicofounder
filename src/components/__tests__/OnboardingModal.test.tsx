@@ -112,6 +112,30 @@ describe("OnboardingModal", () => {
     expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
   });
 
+  it("shows the attachments coming soon policy before launch without implying uploads are live", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const policySection = screen.getByText("Attachments Coming Soon").closest("section");
+
+    expect(policySection).toBeInTheDocument();
+    expect(
+      within(policySection!).getByText(
+        "File uploads are not available in first-run intake yet. These limits and privacy rules set expectations before launch.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(policySection!).getByText("Attachments are coming soon for first-run intake. Uploads are not enabled yet."),
+    ).toBeInTheDocument();
+    expect(within(policySection!).getByText("Plan for up to 3 files, 5 MB each, and 10 MB total.")).toBeInTheDocument();
+    expect(
+      within(policySection!).getByText(/Do not include secrets or sensitive data:/),
+    ).toBeInTheDocument();
+  });
+
   it("calls onComplete with the intake fields on Launch Project click", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
