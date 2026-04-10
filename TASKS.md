@@ -66,4 +66,23 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 ### 5D. Competitive Research
 - [x] Research competitors in AI idea validation / cofounder / startup research products and document implementation patterns worth copying
 - [x] Produce competitor comparison memo covering features, UX patterns, research workflows, agent memory behavior, and canvas/diagram interfaces
-- [ ] Convert competitor insights into prioritized product recommendations and new follow-up tasks in this file
+- [x] Convert competitor insights into prioritized product recommendations and new follow-up tasks in this file
+
+### 5E. Product Follow-Up from Competitive Analysis
+- [ ] P0: Define the artifact foundation model and ship the first 2 artifact types only: validation scorecard and customer research memo
+- [ ] P0: Update the workspace/run UI to label the active artifact and treat chat/research as creating or updating that artifact instead of producing only transcript output
+- [ ] P0: Add visible staged research progress for research-heavy runs: objective, source scope, evidence gathering, synthesis, and recommended next actions, including loading and failure states
+- [ ] P0: Add trust scaffolding to research artifacts: source list, citation anchors on major claims, evidence-strength summary, contradictions, and unresolved questions
+- [ ] P0: Add instrumentation and acceptance metrics for the new artifact flow, including artifact creation rate and follow-up edit rate
+- [ ] P0: Redesign first-run intake to keep one primary idea prompt while supporting optional URL, target user, and main uncertainty fields
+- [ ] P0: Define attachment constraints and privacy/storage rules before introducing file uploads into first-run intake
+- [ ] P0: After first output, route users into structured artifact refinement fields while preserving a freeform chat fallback
+- [ ] P1: Give generated artifacts stable IDs, persisted status, and revision history so follow-up prompts edit the same object by default
+- [ ] P1: Add artifact-context follow-up mode so users can ask questions about a specific report/plan without losing grounding in that artifact
+- [ ] P1: Define the minimum shared project-state primitives needed to support 2 synchronized views for one artifact family
+- [ ] P1: Implement the first synchronized dual-view flow for one artifact family only, starting with competitor memo <-> scorecard or research memo <-> canvas map
+- [ ] P1: Promote reusable project facts from artifacts into explicit memory fields such as ICP, constraints, hypotheses, experiments, and validated findings
+- [ ] P1: Expose saved project memory in the UI with artifact references so users can inspect what the system is carrying forward between runs
+- [ ] P2: Add optional framework-based output templates for SWOT, Five Forces, problem-solution fit, and validation experiment planning where they improve readability
+- [ ] P2: Tie framework sections to citations/evidence so they remain inspectable instead of becoming unsupported strategy filler
+- [ ] P2: Extend the canvas model so generated mind maps and diagrams link back to source artifacts or project facts and remain editable as planning objects
