@@ -9,7 +9,12 @@ import Canvas from "@/components/Canvas";
 import ResearchReport from "@/components/ResearchReport";
 import UltraplanReport from "@/components/UltraplanReport";
 import { useRealtimeProject } from "@/hooks/useRealtimeProject";
-import { trackEvent } from "@/lib/analytics";
+import {
+  ARTIFACT_CREATED_EVENT,
+  ARTIFACT_FOLLOW_UP_EDIT_EVENT,
+  WORKSPACE_ARTIFACT_SWITCHED_EVENT,
+  trackEvent,
+} from "@/lib/analytics";
 import { BrainstormResult } from "@/lib/brainstorm";
 import { generateProjectDiagram } from "@/lib/diagram-generation";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
@@ -60,6 +65,18 @@ function getArtifactDescription(artifact: ProjectArtifact | null) {
   return artifact.type === "customer-research-memo"
     ? "Chat and research now work toward the customer research memo, while the canvas keeps supporting context nearby."
     : "Chat now works toward the validation scorecard, so you can turn loose notes into explicit evidence, scores, and next checks.";
+}
+
+function isArtifactPopulated(artifact: ProjectArtifact | null) {
+  if (!artifact) {
+    return false;
+  }
+
+  if (artifact.type === "validation-scorecard") {
+    return Boolean(artifact.summary?.trim()) || artifact.criteria.length > 0;
+  }
+
+  return Boolean(artifact.research?.report || artifact.research?.artifact);
 }
 
 function getResearchPanelStatus(research: Project["research"], isResearchLoading: boolean) {
@@ -331,6 +348,9 @@ export default function ProjectWorkspacePage() {
       return;
     }
 
+    const artifactAtSend = getActiveProjectArtifact(currentProject);
+    const artifactWasPopulated = isArtifactPopulated(artifactAtSend);
+
     void trackEvent("message_sent", {
       page: `/project/${projectId}`,
       project_id: projectId,
@@ -426,6 +446,16 @@ export default function ProjectWorkspacePage() {
       }
 
       processChunk(decoder.decode());
+
+      if (assistantContent.trim() && artifactAtSend) {
+        void trackEvent(artifactWasPopulated ? ARTIFACT_FOLLOW_UP_EDIT_EVENT : ARTIFACT_CREATED_EVENT, {
+          page: `/project/${projectId}`,
+          project_id: projectId,
+          artifact_id: artifactAtSend.id,
+          artifact_type: artifactAtSend.type,
+          source: "chat",
+        });
+      }
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         return;
@@ -591,6 +621,9 @@ export default function ProjectWorkspacePage() {
     setIsResearchLoading(true);
 
     const existingResearch = currentProject.research;
+    const memoArtifactId = getCustomerResearchMemoArtifactId(currentProject);
+    const existingMemoArtifact = getProjectArtifactByType(currentProject, "customer-research-memo") ?? null;
+    const memoWasPopulated = isArtifactPopulated(existingMemoArtifact);
     const { sourceContext, researchQuestion } = buildResearchContext(currentProject, activePhase);
 
     try {
@@ -657,6 +690,13 @@ export default function ProjectWorkspacePage() {
       };
 
       persistProject(nextProject);
+      void trackEvent(memoWasPopulated ? ARTIFACT_FOLLOW_UP_EDIT_EVENT : ARTIFACT_CREATED_EVENT, {
+        page: `/project/${projectId}`,
+        project_id: projectId,
+        artifact_id: memoArtifactId,
+        artifact_type: "customer-research-memo",
+        source: "research",
+      });
     } catch (error) {
       const baseProject = projectRef.current ?? currentProject;
 
@@ -808,9 +848,24 @@ export default function ProjectWorkspacePage() {
       return;
     }
 
+    const previousArtifact = getActiveProjectArtifact(project);
+    const nextArtifact = project.artifacts?.find((artifact) => artifact.id === artifactId) ?? null;
+
+    if (!nextArtifact || previousArtifact?.id === nextArtifact.id) {
+      return;
+    }
+
     persistProject({
       ...project,
       activeArtifactId: artifactId,
+    });
+    void trackEvent(WORKSPACE_ARTIFACT_SWITCHED_EVENT, {
+      page: `/project/${projectId}`,
+      project_id: projectId,
+      artifact_id: nextArtifact.id,
+      artifact_type: nextArtifact.type,
+      previous_artifact_id: previousArtifact?.id ?? null,
+      previous_artifact_type: previousArtifact?.type ?? null,
     });
   };
 

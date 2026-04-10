@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
+import { trackEvent } from "@/lib/analytics";
 import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
@@ -24,6 +25,11 @@ vi.mock("@/lib/projects", () => ({
   getProjects: vi.fn(),
   createProject: vi.fn(),
   saveProject: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics", () => ({
+  ARTIFACT_INTAKE_SUBMITTED_EVENT: "artifact_intake_submitted",
+  trackEvent: vi.fn(),
 }));
 
 const createProject = (overrides: Partial<Project> = {}): Project => ({
@@ -86,6 +92,7 @@ describe("DashboardPage", () => {
 
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(saveProject).mockResolvedValue();
+    vi.mocked(trackEvent).mockResolvedValue(undefined);
 
     setHref = vi.fn((value: string) => {
       locationHref = value;
@@ -323,5 +330,22 @@ describe("DashboardPage", () => {
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
     });
+
+    expect(trackEvent).toHaveBeenCalledWith(
+      "artifact_intake_submitted",
+      expect.objectContaining({
+        project_id: "guided-project",
+        source: "onboarding",
+        has_name: true,
+        has_description: true,
+      }),
+    );
+    expect(trackEvent).toHaveBeenCalledWith(
+      "project_created",
+      expect.objectContaining({
+        project_id: "guided-project",
+        source: "onboarding",
+      }),
+    );
   });
 });

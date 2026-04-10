@@ -299,4 +299,216 @@ describe("lib/analytics", () => {
 
     expect(analyticsWithoutConfig.isAnalyticsConfigured()).toBe(false);
   });
+
+  it("computes artifact flow metrics with deduped creations and follow-up edits", async () => {
+    const { getArtifactFlowMetrics } = await importAnalytics();
+
+    const metrics = getArtifactFlowMetrics([
+      {
+        id: "intake-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_intake_submitted",
+        data: { project_id: "project-1" },
+        ip: null,
+        created_at: "2025-01-10T00:00:00.000Z",
+      },
+      {
+        id: "create-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_created",
+        data: { project_id: "project-1", artifact_id: "artifact-validation-scorecard", artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:01:00.000Z",
+      },
+      {
+        id: "create-1-repeat",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_created",
+        data: { project_id: "project-1", artifact_id: "artifact-validation-scorecard", artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:02:00.000Z",
+      },
+      {
+        id: "edit-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_followup_edit",
+        data: { project_id: "project-1", artifact_id: "artifact-validation-scorecard", artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:03:00.000Z",
+      },
+      {
+        id: "edit-1-repeat",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_followup_edit",
+        data: { project_id: "project-1", artifact_id: "artifact-validation-scorecard", artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:04:00.000Z",
+      },
+      {
+        id: "switch-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "workspace_artifact_switched",
+        data: { project_id: "project-1", artifact_id: "artifact-customer-research-memo", artifact_type: "customer-research-memo" },
+        ip: null,
+        created_at: "2025-01-10T00:05:00.000Z",
+      },
+    ]);
+
+    expect(metrics).toEqual({
+      intakeSubmittedCount: 1,
+      intakeSubmittedProjectsWithArtifactCreationCount: 1,
+      artifactCreatedCount: 1,
+      artifactsWithFollowUpEditsCount: 1,
+      workspaceArtifactSwitchCount: 1,
+      artifactCreationRate: 1,
+      followUpEditRate: 1,
+      artifactCreationRateNumerator: 1,
+      artifactCreationRateDenominator: 1,
+      followUpEditRateNumerator: 1,
+      followUpEditRateDenominator: 1,
+    });
+  });
+
+  it("handles empty analytics, malformed payloads, repeated edits, and legacy events gracefully", async () => {
+    const { getArtifactFlowMetrics } = await importAnalytics();
+
+    expect(getArtifactFlowMetrics([])).toEqual({
+      intakeSubmittedCount: 0,
+      intakeSubmittedProjectsWithArtifactCreationCount: 0,
+      artifactCreatedCount: 0,
+      artifactsWithFollowUpEditsCount: 0,
+      workspaceArtifactSwitchCount: 0,
+      artifactCreationRate: null,
+      followUpEditRate: null,
+      artifactCreationRateNumerator: 0,
+      artifactCreationRateDenominator: 0,
+      followUpEditRateNumerator: 0,
+      followUpEditRateDenominator: 0,
+    });
+
+    const metrics = getArtifactFlowMetrics([
+      {
+        id: "legacy",
+        user_id: null,
+        session_id: "session-legacy",
+        event: "project_created",
+        data: { project_id: "legacy-project" },
+        ip: null,
+        created_at: "2025-01-10T00:00:00.000Z",
+      },
+      {
+        id: "bad-intake",
+        user_id: null,
+        session_id: "",
+        event: "artifact_intake_submitted",
+        data: null,
+        ip: null,
+        created_at: "2025-01-10T00:01:00.000Z",
+      },
+      {
+        id: "fallback-create",
+        user_id: null,
+        session_id: "session-2",
+        event: "artifact_created",
+        data: { artifact_type: "customer-research-memo" },
+        ip: null,
+        created_at: "2025-01-10T00:02:00.000Z",
+      },
+      {
+        id: "orphan-edit",
+        user_id: null,
+        session_id: "session-3",
+        event: "artifact_followup_edit",
+        data: { artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:03:00.000Z",
+      },
+      {
+        id: "bad-switch",
+        user_id: null,
+        session_id: "session-4",
+        event: "workspace_artifact_switched",
+        data: { previous_artifact_id: "artifact-validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:04:00.000Z",
+      },
+    ]);
+
+    expect(metrics).toEqual({
+      intakeSubmittedCount: 0,
+      intakeSubmittedProjectsWithArtifactCreationCount: 0,
+      artifactCreatedCount: 1,
+      artifactsWithFollowUpEditsCount: 0,
+      workspaceArtifactSwitchCount: 0,
+      artifactCreationRate: null,
+      followUpEditRate: 0,
+      artifactCreationRateNumerator: 0,
+      artifactCreationRateDenominator: 0,
+      followUpEditRateNumerator: 0,
+      followUpEditRateDenominator: 1,
+    });
+  });
+
+  it("uses project-level intake conversion when one intake creates multiple artifacts", async () => {
+    const { getArtifactFlowMetrics } = await importAnalytics();
+
+    const metrics = getArtifactFlowMetrics([
+      {
+        id: "intake-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_intake_submitted",
+        data: { project_id: "project-1" },
+        ip: null,
+        created_at: "2025-01-10T00:00:00.000Z",
+      },
+      {
+        id: "create-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_created",
+        data: { project_id: "project-1", artifact_id: "artifact-1", artifact_type: "validation-scorecard" },
+        ip: null,
+        created_at: "2025-01-10T00:01:00.000Z",
+      },
+      {
+        id: "create-2",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_created",
+        data: { project_id: "project-1", artifact_id: "artifact-2", artifact_type: "customer-research-memo" },
+        ip: null,
+        created_at: "2025-01-10T00:02:00.000Z",
+      },
+      {
+        id: "edit-1",
+        user_id: null,
+        session_id: "session-1",
+        event: "artifact_followup_edit",
+        data: { project_id: "project-1", artifact_id: "artifact-2", artifact_type: "customer-research-memo" },
+        ip: null,
+        created_at: "2025-01-10T00:03:00.000Z",
+      },
+    ]);
+
+    expect(metrics).toEqual({
+      intakeSubmittedCount: 1,
+      intakeSubmittedProjectsWithArtifactCreationCount: 1,
+      artifactCreatedCount: 2,
+      artifactsWithFollowUpEditsCount: 1,
+      workspaceArtifactSwitchCount: 0,
+      artifactCreationRate: 1,
+      followUpEditRate: 0.5,
+      artifactCreationRateNumerator: 1,
+      artifactCreationRateDenominator: 1,
+      followUpEditRateNumerator: 1,
+      followUpEditRateDenominator: 2,
+    });
+  });
 });

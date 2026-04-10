@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ARTIFACT_CREATED_EVENT,
+  ARTIFACT_FOLLOW_UP_EDIT_EVENT,
+  ARTIFACT_INTAKE_SUBMITTED_EVENT,
+  WORKSPACE_ARTIFACT_SWITCHED_EVENT,
   type AnalyticsEventRow,
   type AnalyticsRange,
   fetchAnalyticsEvents,
+  getArtifactFlowMetrics,
   isAnalyticsConfigured,
 } from "@/lib/analytics";
 
@@ -35,6 +40,17 @@ type BreakdownRow = {
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function truncateSessionId(sessionId: string) {
@@ -180,6 +196,7 @@ export default function AnalyticsPage() {
     const uniqueVisitors = new Set(events.map((event) => event.session_id)).size;
     const ctaClicks = events.filter((event) => event.event === "cta_click").length;
     const signupsAndLogins = events.filter((event) => event.event === "login_success").length;
+    const artifactFlow = getArtifactFlowMetrics(events);
 
     return [
       {
@@ -201,6 +218,30 @@ export default function AnalyticsPage() {
         label: "Signups / Logins",
         value: formatNumber(signupsAndLogins),
         helper: "Successful auth completions",
+      },
+      {
+        label: "Artifact Creation Rate (Project-Level)",
+        value: formatPercent(artifactFlow.artifactCreationRate),
+        helper: `${formatNumber(artifactFlow.artifactCreationRateNumerator)} of ${formatNumber(
+          artifactFlow.artifactCreationRateDenominator,
+        )} intake-submitted projects produced at least one artifact`,
+      },
+      {
+        label: "Follow-up Edit Rate (Per Artifact)",
+        value: formatPercent(artifactFlow.followUpEditRate),
+        helper: `${formatNumber(artifactFlow.followUpEditRateNumerator)} of ${formatNumber(
+          artifactFlow.followUpEditRateDenominator,
+        )} created artifacts received a follow-up edit`,
+      },
+      {
+        label: "Artifact Creations",
+        value: formatNumber(artifactFlow.artifactCreatedCount),
+        helper: `Unique artifacts deduped from ${ARTIFACT_CREATED_EVENT} events`,
+      },
+      {
+        label: "Artifact Switches",
+        value: formatNumber(artifactFlow.workspaceArtifactSwitchCount),
+        helper: `Intentional ${WORKSPACE_ARTIFACT_SWITCHED_EVENT} events`,
       },
     ];
   }, [events]);
@@ -241,7 +282,8 @@ export default function AnalyticsPage() {
               Analytics
             </h1>
             <p style={{ margin: 0, color: TEXT_MUTED, maxWidth: 640, lineHeight: 1.6 }}>
-              Lightweight event tracking for views, clicks, workspace activity, and auth events.
+              Lightweight event tracking for views, clicks, workspace activity, auth events, plus project-level intake
+              conversion and artifact-level editing depth.
             </p>
           </div>
 
@@ -297,6 +339,11 @@ export default function AnalyticsPage() {
           ))}
         </div>
 
+        <p style={{ margin: "14px 4px 0", color: TEXT_MUTED, fontSize: 13, lineHeight: 1.6 }}>
+          Intake conversion is measured per project or session that submitted onboarding. Follow-up edits are measured
+          per created artifact.
+        </p>
+
         <div
           style={{
             display: "grid",
@@ -347,6 +394,22 @@ export default function AnalyticsPage() {
               { title: "Top pages", rows: topPages, empty: "No page view data yet." },
               { title: "Top events", rows: topEvents, empty: "No events recorded yet." },
               { title: "Devices", rows: deviceBreakdown, empty: "No device data available yet." },
+              {
+                title: "Artifact flow events",
+                rows: getBreakdownRows(
+                  events
+                    .filter((event) =>
+                      [
+                        ARTIFACT_INTAKE_SUBMITTED_EVENT,
+                        ARTIFACT_CREATED_EVENT,
+                        ARTIFACT_FOLLOW_UP_EDIT_EVENT,
+                        WORKSPACE_ARTIFACT_SWITCHED_EVENT,
+                      ].includes(event.event),
+                    )
+                    .map((event) => event.event),
+                ),
+                empty: "No artifact flow events yet.",
+              },
             ].map((section) => (
               <section
                 key={section.title}

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal from "@/components/OnboardingModal";
-import { trackEvent } from "@/lib/analytics";
+import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
@@ -61,6 +61,13 @@ export default function DashboardPage() {
     };
 
     await saveProject(nextProject);
+    void trackEvent(ARTIFACT_INTAKE_SUBMITTED_EVENT, {
+      page: "/dashboard",
+      project_id: project.id,
+      source: "onboarding",
+      has_name: Boolean(name.trim()),
+      has_description: Boolean(description.trim()),
+    });
     void trackEvent("project_created", {
       page: "/dashboard",
       project_id: project.id,

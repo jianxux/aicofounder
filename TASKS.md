@@ -73,7 +73,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] P0: Update the workspace/run UI to label the active artifact and treat chat/research as creating or updating that artifact instead of producing only transcript output
 - [x] P0: Add visible staged research progress for research-heavy runs: objective, source scope, evidence gathering, synthesis, and recommended next actions, including loading and failure states
 - [x] P0: Add trust scaffolding to research artifacts: source list, citation anchors on major claims, evidence-strength summary, contradictions, and unresolved questions
-- [ ] P0: Add instrumentation and acceptance metrics for the new artifact flow, including artifact creation rate and follow-up edit rate
+- [x] P0: Add instrumentation and acceptance metrics for the new artifact flow, including artifact creation rate and follow-up edit rate
 - [ ] P0: Redesign first-run intake to keep one primary idea prompt while supporting optional URL, target user, and main uncertainty fields
 - [ ] P0: Define attachment constraints and privacy/storage rules before introducing file uploads into first-run intake
 - [ ] P0: After first output, route users into structured artifact refinement fields while preserving a freeform chat fallback

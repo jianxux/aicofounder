@@ -14,6 +14,25 @@ export type AnalyticsEventRow = {
 
 export type AnalyticsRange = "today" | "7d" | "30d" | "all";
 
+export const ARTIFACT_INTAKE_SUBMITTED_EVENT = "artifact_intake_submitted";
+export const ARTIFACT_CREATED_EVENT = "artifact_created";
+export const ARTIFACT_FOLLOW_UP_EDIT_EVENT = "artifact_followup_edit";
+export const WORKSPACE_ARTIFACT_SWITCHED_EVENT = "workspace_artifact_switched";
+
+export type ArtifactFlowMetrics = {
+  intakeSubmittedCount: number;
+  intakeSubmittedProjectsWithArtifactCreationCount: number;
+  artifactCreatedCount: number;
+  artifactsWithFollowUpEditsCount: number;
+  workspaceArtifactSwitchCount: number;
+  artifactCreationRate: number | null;
+  followUpEditRate: number | null;
+  artifactCreationRateNumerator: number;
+  artifactCreationRateDenominator: number;
+  followUpEditRateNumerator: number;
+  followUpEditRateDenominator: number;
+};
+
 type TrackEventOptions = {
   transport?: "fetch" | "beacon";
 };
@@ -149,6 +168,133 @@ function sendWithBeacon(url: string, payload: EventPayload) {
   } catch {
     return false;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringValue(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getEventDataString(event: AnalyticsEventRow, key: string) {
+  if (!isRecord(event.data)) {
+    return null;
+  }
+
+  return getStringValue(event.data[key]);
+}
+
+function getArtifactMetricKey(event: AnalyticsEventRow) {
+  const projectId = getEventDataString(event, "project_id");
+  const artifactId = getEventDataString(event, "artifact_id");
+  const artifactType = getEventDataString(event, "artifact_type");
+  const sessionId = getStringValue(event.session_id);
+
+  if (projectId && artifactId) {
+    return `${projectId}:${artifactId}`;
+  }
+
+  if (projectId && artifactType) {
+    return `${projectId}:${artifactType}`;
+  }
+
+  if (sessionId && artifactId) {
+    return `${sessionId}:${artifactId}`;
+  }
+
+  if (sessionId && artifactType) {
+    return `${sessionId}:${artifactType}`;
+  }
+
+  return null;
+}
+
+function getIntakeMetricKey(event: AnalyticsEventRow) {
+  const projectId = getEventDataString(event, "project_id");
+  const sessionId = getStringValue(event.session_id);
+
+  return projectId ?? sessionId;
+}
+
+export function getArtifactFlowMetrics(events: AnalyticsEventRow[]): ArtifactFlowMetrics {
+  const intakeKeys = new Set<string>();
+  const createdProjectKeys = new Set<string>();
+  const createdArtifactKeys = new Set<string>();
+  const followUpArtifactKeys = new Set<string>();
+  let workspaceArtifactSwitchCount = 0;
+
+  events.forEach((event) => {
+    if (!event || typeof event.event !== "string") {
+      return;
+    }
+
+    if (event.event === ARTIFACT_INTAKE_SUBMITTED_EVENT) {
+      const intakeKey = getIntakeMetricKey(event);
+
+      if (intakeKey) {
+        intakeKeys.add(intakeKey);
+      }
+
+      return;
+    }
+
+    if (event.event === WORKSPACE_ARTIFACT_SWITCHED_EVENT) {
+      if (getArtifactMetricKey(event)) {
+        workspaceArtifactSwitchCount += 1;
+      }
+
+      return;
+    }
+
+    if (event.event === ARTIFACT_CREATED_EVENT) {
+      const projectKey = getIntakeMetricKey(event);
+      const artifactKey = getArtifactMetricKey(event);
+
+      if (projectKey) {
+        createdProjectKeys.add(projectKey);
+      }
+
+      if (artifactKey) {
+        createdArtifactKeys.add(artifactKey);
+      }
+
+      return;
+    }
+
+    if (event.event === ARTIFACT_FOLLOW_UP_EDIT_EVENT) {
+      const artifactKey = getArtifactMetricKey(event);
+
+      if (artifactKey) {
+        followUpArtifactKeys.add(artifactKey);
+      }
+    }
+  });
+
+  const artifactsWithFollowUpEditsCount = [...followUpArtifactKeys].filter((artifactKey) =>
+    createdArtifactKeys.has(artifactKey),
+  ).length;
+  const artifactCreatedCount = createdArtifactKeys.size;
+  const intakeSubmittedCount = intakeKeys.size;
+  const intakeSubmittedProjectsWithArtifactCreationCount = [...createdProjectKeys].filter((projectKey) =>
+    intakeKeys.has(projectKey),
+  ).length;
+
+  return {
+    intakeSubmittedCount,
+    intakeSubmittedProjectsWithArtifactCreationCount,
+    artifactCreatedCount,
+    artifactsWithFollowUpEditsCount,
+    workspaceArtifactSwitchCount,
+    artifactCreationRate:
+      intakeSubmittedCount > 0 ? intakeSubmittedProjectsWithArtifactCreationCount / intakeSubmittedCount : null,
+    followUpEditRate: artifactCreatedCount > 0 ? artifactsWithFollowUpEditsCount / artifactCreatedCount : null,
+    artifactCreationRateNumerator: intakeSubmittedProjectsWithArtifactCreationCount,
+    artifactCreationRateDenominator: intakeSubmittedCount,
+    followUpEditRateNumerator: artifactsWithFollowUpEditsCount,
+    followUpEditRateDenominator: artifactCreatedCount,
+  };
 }
 
 export async function trackEvent(

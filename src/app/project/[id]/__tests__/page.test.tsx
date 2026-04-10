@@ -31,6 +31,9 @@ vi.mock("@/hooks/useRealtimeProject", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({
+  ARTIFACT_CREATED_EVENT: "artifact_created",
+  ARTIFACT_FOLLOW_UP_EDIT_EVENT: "artifact_followup_edit",
+  WORKSPACE_ARTIFACT_SWITCHED_EVENT: "workspace_artifact_switched",
   trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
 }));
 
@@ -398,6 +401,15 @@ describe("ProjectWorkspacePage", () => {
         }),
       }),
     );
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "artifact_created",
+      expect.objectContaining({
+        project_id: "project-1",
+        artifact_id: "artifact-customer-research-memo",
+        artifact_type: "customer-research-memo",
+        source: "research",
+      }),
+    );
   });
 
   it("falls back to the current phase context, keeps the previous report, and stores failed artifact details", async () => {
@@ -572,6 +584,16 @@ describe("ProjectWorkspacePage", () => {
         activeArtifactId: "artifact-validation-scorecard",
       }),
     );
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "workspace_artifact_switched",
+      expect.objectContaining({
+        project_id: "project-1",
+        artifact_id: "artifact-validation-scorecard",
+        artifact_type: "validation-scorecard",
+        previous_artifact_id: "artifact-customer-research-memo",
+        previous_artifact_type: "customer-research-memo",
+      }),
+    );
   });
 
   it("creates a fallback project when no stored project exists", async () => {
@@ -651,6 +673,73 @@ describe("ProjectWorkspacePage", () => {
         ]),
       }),
     );
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "artifact_created",
+      expect.objectContaining({
+        project_id: "project-1",
+        artifact_id: "artifact-validation-scorecard",
+        artifact_type: "validation-scorecard",
+        source: "chat",
+      }),
+    );
+  });
+
+  it("tracks artifact follow-up edits when a populated artifact is refined", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "Demand signals are promising.",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce({
+        done: false,
+        value: new TextEncoder().encode('data: {"content":"Refined reply"}\n\ndata: [DONE]\n\n'),
+      })
+      .mockResolvedValueOnce({ done: true, value: undefined });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => ({ read }),
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+    fireEvent.click(screen.getAllByRole("button", { name: "Send chat" })[0]);
+
+    await waitFor(() => {
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        "artifact_followup_edit",
+        expect.objectContaining({
+          project_id: "project-1",
+          artifact_id: "artifact-validation-scorecard",
+          artifact_type: "validation-scorecard",
+          source: "chat",
+        }),
+      );
+    });
   });
 
   it("handles chat request failures with an assistant fallback message", async () => {
