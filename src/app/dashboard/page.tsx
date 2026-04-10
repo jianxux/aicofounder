@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
-import OnboardingModal from "@/components/OnboardingModal";
+import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
@@ -17,6 +17,33 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function deriveProjectName(primaryIdea: string) {
+  const normalizedIdea = primaryIdea.trim().replace(/\s+/g, " ");
+
+  if (!normalizedIdea) {
+    return "Untitled Project";
+  }
+
+  const firstSentence = normalizedIdea.split(/[.!?]/)[0]?.trim() || normalizedIdea;
+
+  if (firstSentence.length <= 60) {
+    return firstSentence;
+  }
+
+  return `${firstSentence.slice(0, 57).trimEnd()}...`;
+}
+
+function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty }: OnboardingIntake) {
+  return [
+    primaryIdea.trim(),
+    targetUser.trim() ? `Target user: ${targetUser.trim()}` : null,
+    mainUncertainty.trim() ? `Main uncertainty: ${mainUncertainty.trim()}` : null,
+    url.trim() ? `Reference URL: ${url.trim()}` : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join("\n\n");
 }
 
 export default function DashboardPage() {
@@ -51,12 +78,12 @@ export default function DashboardPage() {
     setShowOnboarding(false);
   };
 
-  const handleCompleteOnboarding = async (name: string, description: string) => {
+  const handleCompleteOnboarding = async (intake: OnboardingIntake) => {
     const project = await createProject();
     const nextProject = {
       ...project,
-      name,
-      description,
+      name: deriveProjectName(intake.primaryIdea),
+      description: buildProjectDescription(intake),
       updatedAt: new Date().toISOString(),
     };
 
@@ -65,8 +92,10 @@ export default function DashboardPage() {
       page: "/dashboard",
       project_id: project.id,
       source: "onboarding",
-      has_name: Boolean(name.trim()),
-      has_description: Boolean(description.trim()),
+      has_primary_idea: Boolean(intake.primaryIdea.trim()),
+      has_url: Boolean(intake.url.trim()),
+      has_target_user: Boolean(intake.targetUser.trim()),
+      has_main_uncertainty: Boolean(intake.mainUncertainty.trim()),
     });
     void trackEvent("project_created", {
       page: "/dashboard",
@@ -81,7 +110,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#faf7f2]">
       <OnboardingModal
         open={showOnboarding}
-        onComplete={(name, description) => void handleCompleteOnboarding(name, description)}
+        onComplete={(intake) => void handleCompleteOnboarding(intake)}
         onSkip={handleSkipOnboarding}
       />
 

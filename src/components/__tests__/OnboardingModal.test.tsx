@@ -1,7 +1,41 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingModal from "@/components/OnboardingModal";
+
+function moveToIdeaStep() {
+  fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+}
+
+function fillIntakeFields(overrides?: {
+  primaryIdea?: string;
+  url?: string;
+  targetUser?: string;
+  mainUncertainty?: string;
+}) {
+  const intake = {
+    primaryIdea: "An AI copilot for founder research.",
+    url: "https://example.com",
+    targetUser: "Seed-stage founders",
+    mainUncertainty: "Whether they want one workspace.",
+    ...overrides,
+  };
+
+  fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+    target: { value: intake.primaryIdea },
+  });
+  fireEvent.change(screen.getByLabelText("Relevant URL (optional)"), {
+    target: { value: intake.url },
+  });
+  fireEvent.change(screen.getByLabelText("Target user (optional)"), {
+    target: { value: intake.targetUser },
+  });
+  fireEvent.change(screen.getByLabelText("Main uncertainty (optional)"), {
+    target: { value: intake.mainUncertainty },
+  });
+
+  return intake;
+}
 
 describe("OnboardingModal", () => {
   const onComplete = vi.fn();
@@ -29,62 +63,69 @@ describe("OnboardingModal", () => {
   it("navigates from step 1 to step 2 on Get Started click", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    moveToIdeaStep();
 
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
   });
 
-  it("step 2 has name input and description textarea", () => {
+  it("step 2 has the primary idea prompt and optional fields", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    moveToIdeaStep();
 
-    expect(screen.getByLabelText("Project name")).toBeInTheDocument();
-    expect(screen.getByLabelText("What problem are you solving?")).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toBeInTheDocument();
+    expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
   });
 
-  it("can type in name and description fields", () => {
+  it("can type in the intake fields", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
-    fireEvent.change(screen.getByLabelText("What problem are you solving?"), {
-      target: { value: "Research is fragmented across tools." },
-    });
+    moveToIdeaStep();
+    fillIntakeFields();
 
-    expect(screen.getByLabelText("Project name")).toHaveValue("Signal Engine");
-    expect(screen.getByLabelText("What problem are you solving?")).toHaveValue(
-      "Research is fragmented across tools.",
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI copilot for founder research.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("https://example.com");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they want one workspace.",
     );
   });
 
-  it("navigates from step 2 to step 3 with entered data shown", () => {
+  it("navigates from step 2 to step 3 with the intake summary shown", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
-    fireEvent.change(screen.getByLabelText("What problem are you solving?"), {
-      target: { value: "Research is fragmented across tools." },
-    });
+    moveToIdeaStep();
+    const intake = fillIntakeFields();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
+    const summary = screen.getByText("Intake Summary").closest("section");
+
     expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
-    expect(screen.getByText("Signal Engine")).toBeInTheDocument();
-    expect(screen.getAllByText("Research is fragmented across tools.")).toHaveLength(2);
+    expect(summary).toBeInTheDocument();
+    expect(within(summary!).getByText(intake.primaryIdea)).toBeInTheDocument();
+    expect(within(summary!).getByText(intake.url)).toBeInTheDocument();
+    expect(within(summary!).getByText(intake.targetUser)).toBeInTheDocument();
+    expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
   });
 
-  it("calls onComplete with name and description on Launch Project click", () => {
+  it("calls onComplete with the intake fields on Launch Project click", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
-    fireEvent.change(screen.getByLabelText("What problem are you solving?"), {
-      target: { value: "Research is fragmented across tools." },
-    });
+    moveToIdeaStep();
+    fillIntakeFields();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
-    expect(onComplete).toHaveBeenCalledWith("Signal Engine", "Research is fragmented across tools.");
+    expect(onComplete).toHaveBeenCalledWith({
+      primaryIdea: "An AI copilot for founder research.",
+      url: "https://example.com",
+      targetUser: "Seed-stage founders",
+      mainUncertainty: "Whether they want one workspace.",
+    });
   });
 
   it("calls onSkip on skip link click", () => {
@@ -102,15 +143,15 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Step 2")).toHaveClass("w-2.5");
     expect(screen.getByLabelText("Step 3")).toHaveClass("w-2.5");
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    moveToIdeaStep();
 
     expect(screen.getByLabelText("Step 2 current")).toHaveClass("w-8");
   });
 
-  it("cannot proceed from step 2 with empty name", () => {
+  it("cannot proceed from step 2 with an empty primary idea", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    moveToIdeaStep();
 
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
@@ -118,40 +159,38 @@ describe("OnboardingModal", () => {
   it("back button works on steps 2 and 3", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
+    moveToIdeaStep();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
   });
 
-  it("shows a fallback summary when description is empty", () => {
+  it("shows not provided for optional summary fields when they are empty", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    expect(
-      screen.getByText("You can refine the problem statement once you enter the workspace."),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText("Not provided")).toHaveLength(3);
   });
 
   it("resets to the first step when reopened", () => {
     const { rerender } = render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
 
     rerender(<OnboardingModal open={false} onComplete={onComplete} onSkip={onSkip} />);
     rerender(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Signal Engine")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("An AI copilot for founder research.")).not.toBeInTheDocument();
   });
 });

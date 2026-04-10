@@ -7,6 +7,42 @@ import { trackEvent } from "@/lib/analytics";
 import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
+async function startOnboarding() {
+  fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
+}
+
+function completeIntake(overrides?: {
+  primaryIdea?: string;
+  url?: string;
+  targetUser?: string;
+  mainUncertainty?: string;
+}) {
+  const intake = {
+    primaryIdea:
+      "An AI copilot for founder research that turns scattered notes into a concrete validation plan.",
+    url: "https://example.com",
+    targetUser: "Seed-stage founders",
+    mainUncertainty: "Whether they want one workspace.",
+    ...overrides,
+  };
+
+  fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+    target: { value: intake.primaryIdea },
+  });
+  fireEvent.change(screen.getByLabelText("Relevant URL (optional)"), {
+    target: { value: intake.url },
+  });
+  fireEvent.change(screen.getByLabelText("Target user (optional)"), {
+    target: { value: intake.targetUser },
+  });
+  fireEvent.change(screen.getByLabelText("Main uncertainty (optional)"), {
+    target: { value: intake.mainUncertainty },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+  return intake;
+}
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
@@ -311,12 +347,8 @@ describe("DashboardPage", () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
-    fireEvent.change(screen.getByLabelText("Project name"), { target: { value: "Signal Engine" } });
-    fireEvent.change(screen.getByLabelText("What problem are you solving?"), {
-      target: { value: "Research is fragmented across tools." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await startOnboarding();
+    const intake = completeIntake();
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
@@ -324,8 +356,9 @@ describe("DashboardPage", () => {
       expect(saveProject).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "guided-project",
-          name: "Signal Engine",
-          description: "Research is fragmented across tools.",
+          name: expect.stringMatching(/^An AI copilot for founder research/),
+          description:
+            `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
         }),
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
@@ -336,8 +369,10 @@ describe("DashboardPage", () => {
       expect.objectContaining({
         project_id: "guided-project",
         source: "onboarding",
-        has_name: true,
-        has_description: true,
+        has_primary_idea: true,
+        has_url: true,
+        has_target_user: true,
+        has_main_uncertainty: true,
       }),
     );
     expect(trackEvent).toHaveBeenCalledWith(
@@ -347,5 +382,73 @@ describe("DashboardPage", () => {
         source: "onboarding",
       }),
     );
+  });
+
+  it("tracks optional intake fields as false when they are omitted", async () => {
+    const createdProject = createProject({ id: "guided-project-minimal", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockResolvedValue(createdProject);
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake({
+      primaryIdea: "A tool for founder research synthesis.",
+      url: "",
+      targetUser: "",
+      mainUncertainty: "",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    await waitFor(() => {
+      expect(saveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "guided-project-minimal",
+          name: "A tool for founder research synthesis",
+          description: "A tool for founder research synthesis.",
+        }),
+      );
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith(
+      "artifact_intake_submitted",
+      expect.objectContaining({
+        project_id: "guided-project-minimal",
+        source: "onboarding",
+        has_primary_idea: true,
+        has_url: false,
+        has_target_user: false,
+        has_main_uncertainty: false,
+      }),
+    );
+  });
+
+  it("truncates the derived project name when the first sentence exceeds sixty characters", async () => {
+    const createdProject = createProject({ id: "guided-project-long-name", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockResolvedValue(createdProject);
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake({
+      primaryIdea:
+        "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
+      url: "",
+      targetUser: "",
+      mainUncertainty: "",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    await waitFor(() => {
+      expect(saveProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "guided-project-long-name",
+          name: "An AI copilot for founder research that turns scattered n...",
+          description:
+            "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
+        }),
+      );
+    });
   });
 });

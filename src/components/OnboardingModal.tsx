@@ -2,9 +2,16 @@
 
 import { useEffect, useId, useState } from "react";
 
+export type OnboardingIntake = {
+  primaryIdea: string;
+  url: string;
+  targetUser: string;
+  mainUncertainty: string;
+};
+
 type OnboardingModalProps = {
   open: boolean;
-  onComplete: (name: string, description: string) => void;
+  onComplete: (intake: OnboardingIntake) => void;
   onSkip: () => void;
 };
 
@@ -12,17 +19,21 @@ const TOTAL_STEPS = 3;
 
 export default function OnboardingModal({ open, onComplete, onSkip }: OnboardingModalProps) {
   const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [primaryIdea, setPrimaryIdea] = useState("");
+  const [url, setUrl] = useState("");
+  const [targetUser, setTargetUser] = useState("");
+  const [mainUncertainty, setMainUncertainty] = useState("");
   const titleId = useId();
   const descriptionId = useId();
-  const isNameValid = name.trim().length > 0;
+  const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
 
   useEffect(() => {
     if (!open) {
       setStep(1);
-      setName("");
-      setDescription("");
+      setPrimaryIdea("");
+      setUrl("");
+      setTargetUser("");
+      setMainUncertainty("");
     }
   }, [open]);
 
@@ -96,27 +107,49 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
               About Your Idea
             </h2>
             <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">
-              Give your project a name and describe the problem you want to solve.
+              Start with one clear idea. Add a URL, target user, or the main uncertainty only if
+              they help sharpen the brief.
             </p>
 
             <div className="mt-8 space-y-5">
               <label className="block">
-                <span className="text-sm font-medium text-stone-700">Project name</span>
+                <span className="text-sm font-medium text-stone-700">What are you thinking about building?</span>
+                <textarea
+                  value={primaryIdea}
+                  onChange={(event) => setPrimaryIdea(event.target.value)}
+                  placeholder="An AI copilot that helps founders turn scattered research, URLs, and notes into a concrete validation plan."
+                  rows={5}
+                  className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">Relevant URL (optional)</span>
                 <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Founder Insight Engine"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="https://example.com"
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
               </label>
 
               <label className="block">
-                <span className="text-sm font-medium text-stone-700">What problem are you solving?</span>
+                <span className="text-sm font-medium text-stone-700">Target user (optional)</span>
+                <input
+                  value={targetUser}
+                  onChange={(event) => setTargetUser(event.target.value)}
+                  placeholder="Seed-stage B2B SaaS founders"
+                  className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">Main uncertainty (optional)</span>
                 <textarea
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder="Founders struggle to organize research, make decisions, and keep momentum across the earliest phases."
-                  rows={5}
+                  value={mainUncertainty}
+                  onChange={(event) => setMainUncertainty(event.target.value)}
+                  placeholder="I’m not sure whether founders want one workspace for synthesis or separate tools for each step."
+                  rows={3}
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
               </label>
@@ -132,7 +165,7 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
               </button>
               <button
                 type="button"
-                disabled={!isNameValid}
+                disabled={!isPrimaryIdeaValid}
                 onClick={() => setStep(3)}
                 className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
@@ -160,12 +193,30 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
 
             <div className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-                Project Summary
+                Intake Summary
               </div>
-              <div className="mt-4 text-2xl font-semibold text-stone-950">{name.trim()}</div>
-              <p className="mt-3 text-sm leading-7 text-stone-600">
-                {description.trim() || "You can refine the problem statement once you enter the workspace."}
+              <div className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Primary idea</div>
+              <p className="mt-2 text-sm leading-7 text-stone-700">
+                {primaryIdea.trim() || "Add your core idea to continue."}
               </p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">URL</div>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">{url.trim() || "Not provided"}</p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Target user</div>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">{targetUser.trim() || "Not provided"}</p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Main uncertainty
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {mainUncertainty.trim() || "Not provided"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 flex items-center justify-between gap-3">
@@ -178,7 +229,14 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
               </button>
               <button
                 type="button"
-                onClick={() => onComplete(name.trim(), description.trim())}
+                onClick={() =>
+                  onComplete({
+                    primaryIdea: primaryIdea.trim(),
+                    url: url.trim(),
+                    targetUser: targetUser.trim(),
+                    mainUncertainty: mainUncertainty.trim(),
+                  })
+                }
                 className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
               >
                 Launch Project
