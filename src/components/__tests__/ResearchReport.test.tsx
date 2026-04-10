@@ -88,10 +88,10 @@ describe("ResearchReport", () => {
 
     render(<ResearchReport status="empty" onRunResearch={onRunResearch} />);
 
-    expect(screen.getByText("Deep research workspace")).toBeInTheDocument();
-    expect(screen.getByText(/No deep research report yet/i)).toBeInTheDocument();
+    expect(screen.getByText("Customer research memo")).toBeInTheDocument();
+    expect(screen.getByText(/No customer research memo yet/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Run deep research" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create customer research memo" }));
 
     expect(onRunResearch).toHaveBeenCalledTimes(1);
   });
@@ -99,8 +99,8 @@ describe("ResearchReport", () => {
   it("renders the loading state", () => {
     render(<ResearchReport status="loading" researchQuestion="Investigate the market" />);
 
-    expect(screen.getByRole("button", { name: "Researching..." })).toBeDisabled();
-    expect(screen.getByText("Generating a fresh research report for this project.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Updating memo..." })).toBeDisabled();
+    expect(screen.getByText("Updating the customer research memo for this project.")).toBeInTheDocument();
   });
 
   it("renders the failure state", () => {
@@ -142,6 +142,7 @@ describe("ResearchReport", () => {
     expect(screen.getByText("3 angles")).toBeInTheDocument();
     expect(screen.getByText("1 rejected")).toBeInTheDocument();
     expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh customer research memo" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Market demand/i }));
 
@@ -163,6 +164,7 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Provider timeout")).toBeInTheDocument();
     expect(screen.getByText("Executive summary")).toBeInTheDocument();
     expect(screen.getByText("2 angles")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry customer research memo" })).toBeInTheDocument();
     expect(screen.getByText(`Research conducted ${formatTimestamp("2025-01-15T12:00:00.000Z")}`)).toBeInTheDocument();
     expect(screen.queryByText(`Research conducted ${formatTimestamp("2025-01-20T12:00:00.000Z")}`)).not.toBeInTheDocument();
   });
@@ -184,5 +186,128 @@ describe("ResearchReport", () => {
     expect(screen.getByText("No normalized sources were retained for this run.")).toBeInTheDocument();
     expect(screen.getByText("No citations were retained for this run.")).toBeInTheDocument();
     expect(screen.getByText("No citations were retained for this section.")).toBeInTheDocument();
+  });
+
+  it("renders richer memo analysis from artifact source inventory fallbacks", () => {
+    render(
+      <ResearchReport
+        status="success"
+        report={{
+          ...report,
+          generatedAt: "not-a-date",
+          citations: [
+            {
+              id: "citation-1",
+              source: "Analyst brief",
+              claim: "Budget owners are actively reallocating spend.",
+              relevance: "medium" as const,
+              url: "https://example.com/brief",
+              sourceType: "news",
+              publicationDate: "2025-01-10",
+              publicationSignal: "peer_reviewed",
+              recencySignal: "recent",
+              accessibilityStatus: "registration_required",
+            },
+          ],
+          sources: [],
+          keyFindings: [
+            {
+              id: "finding-1",
+              statement: "Budget is moving toward workflow tools.",
+              strength: "strong" as const,
+              citationIds: ["citation-1"],
+            },
+          ],
+          caveats: [
+            {
+              id: "caveat-1",
+              statement: "Most data comes from larger teams.",
+              citationIds: [],
+            },
+          ],
+          contradictions: [
+            {
+              id: "contradiction-1",
+              statement: "SMBs report weaker urgency.",
+              citationIds: ["citation-1"],
+            },
+          ],
+          unansweredQuestions: [
+            {
+              id: "question-1",
+              question: "How much budget is controlled by operations leaders?",
+              citationIds: [],
+            },
+          ],
+          sections: [
+            {
+              ...report.sections[0],
+              citations: [
+                {
+                  id: "citation-1",
+                  source: "Analyst brief",
+                  claim: "Budget owners are actively reallocating spend.",
+                  relevance: "low" as const,
+                  url: "https://example.com/brief",
+                  sourceType: "news",
+                  publicationDate: "2025-01-10",
+                  publicationSignal: "peer_reviewed",
+                  recencySignal: "recent",
+                  accessibilityStatus: "registration_required",
+                },
+              ],
+            },
+          ],
+        }}
+        artifact={{
+          status: "completed",
+          sourceInventory: {
+            selected: [
+              {
+                id: "inventory-1",
+                title: "Analyst brief",
+                canonicalId: "https://example.com/brief",
+                sourceType: "news",
+                status: "selected",
+                citationIds: ["citation-1"],
+                sectionIds: ["market"],
+                url: "https://example.com/brief",
+                publicationDate: "2025-01-10",
+                publicationSignal: "peer_reviewed",
+                recencySignal: "recent",
+                accessibilityStatus: "registration_required",
+                claimCount: 2,
+              },
+            ],
+            rejected: [
+              {
+                id: "rejected-1",
+                title: "Paywalled note",
+                canonicalId: "paywalled-note",
+                status: "rejected",
+                sourceType: "report",
+                rejectionReason: "insufficient evidence",
+                citationIds: [],
+                sectionIds: [],
+                claimCount: 0,
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Key findings")).toBeInTheDocument();
+    expect(screen.getByText("Budget is moving toward workflow tools.")).toBeInTheDocument();
+    expect(screen.getByText("Caveats")).toBeInTheDocument();
+    expect(screen.getByText("Most data comes from larger teams.")).toBeInTheDocument();
+    expect(screen.getByText("Contradictions")).toBeInTheDocument();
+    expect(screen.getByText("SMBs report weaker urgency.")).toBeInTheDocument();
+    expect(screen.getByText("Unanswered questions")).toBeInTheDocument();
+    expect(screen.getByText("How much budget is controlled by operations leaders?")).toBeInTheDocument();
+    expect(screen.getAllByText("peer reviewed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("registration required").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("published 2025-01-10").length).toBeGreaterThan(0);
+    expect(screen.getByText("Research conducted not-a-date")).toBeInTheDocument();
   });
 });

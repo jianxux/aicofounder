@@ -146,7 +146,14 @@ function ResearchSummary({
   sourceContext,
   onRunResearch,
 }: Omit<ResearchReportProps, "report">) {
-  const buttonLabel = status === "success" ? "Run again" : "Run deep research";
+  const buttonLabel =
+    status === "loading"
+      ? "Updating memo..."
+      : status === "success"
+        ? "Refresh customer research memo"
+        : status === "error"
+          ? "Retry customer research memo"
+          : "Create customer research memo";
 
   return (
     <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
@@ -154,11 +161,11 @@ function ResearchSummary({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-              Deep research workspace
+              Workspace artifact
             </div>
-            <h2 className="mt-2 text-xl font-semibold text-stone-950">Market research report</h2>
+            <h2 className="mt-2 text-xl font-semibold text-stone-950">Customer research memo</h2>
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Launch a research run from the workspace and keep the latest report attached to this project.
+              Run deep research to create or update the memo attached to this project with evidence, risks, and open questions.
             </p>
           </div>
           <button
@@ -167,13 +174,13 @@ function ResearchSummary({
             disabled={status === "loading" || !onRunResearch}
             className="rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            {status === "loading" ? "Researching..." : buttonLabel}
+            {buttonLabel}
           </button>
         </div>
 
         {status === "empty" ? (
           <p className="rounded-3xl border border-dashed border-stone-300 bg-white px-4 py-4 text-sm leading-6 text-stone-600">
-            No deep research report yet. Run a workspace research pass to analyze opportunities, risks, and evidence.
+            No customer research memo yet. Run deep research to create one with opportunities, risks, and supporting evidence.
           </p>
         ) : null}
 
@@ -182,7 +189,7 @@ function ResearchSummary({
             className="rounded-3xl border border-sky-100 bg-sky-50 px-4 py-4 text-sm leading-6 text-sky-900"
             aria-live="polite"
           >
-            Generating a fresh research report for this project.
+            Updating the customer research memo for this project.
           </div>
         ) : null}
 

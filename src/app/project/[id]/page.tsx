@@ -52,6 +52,16 @@ function getArtifactLabel(artifact: ProjectArtifact) {
   return artifact.type === "customer-research-memo" ? "Customer research memo" : "Validation scorecard";
 }
 
+function getArtifactDescription(artifact: ProjectArtifact | null) {
+  if (!artifact) {
+    return "Choose the artifact you want the workspace to update next.";
+  }
+
+  return artifact.type === "customer-research-memo"
+    ? "Chat and research now work toward the customer research memo, while the canvas keeps supporting context nearby."
+    : "Chat now works toward the validation scorecard, so you can turn loose notes into explicit evidence, scores, and next checks.";
+}
+
 function getResearchPanelStatus(research: Project["research"], isResearchLoading: boolean) {
   if (isResearchLoading) {
     return "loading" as const;
@@ -76,7 +86,7 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
   return (
     <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
       <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-5">
-        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Validation artifact</div>
+        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Workspace artifact</div>
         <h2 className="mt-2 text-xl font-semibold text-stone-950">{artifact.title}</h2>
         <p className="mt-2 text-sm leading-6 text-stone-600">
           Keep a lightweight scorecard here as you pressure-test demand, customer pull, and next validation steps.
@@ -100,10 +110,70 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
             ))}
           </div>
         ) : (
-          <p className="text-sm leading-6 text-stone-600">
-            No validation criteria yet. This scorecard is ready for your first pass.
-          </p>
+          <div className="space-y-4">
+            <p className="text-sm leading-6 text-stone-600">
+              No validation criteria yet. Start using this scorecard to capture the strongest signal, biggest risk, and next validation move.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {["Problem urgency", "Evidence quality", "Willingness to pay"].map((prompt) => (
+                <span
+                  key={prompt}
+                  className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-700"
+                >
+                  {prompt}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+function ArtifactWorkspaceHeader({
+  artifacts,
+  activeArtifact,
+  onSetActiveArtifact,
+}: {
+  artifacts: ProjectArtifact[];
+  activeArtifact: ProjectArtifact | null;
+  onSetActiveArtifact: (artifactId: string) => void;
+}) {
+  return (
+    <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Active artifact</div>
+            <h2 className="mt-2 text-xl font-semibold text-stone-950">
+              {activeArtifact ? getArtifactLabel(activeArtifact) : "Choose an artifact"}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">{getArtifactDescription(activeArtifact)}</p>
+          </div>
+          {activeArtifact ? (
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+              Workspace target
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {artifacts.map((artifact) => (
+            <button
+              key={artifact.id}
+              type="button"
+              onClick={() => onSetActiveArtifact(artifact.id)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                artifact.id === activeArtifact?.id
+                  ? "bg-stone-950 text-white"
+                  : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+              }`}
+              aria-pressed={artifact.id === activeArtifact?.id}
+            >
+              {getArtifactLabel(artifact)}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -826,11 +896,19 @@ export default function ProjectWorkspacePage() {
           </div>
         </div>
 
+        <ArtifactWorkspaceHeader
+          artifacts={project.artifacts ?? []}
+          activeArtifact={activeArtifact}
+          onSetActiveArtifact={handleSetActiveArtifact}
+        />
+
         <div className="hidden gap-4 md:grid md:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
           <ChatPanel
             messages={project.messages}
             phases={project.phases}
             activePhaseId={activePhaseId}
+            activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
+            activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             onRemind={handleRemind}
@@ -841,41 +919,6 @@ export default function ProjectWorkspacePage() {
             onSetActivePhase={handleSetActivePhase}
           />
           <div className="flex flex-col gap-4">
-            <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-                      Workspace artifact
-                    </div>
-                    <h2 className="mt-1 text-lg font-semibold text-stone-950">
-                      {activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
-                    </h2>
-                  </div>
-                  {activeArtifact ? (
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
-                      Active artifact
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {project.artifacts?.map((artifact) => (
-                    <button
-                      key={artifact.id}
-                      type="button"
-                      onClick={() => handleSetActiveArtifact(artifact.id)}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                        artifact.id === activeArtifact?.id
-                          ? "bg-stone-950 text-white"
-                          : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
-                      }`}
-                    >
-                      {getArtifactLabel(artifact)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </section>
             {activeArtifact?.type === "validation-scorecard" ? (
               <ValidationScorecardPanel artifact={activeArtifact} />
             ) : (
@@ -918,6 +961,8 @@ export default function ProjectWorkspacePage() {
               messages={project.messages}
               phases={project.phases}
               activePhaseId={activePhaseId}
+              activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
+              activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
               onRemind={handleRemind}
@@ -929,41 +974,6 @@ export default function ProjectWorkspacePage() {
             />
           ) : (
             <div className="flex flex-col gap-4">
-              <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm">
-                <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-                        Workspace artifact
-                      </div>
-                      <h2 className="mt-1 text-lg font-semibold text-stone-950">
-                        {activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
-                      </h2>
-                    </div>
-                    {activeArtifact ? (
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
-                        Active artifact
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {project.artifacts?.map((artifact) => (
-                      <button
-                        key={artifact.id}
-                        type="button"
-                        onClick={() => handleSetActiveArtifact(artifact.id)}
-                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                          artifact.id === activeArtifact?.id
-                            ? "bg-stone-950 text-white"
-                            : "border border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
-                        }`}
-                      >
-                        {getArtifactLabel(artifact)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </section>
               {activeArtifact?.type === "validation-scorecard" ? (
                 <ValidationScorecardPanel artifact={activeArtifact} />
               ) : (

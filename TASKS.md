@@ -70,7 +70,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 
 ### 5E. Product Follow-Up from Competitive Analysis
 - [x] P0: Define the artifact foundation model and ship the first 2 artifact types only: validation scorecard and customer research memo
-- [ ] P0: Update the workspace/run UI to label the active artifact and treat chat/research as creating or updating that artifact instead of producing only transcript output
+- [x] P0: Update the workspace/run UI to label the active artifact and treat chat/research as creating or updating that artifact instead of producing only transcript output
 - [ ] P0: Add visible staged research progress for research-heavy runs: objective, source scope, evidence gathering, synthesis, and recommended next actions, including loading and failure states
 - [ ] P0: Add trust scaffolding to research artifacts: source list, citation anchors on major claims, evidence-strength summary, contradictions, and unresolved questions
 - [ ] P0: Add instrumentation and acceptance metrics for the new artifact flow, including artifact creation rate and follow-up edit rate

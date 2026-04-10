@@ -64,6 +64,8 @@ type RenderOptions = {
   phases?: Phase[];
   activePhaseId?: string;
   isLoading?: boolean;
+  activeArtifactLabel?: string;
+  activeArtifactType?: "validation-scorecard" | "customer-research-memo";
 };
 
 const renderChatPanel = ({
@@ -71,6 +73,8 @@ const renderChatPanel = ({
   phases = createPhases(),
   activePhaseId = "build",
   isLoading = false,
+  activeArtifactLabel = "Validation scorecard",
+  activeArtifactType = "validation-scorecard",
 }: RenderOptions = {}) => {
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
@@ -84,6 +88,8 @@ const renderChatPanel = ({
       messages={messages}
       phases={phases}
       activePhaseId={activePhaseId}
+      activeArtifactLabel={activeArtifactLabel}
+      activeArtifactType={activeArtifactType}
       onSendMessage={onSendMessage}
       isLoading={isLoading}
       onRemind={onRemind}
@@ -107,7 +113,22 @@ describe("ChatPanel", () => {
       renderChatPanel();
 
       expect(screen.getByText("AI Cofounder")).toBeInTheDocument();
-      expect(screen.getByText("Research and build your product")).toBeInTheDocument();
+      expect(screen.getByText("Build the validation scorecard")).toBeInTheDocument();
+      expect(screen.getByText("Active artifact")).toBeInTheDocument();
+      expect(screen.getByText("Validation scorecard")).toBeInTheDocument();
+    });
+
+    it("switches the framing when the customer research memo is active", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+      });
+
+      expect(screen.getByText("Update the customer research memo")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Update memo" })).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Add findings, contradictions, or next questions for the customer research memo..."),
+      ).toBeInTheDocument();
     });
 
     it("renders user messages with user styling", () => {
@@ -144,7 +165,7 @@ describe("ChatPanel", () => {
       renderChatPanel();
 
       const textarea = screen.getByPlaceholderText(
-        "Tell your AI cofounder what you want to explore next...",
+        "Add evidence, scores, or next validation checks for the scorecard...",
       );
 
       fireEvent.change(textarea, { target: { value: "New idea" } });
@@ -155,9 +176,9 @@ describe("ChatPanel", () => {
     it("submits trimmed text, calls onSendMessage, and clears the textarea", () => {
       const { onSendMessage } = renderChatPanel();
       const textarea = screen.getByPlaceholderText(
-        "Tell your AI cofounder what you want to explore next...",
+        "Add evidence, scores, or next validation checks for the scorecard...",
       );
-      const form = screen.getByRole("button", { name: "Send" }).closest("form");
+      const form = screen.getByRole("button", { name: "Update scorecard" }).closest("form");
 
       fireEvent.change(textarea, { target: { value: "  Validate this market  " } });
       fireEvent.submit(form!);
@@ -170,9 +191,9 @@ describe("ChatPanel", () => {
     it("does not submit empty or whitespace-only drafts", () => {
       const { onSendMessage } = renderChatPanel();
       const textarea = screen.getByPlaceholderText(
-        "Tell your AI cofounder what you want to explore next...",
+        "Add evidence, scores, or next validation checks for the scorecard...",
       );
-      const form = screen.getByRole("button", { name: "Send" }).closest("form");
+      const form = screen.getByRole("button", { name: "Update scorecard" }).closest("form");
 
       fireEvent.change(textarea, { target: { value: "   " } });
       fireEvent.submit(form!);
@@ -200,7 +221,7 @@ describe("ChatPanel", () => {
     it("calls onResearch when the deep research button is clicked", () => {
       const { onResearch } = renderChatPanel();
 
-      fireEvent.click(screen.getByRole("button", { name: /deep research/i }));
+      fireEvent.click(screen.getByRole("button", { name: /update customer research memo/i }));
 
       expect(onResearch).toHaveBeenCalledTimes(1);
     });
@@ -215,11 +236,11 @@ describe("ChatPanel", () => {
       renderChatPanel({ isLoading: true });
 
       expect(
-        screen.getByPlaceholderText("Tell your AI cofounder what you want to explore next..."),
+        screen.getByPlaceholderText("Add evidence, scores, or next validation checks for the scorecard..."),
       ).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Update scorecard" })).toBeDisabled();
       expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
-      expect(screen.getByRole("button", { name: /deep research/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /update customer research memo/i })).toBeDisabled();
     });
 
     it("does not show the typing indicator when isLoading is false", () => {

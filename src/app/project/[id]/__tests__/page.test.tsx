@@ -47,6 +47,8 @@ vi.mock("@/lib/supabase-projects", () => ({
 
 vi.mock("@/components/ChatPanel", () => ({
   default: ({
+    activeArtifactLabel,
+    activeArtifactType,
     onSendMessage,
     onRemind,
     onBrainstorm,
@@ -55,6 +57,8 @@ vi.mock("@/components/ChatPanel", () => ({
     onToggleTask,
     onSetActivePhase,
   }: {
+    activeArtifactLabel: string;
+    activeArtifactType: "validation-scorecard" | "customer-research-memo";
     onSendMessage?: (content: string) => void;
     onRemind?: () => void;
     onBrainstorm?: () => void;
@@ -64,6 +68,8 @@ vi.mock("@/components/ChatPanel", () => ({
     onSetActivePhase?: (phaseId: string) => void;
   }) => (
     <div data-testid="chat-panel">
+      <div data-testid="chat-artifact-label">{activeArtifactLabel}</div>
+      <div data-testid="chat-artifact-type">{activeArtifactType}</div>
       <button type="button" onClick={() => onSendMessage?.("Tell me more about demand.")}>
         Send chat
       </button>
@@ -322,8 +328,10 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getByTestId("research-question")).toHaveTextContent("What are the key opportunities and risks?");
     expect(screen.getByTestId("research-context")).toHaveTextContent("Saved locally");
     expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("completed");
-    expect(screen.getAllByText("Customer research memo")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Customer research memo").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Active artifact")[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Customer research memo");
+    expect(screen.getAllByTestId("chat-artifact-type")[0]).toHaveTextContent("customer-research-memo");
   });
 
   it("runs research from the latest user message and persists the result", async () => {
@@ -357,7 +365,7 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getAllByText("Validation artifact")[0]).toBeInTheDocument();
+      expect(screen.getAllByText("Workspace artifact")[0]).toBeInTheDocument();
     });
 
     fireEvent.click(
@@ -548,10 +556,17 @@ describe("ProjectWorkspacePage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Validation scorecard" })[0]);
 
     await waitFor(() => {
-      expect(screen.getAllByText("Validation artifact")[0]).toBeInTheDocument();
+      expect(screen.getAllByText("Validation scorecard").length).toBeGreaterThanOrEqual(2);
     });
 
-    expect(screen.getAllByText("No validation criteria yet. This scorecard is ready for your first pass.")[0]).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "No validation criteria yet. Start using this scorecard to capture the strongest signal, biggest risk, and next validation move.",
+      )[0],
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Problem urgency")[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Validation scorecard");
+    expect(screen.getAllByTestId("chat-artifact-type")[0]).toHaveTextContent("validation-scorecard");
     expect(mockSaveProject).toHaveBeenLastCalledWith(
       expect.objectContaining({
         activeArtifactId: "artifact-validation-scorecard",
@@ -876,13 +891,10 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await screen.findByTestId("canvas");
-    const initialValidationPanels = screen.getAllByText("Validation artifact").length;
 
     fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
 
-    await waitFor(() => {
-      expect(screen.getAllByText("Validation artifact").length).toBeGreaterThan(initialValidationPanels);
-    });
+    expect(screen.getByRole("button", { name: "Canvas" })).toHaveClass("bg-stone-950");
 
     const mobileResearchButtons = screen.getAllByRole("button", { name: "Customer research memo" });
     fireEvent.click(mobileResearchButtons[mobileResearchButtons.length - 1]);

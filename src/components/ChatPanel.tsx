@@ -8,6 +8,8 @@ type ChatPanelProps = {
   messages: ChatMessage[];
   phases: Phase[];
   activePhaseId: string;
+  activeArtifactLabel: string;
+  activeArtifactType: "validation-scorecard" | "customer-research-memo";
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   onRemind: () => void;
@@ -23,6 +25,8 @@ export default function ChatPanel({
   messages,
   phases,
   activePhaseId,
+  activeArtifactLabel,
+  activeArtifactType,
   onSendMessage,
   isLoading,
   onRemind,
@@ -40,6 +44,15 @@ export default function ChatPanel({
     () => phases.find((phase) => phase.id === activePhaseId) ?? phases[0],
     [activePhaseId, phases],
   );
+  const isResearchMemoActive = activeArtifactType === "customer-research-memo";
+  const headerTitle = isResearchMemoActive ? "Update the customer research memo" : "Build the validation scorecard";
+  const headerCopy = isResearchMemoActive
+    ? "Use chat to refine findings, pressure-test assumptions, and capture the latest customer evidence in this memo."
+    : "Use chat to define evidence, scores, and open questions so the validation scorecard stays decision-ready.";
+  const placeholder = isResearchMemoActive
+    ? "Add findings, contradictions, or next questions for the customer research memo..."
+    : "Add evidence, scores, or next validation checks for the scorecard...";
+  const sendLabel = isResearchMemoActive ? "Update memo" : "Update scorecard";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,9 +73,15 @@ export default function ChatPanel({
     >
       <div className="border-b border-stone-200 px-6 py-5">
         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">AI Cofounder</div>
-        <h2 className="mt-2 text-2xl font-semibold text-stone-900">Research and build your product</h2>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="rounded-full bg-[#f4efe7] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+            Active artifact
+          </span>
+          <span className="text-sm font-medium text-stone-700">{activeArtifactLabel}</span>
+        </div>
+        <h2 className="mt-3 text-2xl font-semibold text-stone-900">{headerTitle}</h2>
         <p className="mt-2 text-sm leading-6 text-stone-600">
-          Ask for market research, challenge assumptions, and turn loose concepts into a sharper plan.
+          {headerCopy}
         </p>
       </div>
 
@@ -116,7 +135,7 @@ export default function ChatPanel({
             disabled={isLoading}
             className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
-            📄 Open Deep Research workspace
+            📄 Update customer research memo
           </button>
           <button
             type="button"
@@ -132,7 +151,7 @@ export default function ChatPanel({
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Tell your AI cofounder what you want to explore next..."
+            placeholder={placeholder}
             disabled={isLoading}
             className="min-h-24 flex-1 resize-none rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
           />
@@ -141,7 +160,7 @@ export default function ChatPanel({
             disabled={isLoading}
             className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
           >
-            Send
+            {sendLabel}
           </button>
         </form>
       </div>
