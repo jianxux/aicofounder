@@ -59,9 +59,54 @@ describe("buildSystemPrompt", () => {
         id: "artifact-validation-scorecard",
         type: "validation-scorecard",
         label: "Validation scorecard",
-        isRefineMode: true,
+        status: "completed",
+        mode: "artifact-follow-up",
+        hasMeaningfulOutput: true,
+        revision: {
+          id: "revision-2",
+          number: 2,
+          createdAt: "2025-01-12T00:00:00.000Z",
+          status: "completed",
+        },
+        evidenceSnapshot: {
+          artifactType: "validation-scorecard",
+          summary: "Strong pain signal",
+          criteriaCount: 1,
+          scoredCriteriaCount: 1,
+          criteria: [{ label: "Problem urgency", score: 4 }],
+        },
       }),
-    ).toContain("Refine that same artifact by default instead of creating a new one.");
+    ).toContain("Stay grounded in revision 2 with status completed");
+  });
+
+  it("includes the artifact snapshot when artifact context is provided", () => {
+    expect(
+      buildSystemPrompt("build", "Orbit", "", {
+        id: "artifact-customer-research-memo",
+        type: "customer-research-memo",
+        label: "Customer research memo",
+        status: "partial",
+        mode: "artifact-follow-up",
+        hasMeaningfulOutput: true,
+        revision: {
+          id: "revision-1",
+          number: 1,
+          createdAt: "2025-01-12T00:00:00.000Z",
+          status: "partial",
+        },
+        evidenceSnapshot: {
+          artifactType: "customer-research-memo",
+          researchStatus: "success",
+          artifactStatus: "partial",
+          executiveSummary: "Ops teams feel workflow pain.",
+          keyFindings: ["Manual follow-up is costly."],
+          contradictions: [],
+          unansweredQuestions: ["Who owns budget?"],
+          sourceCount: 2,
+          sectionCount: 1,
+        },
+      }),
+    ).toContain('Artifact snapshot: {"artifactType":"customer-research-memo"');
   });
 
   it("omits the project name guidance when not provided", () => {

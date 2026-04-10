@@ -373,14 +373,68 @@ describe("POST /api/chat", () => {
       },
     );
 
+    const artifactContext = {
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+      label: "Validation scorecard",
+      status: "completed",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: {
+        id: "revision-2",
+        number: 2,
+        createdAt: "2025-01-12T00:00:00.000Z",
+        status: "completed",
+      },
+      evidenceSnapshot: {
+        artifactType: "validation-scorecard",
+        summary: "Strong signal",
+        criteriaCount: 1,
+        scoredCriteriaCount: 1,
+        criteria: [{ label: "Problem urgency", score: 4 }],
+      },
+    } as const;
+
     const { POST } = await import("@/app/api/chat/route");
     const response = await POST(
       createRequest({
         messages: [{ sender: "user", content: "Refine the scorecard" }],
+        artifactContext,
+        isRefineMode: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "", artifactContext);
+  });
+
+  it("derives a minimal artifact context from the legacy artifact fields", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    const create = vi.fn().mockResolvedValue(
+      createAsyncIterableStream([{ choices: [{ delta: { content: "ready" } }] }]),
+    );
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create,
+            },
+          },
+        } as never;
+      },
+    );
+
+    const { POST } = await import("@/app/api/chat/route");
+    const response = await POST(
+      createRequest({
+        messages: [{ sender: "user", content: "Refine the memo" }],
         artifact: {
-          id: "artifact-validation-scorecard",
-          type: "validation-scorecard",
-          label: "Validation scorecard",
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          label: "Customer research memo",
         },
         isRefineMode: true,
       }),
@@ -388,10 +442,27 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(200);
     expect(buildSystemPromptMock).toHaveBeenCalledWith("", undefined, "", {
-      id: "artifact-validation-scorecard",
-      type: "validation-scorecard",
-      label: "Validation scorecard",
-      isRefineMode: true,
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+      label: "Customer research memo",
+      status: "completed",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: {
+        id: "legacy-artifact-revision",
+        number: 1,
+        createdAt: "",
+        status: "completed",
+      },
+      evidenceSnapshot: {
+        artifactType: "customer-research-memo",
+        researchStatus: "success",
+        keyFindings: [],
+        contradictions: [],
+        unansweredQuestions: [],
+        sourceCount: 0,
+        sectionCount: 0,
+      },
     });
   });
 });

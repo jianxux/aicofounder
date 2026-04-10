@@ -218,6 +218,47 @@ export type CustomerResearchMemoArtifact = {
 
 export type ProjectArtifact = ValidationScorecardArtifact | CustomerResearchMemoArtifact;
 
+export type WorkspaceArtifactChatMode = "create" | "artifact-follow-up";
+
+export type ValidationScorecardEvidenceSnapshot = {
+  artifactType: "validation-scorecard";
+  summary?: string;
+  criteriaCount: number;
+  scoredCriteriaCount: number;
+  criteria: Array<{
+    label: string;
+    score?: number;
+    notes?: string;
+  }>;
+};
+
+export type CustomerResearchMemoEvidenceSnapshot = {
+  artifactType: "customer-research-memo";
+  researchStatus: ProjectResearch["status"] | "empty";
+  artifactStatus?: ProjectArtifactStatus;
+  executiveSummary?: string;
+  keyFindings: string[];
+  contradictions: string[];
+  unansweredQuestions: string[];
+  sourceCount: number;
+  sectionCount: number;
+};
+
+export type ArtifactEvidenceSnapshot =
+  | ValidationScorecardEvidenceSnapshot
+  | CustomerResearchMemoEvidenceSnapshot;
+
+export type ArtifactContextPayload = {
+  id: string;
+  type: ProjectArtifactType;
+  label: string;
+  status: ProjectArtifactStatus;
+  mode: WorkspaceArtifactChatMode;
+  hasMeaningfulOutput: boolean;
+  revision: ArtifactRevisionMetadata;
+  evidenceSnapshot: ArtifactEvidenceSnapshot;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -819,10 +860,13 @@ export const isValidationScorecardArtifactRevision = (value: unknown): value is 
     return false;
   }
 
+  const summary = "summary" in value ? value.summary : undefined;
+  const criteria = value.criteria;
+
   return (
     isArtifactRevisionMetadata(value) &&
-    (value.summary === undefined || typeof value.summary === "string") &&
-    value.criteria.every(isValidationScorecardCriterion)
+    (summary === undefined || typeof summary === "string") &&
+    criteria.every(isValidationScorecardCriterion)
   );
 };
 
@@ -831,7 +875,9 @@ export const isCustomerResearchMemoArtifactRevision = (value: unknown): value is
     return false;
   }
 
-  return isArtifactRevisionMetadata(value) && (value.research === null || isProjectResearch(value.research));
+  const research = "research" in value ? value.research : undefined;
+
+  return isArtifactRevisionMetadata(value) && (research === null || isProjectResearch(research));
 };
 
 function hasValidCurrentRevisionFields(value: Record<string, unknown>) {
@@ -1093,7 +1139,9 @@ export function normalizeProject(value: Project): Project {
     normalizeValidationScorecardArtifact(existingArtifacts.get("validation-scorecard"), value.updatedAt),
     normalizeCustomerResearchMemoArtifact(value.research ?? null, existingArtifacts.get("customer-research-memo"), value.updatedAt),
   ];
-  const research = value.research ?? getProjectArtifactByType({ artifacts }, "customer-research-memo")?.research ?? null;
+  const memoArtifact = getProjectArtifactByType({ artifacts }, "customer-research-memo");
+  const memoResearch = isCustomerResearchMemoArtifact(memoArtifact) ? memoArtifact.research : null;
+  const research = value.research ?? memoResearch ?? null;
   const activeArtifactId = artifacts.some((artifact) => artifact.id === value.activeArtifactId)
     ? value.activeArtifactId
     : research

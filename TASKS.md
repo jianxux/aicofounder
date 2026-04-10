@@ -78,7 +78,7 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] P0: Define attachment constraints and privacy/storage rules before introducing file uploads into first-run intake
 - [x] P0: After first output, route users into structured artifact refinement fields while preserving a freeform chat fallback
 - [x] P1: Give generated artifacts stable IDs, persisted status, and revision history so follow-up prompts edit the same object by default
-- [ ] P1: Add artifact-context follow-up mode so users can ask questions about a specific report/plan without losing grounding in that artifact
+- [x] P1: Add artifact-context follow-up mode so users can ask questions about a specific report/plan without losing grounding in that artifact
 - [ ] P1: Define the minimum shared project-state primitives needed to support 2 synchronized views for one artifact family
 - [ ] P1: Implement the first synchronized dual-view flow for one artifact family only, starting with competitor memo <-> scorecard or research memo <-> canvas map
 - [ ] P1: Promote reusable project facts from artifacts into explicit memory fields such as ICP, constraints, hypotheses, experiments, and validated findings

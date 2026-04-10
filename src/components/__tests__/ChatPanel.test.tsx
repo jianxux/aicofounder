@@ -67,6 +67,7 @@ type RenderOptions = {
   activeArtifactLabel?: string;
   activeArtifactType?: "validation-scorecard" | "customer-research-memo";
   activeArtifactHasOutput?: boolean;
+  activeArtifactChatMode?: "create" | "artifact-follow-up";
 };
 
 const renderChatPanel = ({
@@ -77,6 +78,7 @@ const renderChatPanel = ({
   activeArtifactLabel = "Validation scorecard",
   activeArtifactType = "validation-scorecard",
   activeArtifactHasOutput = false,
+  activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create",
 }: RenderOptions = {}) => {
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
@@ -93,6 +95,7 @@ const renderChatPanel = ({
       activeArtifactLabel={activeArtifactLabel}
       activeArtifactType={activeArtifactType}
       activeArtifactHasOutput={activeArtifactHasOutput}
+      activeArtifactChatMode={activeArtifactChatMode}
       onSendMessage={onSendMessage}
       isLoading={isLoading}
       onRemind={onRemind}
@@ -128,7 +131,7 @@ describe("ChatPanel", () => {
         activeArtifactType: "customer-research-memo",
       });
 
-      expect(screen.getByText("Update the customer research memo")).toBeInTheDocument();
+      expect(screen.getByText("Build the customer research memo")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Update memo" })).toBeInTheDocument();
       expect(
         screen.getByPlaceholderText("Add findings, contradictions, or next questions for the customer research memo..."),
@@ -209,7 +212,9 @@ describe("ChatPanel", () => {
       expect(screen.getByRole("form", { name: "Structured refinement" })).toBeInTheDocument();
       expect(screen.getByLabelText("Strongest signal")).toBeInTheDocument();
       expect(screen.getByLabelText("Biggest risk")).toBeInTheDocument();
-      expect(screen.getAllByText("Refine mode")).toHaveLength(2);
+      expect(screen.getByText("Ask about the validation scorecard")).toBeInTheDocument();
+      expect(screen.getByText("Artifact follow-up")).toBeInTheDocument();
+      expect(screen.getByText("Freeform chat is grounded in the active artifact and its latest revision.")).toBeInTheDocument();
       expect(screen.getByRole("form", { name: "Freeform chat" })).toBeInTheDocument();
     });
 
@@ -223,7 +228,7 @@ describe("ChatPanel", () => {
       expect(screen.getByRole("form", { name: "Structured refinement" })).toBeInTheDocument();
       expect(screen.getByLabelText("Contradiction to resolve")).toBeInTheDocument();
       expect(screen.getByLabelText("Missing evidence")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Update memo" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ask about memo" })).toBeInTheDocument();
     });
   });
 
@@ -303,9 +308,9 @@ describe("ChatPanel", () => {
       renderChatPanel({ isLoading: true, activeArtifactHasOutput: true });
 
       expect(
-        screen.getByPlaceholderText("Add evidence, scores, or next validation checks for the scorecard..."),
+        screen.getByPlaceholderText("Ask about this scorecard, challenge a score, or request the next validation step..."),
       ).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Update scorecard" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Ask about scorecard" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Submit structured refinement" })).toBeDisabled();
       expect(screen.getByLabelText("Strongest signal")).toBeDisabled();
       expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
@@ -447,6 +452,7 @@ describe("ChatPanel", () => {
           activeArtifactLabel="Validation scorecard"
           activeArtifactType="validation-scorecard"
           activeArtifactHasOutput={true}
+          activeArtifactChatMode="artifact-follow-up"
           onSendMessage={onSendMessage}
           isLoading={false}
           onRemind={onRemind}
@@ -469,6 +475,7 @@ describe("ChatPanel", () => {
           activeArtifactLabel="Customer research memo"
           activeArtifactType="customer-research-memo"
           activeArtifactHasOutput={true}
+          activeArtifactChatMode="artifact-follow-up"
           onSendMessage={onSendMessage}
           isLoading={false}
           onRemind={onRemind}
@@ -490,6 +497,7 @@ describe("ChatPanel", () => {
           activeArtifactLabel="Validation scorecard"
           activeArtifactType="validation-scorecard"
           activeArtifactHasOutput={true}
+          activeArtifactChatMode="artifact-follow-up"
           onSendMessage={onSendMessage}
           isLoading={false}
           onRemind={onRemind}

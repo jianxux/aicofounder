@@ -53,6 +53,7 @@ vi.mock("@/components/ChatPanel", () => ({
     activeArtifactLabel,
     activeArtifactType,
     activeArtifactHasOutput,
+    activeArtifactChatMode,
     onSendMessage,
     onRemind,
     onBrainstorm,
@@ -64,6 +65,7 @@ vi.mock("@/components/ChatPanel", () => ({
     activeArtifactLabel: string;
     activeArtifactType: "validation-scorecard" | "customer-research-memo";
     activeArtifactHasOutput: boolean;
+    activeArtifactChatMode: "create" | "artifact-follow-up";
     onSendMessage?: (content: string) => void;
     onRemind?: () => void;
     onBrainstorm?: () => void;
@@ -71,37 +73,60 @@ vi.mock("@/components/ChatPanel", () => ({
     onUltraplan?: () => void;
     onToggleTask?: (phaseId: string, taskId: string) => void;
     onSetActivePhase?: (phaseId: string) => void;
-  }) => (
-    <div data-testid="chat-panel">
-      <div data-testid="chat-artifact-label">{activeArtifactLabel}</div>
-      <div data-testid="chat-artifact-type">{activeArtifactType}</div>
-      <div data-testid="chat-artifact-mode">{activeArtifactHasOutput ? "refine" : "create"}</div>
-      <button type="button" onClick={() => onSendMessage?.("Tell me more about demand.")}>
-        Send chat
-      </button>
-      <button type="button" onClick={onRemind}>
-        Remind
-      </button>
-      <button type="button" onClick={onBrainstorm}>
-        Trigger brainstorm
-      </button>
-      <button type="button" onClick={onResearch}>
-        Trigger research
-      </button>
-      <button type="button" onClick={onUltraplan}>
-        Trigger ultraplan
-      </button>
-      <button type="button" onClick={() => onToggleTask?.("discovery", "task-1")}>
-        Toggle first task
-      </button>
-      <button type="button" onClick={() => onSetActivePhase?.("build")}>
-        Activate build phase
-      </button>
-      <button type="button" onClick={() => onSetActivePhase?.("missing")}>
-        Activate missing phase
-      </button>
-    </div>
-  ),
+  }) => {
+    const isFollowUpMode = activeArtifactChatMode === "artifact-follow-up";
+    const headerTitle =
+      activeArtifactType === "customer-research-memo"
+        ? isFollowUpMode
+          ? "Ask about the customer research memo"
+          : "Build the customer research memo"
+        : isFollowUpMode
+          ? "Ask about the validation scorecard"
+          : "Build the validation scorecard";
+    const headerCopy =
+      activeArtifactType === "customer-research-memo"
+        ? isFollowUpMode
+          ? "Freeform chat now stays grounded in the active memo revision so you can ask about findings, contradictions, and the next evidence to gather."
+          : "Use chat to capture findings, pressure-test assumptions, and build the first grounded customer research memo."
+        : isFollowUpMode
+          ? "Freeform chat now stays grounded in the active scorecard revision so you can question evidence, challenge scores, and sharpen the next validation move."
+          : "Use chat to define evidence, scores, and open questions so the validation scorecard stays decision-ready.";
+
+    return (
+      <div data-testid="chat-panel">
+        <div data-testid="chat-artifact-label">{activeArtifactLabel}</div>
+        <div data-testid="chat-artifact-type">{activeArtifactType}</div>
+        <div data-testid="chat-artifact-mode">{activeArtifactHasOutput ? "refine" : "create"}</div>
+        <div data-testid="chat-artifact-chat-mode">{activeArtifactChatMode}</div>
+        <div>{headerTitle}</div>
+        <div>{headerCopy}</div>
+        <button type="button" onClick={() => onSendMessage?.("Tell me more about demand.")}>
+          Send chat
+        </button>
+        <button type="button" onClick={onRemind}>
+          Remind
+        </button>
+        <button type="button" onClick={onBrainstorm}>
+          Trigger brainstorm
+        </button>
+        <button type="button" onClick={onResearch}>
+          Trigger research
+        </button>
+        <button type="button" onClick={onUltraplan}>
+          Trigger ultraplan
+        </button>
+        <button type="button" onClick={() => onToggleTask?.("discovery", "task-1")}>
+          Toggle first task
+        </button>
+        <button type="button" onClick={() => onSetActivePhase?.("build")}>
+          Activate build phase
+        </button>
+        <button type="button" onClick={() => onSetActivePhase?.("missing")}>
+          Activate missing phase
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("@/components/Canvas", () => ({
@@ -338,6 +363,7 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByText("Active artifact")[0]).toBeInTheDocument();
     expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Customer research memo");
     expect(screen.getAllByTestId("chat-artifact-type")[0]).toHaveTextContent("customer-research-memo");
+    expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("artifact-follow-up");
   });
 
   it("runs research from the latest user message and persists the result", async () => {
@@ -643,6 +669,7 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByText("Problem urgency")[0]).toBeInTheDocument();
     expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Validation scorecard");
     expect(screen.getAllByTestId("chat-artifact-type")[0]).toHaveTextContent("validation-scorecard");
+    expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("create");
     expect(mockSaveProject).toHaveBeenLastCalledWith(
       expect.objectContaining({
         activeArtifactId: "artifact-validation-scorecard",
@@ -740,10 +767,25 @@ describe("ProjectWorkspacePage", () => {
         ]),
         phase: "discovery",
         projectName: "Launchpad",
-        artifact: {
+        artifactContext: {
           id: "artifact-validation-scorecard",
           type: "validation-scorecard",
           label: "Validation scorecard",
+          status: "draft",
+          mode: "create",
+          hasMeaningfulOutput: false,
+          revision: {
+            id: expect.any(String),
+            number: 1,
+            createdAt: expect.any(String),
+            status: "draft",
+          },
+          evidenceSnapshot: {
+            artifactType: "validation-scorecard",
+            criteriaCount: 0,
+            scoredCriteriaCount: 0,
+            criteria: [],
+          },
         },
         isRefineMode: false,
       }),
@@ -841,6 +883,128 @@ describe("ProjectWorkspacePage", () => {
           source: "chat",
         }),
       );
+    });
+  });
+
+  it("sends grounded follow-up context for an existing customer research memo after switching artifacts", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        research: {
+          status: "success",
+          researchQuestion: "What are the key opportunities and risks?",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-11T00:00:00.000Z",
+          artifact: {
+            status: "partial",
+          },
+          report: {
+            sections: [{ id: "market", title: "Market", angle: "Demand", findings: "Strong pain", citations: [] }],
+            executiveSummary: "Teams feel heavy workflow pain.",
+            researchQuestion: "What are the key opportunities and risks?",
+            generatedAt: "2025-01-11T00:00:00.000Z",
+            keyFindings: [
+              {
+                id: "finding-1",
+                statement: "Ops teams lose hours on manual follow-up.",
+                citationIds: [],
+                strength: "moderate",
+              },
+            ],
+            contradictions: [
+              {
+                id: "contradiction-1",
+                statement: "Teams want automation but fear mistakes.",
+                citationIds: [],
+              },
+            ],
+            unansweredQuestions: [
+              {
+                id: "question-1",
+                question: "Which persona owns budget?",
+              },
+            ],
+            sources: [
+              {
+                id: "source-1",
+                title: "Source A",
+                canonicalId: "source-a",
+                sourceType: "report",
+                status: "selected",
+                citationIds: [],
+                sectionIds: ["market"],
+                publicationSignal: "official",
+                recencySignal: "recent",
+                accessibilityStatus: "public",
+                claimCount: 1,
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce({
+        done: false,
+        value: new TextEncoder().encode('data: {"content":"Memo follow-up"}\n\ndata: [DONE]\n\n'),
+      })
+      .mockResolvedValueOnce({ done: true, value: undefined });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => ({ read }),
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Customer research memo")[0]).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Customer research memo" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Send chat" })[0]);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/chat",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+    });
+
+    const fetchMock = fetch as unknown as { mock: { calls: Array<[string, { body: string }]> } };
+    const chatRequest = fetchMock.mock.calls.find(([url]) => url === "/api/chat");
+    const chatPayload = JSON.parse(chatRequest?.[1]?.body ?? "{}");
+
+    expect(chatPayload.artifactContext).toEqual({
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+      label: "Customer research memo",
+      status: "partial",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: {
+        id: expect.any(String),
+        number: 1,
+        createdAt: expect.any(String),
+        status: "partial",
+      },
+      evidenceSnapshot: {
+        artifactType: "customer-research-memo",
+        researchStatus: "success",
+        artifactStatus: "partial",
+        executiveSummary: "Teams feel heavy workflow pain.",
+        keyFindings: ["Ops teams lose hours on manual follow-up."],
+        contradictions: ["Teams want automation but fear mistakes."],
+        unansweredQuestions: ["Which persona owns budget?"],
+        sourceCount: 1,
+        sectionCount: 1,
+      },
     });
   });
 
@@ -1105,7 +1269,7 @@ describe("ProjectWorkspacePage", () => {
     await screen.findAllByTestId("chat-panel");
 
     expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("create");
-    expect(screen.getByText("Create mode")).toBeInTheDocument();
+    expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("create");
   });
 
   it("shows refine mode in the workspace header when the active artifact is populated", async () => {
@@ -1137,12 +1301,14 @@ describe("ProjectWorkspacePage", () => {
     await screen.findAllByTestId("chat-panel");
 
     expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("refine");
+    expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("artifact-follow-up");
     expect(screen.getByText("Refine mode")).toBeInTheDocument();
+    expect(screen.getAllByText("Ask about the validation scorecard").length).toBeGreaterThan(0);
     expect(
-      screen.getByText(
-        "The workspace is in refine mode for the validation scorecard. Use structured follow-ups or freeform chat to tighten evidence, scores, and next checks.",
+      screen.getAllByText(
+        "Freeform chat now stays grounded in the active scorecard revision so you can question evidence, challenge scores, and sharpen the next validation move.",
       ),
-    ).toBeInTheDocument();
+    ).toHaveLength(2);
   });
 
   it("persists canvas edits, tracks note events, and toggles the mobile canvas panel", async () => {

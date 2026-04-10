@@ -1,9 +1,19 @@
 import { validateResearchReport, type ResearchReport as ResearchReportData } from "@/lib/research";
-import { isProjectResearchArtifact, type Project, type ProjectResearchArtifact } from "@/lib/types";
+import {
+  isProjectResearchArtifact,
+  type CustomerResearchMemoEvidenceSnapshot,
+  type Project,
+  type ProjectResearch,
+  type ProjectResearchArtifact,
+} from "@/lib/types";
 
 export type ResearchApiSuccess = ResearchReportData & { artifact?: unknown };
 export type ResearchApiFailure = { error?: string; artifact?: unknown };
 export type ResearchApiResponse = ResearchApiSuccess | ResearchApiFailure;
+
+function summarizeList(values: string[] | undefined, limit = 3) {
+  return (values ?? []).map((value) => value.trim()).filter(Boolean).slice(0, limit);
+}
 
 function getResearchReport(value: unknown): ResearchReportData | undefined {
   if (!validateResearchReport(value)) {
@@ -193,5 +203,19 @@ export function resolveProjectResearchResponse(
         : failedRequest
           ? "Failed to run deep research"
           : undefined,
+  };
+}
+
+export function buildResearchMemoEvidenceSnapshot(research: ProjectResearch | null): CustomerResearchMemoEvidenceSnapshot {
+  return {
+    artifactType: "customer-research-memo",
+    researchStatus: research?.status ?? "empty",
+    artifactStatus: research?.artifact?.status,
+    executiveSummary: research?.report?.executiveSummary?.trim() || undefined,
+    keyFindings: summarizeList(research?.report?.keyFindings?.map((item) => item.statement)),
+    contradictions: summarizeList(research?.report?.contradictions?.map((item) => item.statement)),
+    unansweredQuestions: summarizeList(research?.report?.unansweredQuestions?.map((item) => item.question)),
+    sourceCount: research?.report?.sources?.length ?? 0,
+    sectionCount: research?.report?.sections?.length ?? 0,
   };
 }

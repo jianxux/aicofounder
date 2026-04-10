@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyCustomerResearchMemoUpdate, applyValidationScorecardChatUpdate } from "@/lib/project-artifacts";
+import {
+  applyCustomerResearchMemoUpdate,
+  applyValidationScorecardChatUpdate,
+  buildArtifactContextPayload,
+} from "@/lib/project-artifacts";
 import { createDefaultProjectDiagram, normalizeProject, type Project, type ProjectResearch } from "@/lib/types";
 
 function makeProject(overrides: Partial<Project> = {}): Project {
@@ -207,5 +211,84 @@ describe("project-artifacts", () => {
     expect(secondUpdate.changed).toBe(false);
     expect(memo?.revisionHistory).toHaveLength(2);
     expect(memo?.currentRevision.number).toBe(2);
+  });
+
+  it("builds validation scorecard follow-up context from the active artifact", () => {
+    const project = makeProject({
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          summary: "Pain is sharp for operators.",
+          criteria: [
+            { id: "criterion-1", label: "Problem urgency", score: 4, notes: "Interviewees escalate weekly." },
+            { id: "criterion-2", label: "Budget owner", notes: "Still unclear." },
+          ],
+        },
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Customer research memo",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          research: null,
+        },
+      ],
+      activeArtifactId: "artifact-validation-scorecard",
+    });
+
+    expect(buildArtifactContextPayload(project)).toEqual({
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+      label: "Validation scorecard",
+      status: "completed",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: expect.objectContaining({
+        number: 1,
+        status: "completed",
+      }),
+      evidenceSnapshot: {
+        artifactType: "validation-scorecard",
+        summary: "Pain is sharp for operators.",
+        criteriaCount: 2,
+        scoredCriteriaCount: 1,
+        criteria: [
+          { label: "Problem urgency", score: 4, notes: "Interviewees escalate weekly." },
+          { label: "Budget owner", score: undefined, notes: "Still unclear." },
+        ],
+      },
+    });
+  });
+
+  it("builds research memo create context when the memo exists but has no meaningful output", () => {
+    const project = makeProject({
+      activeArtifactId: "artifact-customer-research-memo",
+    });
+
+    expect(buildArtifactContextPayload(project)).toEqual({
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+      label: "Customer research memo",
+      status: "draft",
+      mode: "create",
+      hasMeaningfulOutput: false,
+      revision: expect.objectContaining({
+        number: 1,
+        status: "draft",
+      }),
+      evidenceSnapshot: {
+        artifactType: "customer-research-memo",
+        researchStatus: "empty",
+        artifactStatus: undefined,
+        executiveSummary: undefined,
+        keyFindings: [],
+        contradictions: [],
+        unansweredQuestions: [],
+        sourceCount: 0,
+        sectionCount: 0,
+      },
+    });
   });
 });

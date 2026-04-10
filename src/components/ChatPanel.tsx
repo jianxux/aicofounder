@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
-import { ChatMessage, Phase } from "@/lib/types";
+import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
 
 type ChatPanelProps = {
   messages: ChatMessage[];
@@ -12,6 +12,7 @@ type ChatPanelProps = {
   activeArtifactLabel: string;
   activeArtifactType: "validation-scorecard" | "customer-research-memo";
   activeArtifactHasOutput: boolean;
+  activeArtifactChatMode: WorkspaceArtifactChatMode;
   onSendMessage: (message: string) => void;
   isLoading: boolean;
   onRemind: () => void;
@@ -30,6 +31,7 @@ export default function ChatPanel({
   activeArtifactLabel,
   activeArtifactType,
   activeArtifactHasOutput,
+  activeArtifactChatMode,
   onSendMessage,
   isLoading,
   onRemind,
@@ -48,25 +50,37 @@ export default function ChatPanel({
     [activePhaseId, phases],
   );
   const isResearchMemoActive = activeArtifactType === "customer-research-memo";
+  const isFollowUpMode = activeArtifactChatMode === "artifact-follow-up";
   const isRefineMode = activeArtifactHasOutput;
   const headerTitle = isResearchMemoActive
-    ? isRefineMode
-      ? "Refine the customer research memo"
-      : "Update the customer research memo"
-    : isRefineMode
-      ? "Refine the validation scorecard"
+    ? isFollowUpMode
+      ? "Ask about the customer research memo"
+      : "Build the customer research memo"
+    : isFollowUpMode
+      ? "Ask about the validation scorecard"
       : "Build the validation scorecard";
   const headerCopy = isResearchMemoActive
-    ? isRefineMode
-      ? "Use structured memo follow-ups or freeform chat to resolve contradictions and sharpen the next research move."
-      : "Use chat to refine findings, pressure-test assumptions, and capture the latest customer evidence in this memo."
-    : isRefineMode
-      ? "Use structured scorecard follow-ups or freeform chat to strengthen evidence, scores, and the next validation move."
+    ? isFollowUpMode
+      ? "Freeform chat now stays grounded in the active memo revision so you can ask about findings, contradictions, and the next evidence to gather."
+      : "Use chat to capture findings, pressure-test assumptions, and build the first grounded customer research memo."
+    : isFollowUpMode
+      ? "Freeform chat now stays grounded in the active scorecard revision so you can question evidence, challenge scores, and sharpen the next validation move."
       : "Use chat to define evidence, scores, and open questions so the validation scorecard stays decision-ready.";
   const placeholder = isResearchMemoActive
-    ? "Add findings, contradictions, or next questions for the customer research memo..."
-    : "Add evidence, scores, or next validation checks for the scorecard...";
-  const sendLabel = isResearchMemoActive ? "Update memo" : "Update scorecard";
+    ? isFollowUpMode
+      ? "Ask about this memo, its contradictions, or the next research move..."
+      : "Add findings, contradictions, or next questions for the customer research memo..."
+    : isFollowUpMode
+      ? "Ask about this scorecard, challenge a score, or request the next validation step..."
+      : "Add evidence, scores, or next validation checks for the scorecard...";
+  const sendLabel = isResearchMemoActive
+    ? isFollowUpMode
+      ? "Ask about memo"
+      : "Update memo"
+    : isFollowUpMode
+      ? "Ask about scorecard"
+      : "Update scorecard";
+  const modeLabel = isFollowUpMode ? "Artifact follow-up" : "Create mode";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -93,7 +107,7 @@ export default function ChatPanel({
           </span>
           <span className="text-sm font-medium text-stone-700">{activeArtifactLabel}</span>
           <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
-            {isRefineMode ? "Refine mode" : "Create mode"}
+            {modeLabel}
           </span>
         </div>
         <h2 className="mt-3 text-2xl font-semibold text-stone-900">{headerTitle}</h2>
@@ -139,6 +153,11 @@ export default function ChatPanel({
             isLoading={isLoading}
             onSubmit={onSendMessage}
           />
+        ) : null}
+        {isFollowUpMode ? (
+          <p className="mb-3 text-xs leading-5 text-stone-500">
+            Freeform chat is grounded in the active artifact and its latest revision.
+          </p>
         ) : null}
         <div className="mb-3 flex flex-wrap items-center gap-4">
           <button

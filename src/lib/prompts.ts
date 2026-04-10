@@ -1,7 +1,7 @@
-import type { ProjectArtifactType } from "@/lib/types";
+import type { ArtifactContextPayload } from "@/lib/types";
 
 const BASE_PROMPT_SECTIONS = [
-  "You are an AI cofounder — a sharp, critical thinking partner for building startups.",
+  "You are an AI cofounder - a sharp, critical thinking partner for building startups.",
   "You challenge assumptions ruthlessly but constructively.",
   "You ask Socratic questions to expose weak thinking.",
   "You push for specifics: numbers, timelines, evidence.",
@@ -44,18 +44,11 @@ const PHASE_PROMPTS: Record<string, string[]> = {
   ],
 };
 
-type PromptArtifactContext = {
-  id: string;
-  type: ProjectArtifactType;
-  label: string;
-  isRefineMode?: boolean;
-};
-
 export function buildSystemPrompt(
   phase: string,
   projectName?: string,
   memoryContextBlock?: string,
-  artifactContext?: PromptArtifactContext | null,
+  artifactContext?: ArtifactContextPayload | null,
 ): string {
   const promptSections = [...BASE_PROMPT_SECTIONS];
 
@@ -76,10 +69,11 @@ export function buildSystemPrompt(
 
   if (artifactContext) {
     promptSections.push(
-      artifactContext.isRefineMode
-        ? `The active artifact is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Refine that same artifact by default instead of creating a new one.`
+      artifactContext.mode === "artifact-follow-up"
+        ? `The active artifact follow-up target is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Stay grounded in revision ${artifactContext.revision.number} with status ${artifactContext.revision.status}, and answer questions about this existing artifact instead of starting a generic generation flow.`
         : `The active artifact is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Treat this response as the current artifact being created, not a separate output.`,
     );
+    promptSections.push(`Artifact snapshot: ${JSON.stringify(artifactContext.evidenceSnapshot)}`);
   }
 
   return promptSections.join(" ");

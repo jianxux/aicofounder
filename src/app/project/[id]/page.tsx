@@ -36,7 +36,11 @@ import {
   getProjectArtifactByType,
   normalizeProject,
 } from "@/lib/types";
-import { applyCustomerResearchMemoUpdate, applyValidationScorecardChatUpdate } from "@/lib/project-artifacts";
+import {
+  applyCustomerResearchMemoUpdate,
+  applyValidationScorecardChatUpdate,
+  buildArtifactContextPayload,
+} from "@/lib/project-artifacts";
 
 function createMessage(sender: "user" | "assistant", content: string): ChatMessage {
   return {
@@ -349,6 +353,7 @@ export default function ProjectWorkspacePage() {
   const activeArtifact = useMemo(() => (project ? getActiveProjectArtifact(project) : null), [project]);
   const activeResearchMemo = activeArtifact?.type === "customer-research-memo" ? activeArtifact : null;
   const activeArtifactHasOutput = useMemo(() => isArtifactPopulated(activeArtifact), [activeArtifact]);
+  const activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create";
 
   const handleNameChange = (name: string) => {
     if (!project) {
@@ -396,13 +401,10 @@ export default function ProjectWorkspacePage() {
           messages: nextMessages,
           phase: activePhaseId,
           projectName: currentProject.name,
-          artifact: artifactAtSend
-            ? {
-                id: artifactAtSend.id,
-                type: artifactAtSend.type,
-                label: getArtifactLabel(artifactAtSend),
-              }
-            : null,
+          artifactContext: buildArtifactContextPayload({
+            ...currentProject,
+            activeArtifactId: artifactAtSend?.id ?? currentProject.activeArtifactId,
+          }),
           isRefineMode: artifactWasPopulated,
         }),
         signal: controller.signal,
@@ -1006,6 +1008,7 @@ export default function ProjectWorkspacePage() {
             activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
             activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
             activeArtifactHasOutput={activeArtifactHasOutput}
+            activeArtifactChatMode={activeArtifactChatMode}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
             onRemind={handleRemind}
@@ -1061,6 +1064,7 @@ export default function ProjectWorkspacePage() {
               activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
               activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
               activeArtifactHasOutput={activeArtifactHasOutput}
+              activeArtifactChatMode={activeArtifactChatMode}
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
               onRemind={handleRemind}

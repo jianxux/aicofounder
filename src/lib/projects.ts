@@ -90,7 +90,10 @@ function repairStoredProject(value: unknown): Project | null {
     return null;
   }
 
-  const repairedValue = { ...value, diagram: createDefaultProjectDiagram() };
+  const repairedValue: Record<string, unknown> & { diagram: Project["diagram"] } = {
+    ...(value as Record<string, unknown>),
+    diagram: createDefaultProjectDiagram(),
+  };
 
   if (isProject(repairedValue)) {
     return normalizeProject(repairedValue);

@@ -4,7 +4,7 @@ import type { MemoryEntry, MemorySummary } from "@/lib/agent-memory";
 import { validateEnv } from "@/lib/env";
 import { buildPromptMemory } from "@/lib/prompt-memory";
 import { buildSystemPrompt } from "@/lib/prompts";
-import type { ProjectArtifactType } from "@/lib/types";
+import type { ArtifactContextPayload, ProjectArtifactType } from "@/lib/types";
 
 type RequestMessage = {
   sender: "user" | "assistant";
@@ -22,6 +22,7 @@ type ChatRequestBody = {
     type: ProjectArtifactType;
     label: string;
   } | null;
+  artifactContext?: ArtifactContextPayload | null;
   isRefineMode?: boolean;
 };
 
@@ -53,8 +54,16 @@ type StreamingOpenAIClient = {
 
 export async function POST(request: Request) {
   try {
-    const { messages, phase = "", projectName, memoryEntries, memorySummaries, artifact, isRefineMode }: ChatRequestBody =
-      await request.json();
+    const {
+      messages,
+      phase = "",
+      projectName,
+      memoryEntries,
+      memorySummaries,
+      artifact,
+      artifactContext,
+      isRefineMode,
+    }: ChatRequestBody = await request.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: "Messages are required" }, { status: 400 });
@@ -73,10 +82,44 @@ export async function POST(request: Request) {
       memorySummaries,
     });
 
+    const normalizedArtifactContext =
+      artifactContext ??
+      (artifact
+        ? {
+            ...artifact,
+            status: isRefineMode ? "completed" : "draft",
+            mode: isRefineMode ? "artifact-follow-up" : "create",
+            hasMeaningfulOutput: Boolean(isRefineMode),
+            revision: {
+              id: "legacy-artifact-revision",
+              number: 1,
+              createdAt: "",
+              status: isRefineMode ? "completed" : "draft",
+            },
+            evidenceSnapshot:
+              artifact.type === "customer-research-memo"
+                ? {
+                    artifactType: "customer-research-memo",
+                    researchStatus: isRefineMode ? "success" : "empty",
+                    keyFindings: [],
+                    contradictions: [],
+                    unansweredQuestions: [],
+                    sourceCount: 0,
+                    sectionCount: 0,
+                  }
+                : {
+                    artifactType: "validation-scorecard",
+                    criteriaCount: 0,
+                    scoredCriteriaCount: 0,
+                    criteria: [],
+                  },
+          }
+        : null);
+
     const requestMessages: OpenAIChatMessage[] = [
       {
         role: "system",
-        content: buildSystemPrompt(phase, projectName, promptMemory.block, artifact ? { ...artifact, isRefineMode } : null),
+        content: buildSystemPrompt(phase, projectName, promptMemory.block, normalizedArtifactContext),
       },
       ...messages.slice(-20).map((message) => ({
         role: message.sender === "user" ? ("user" as const) : ("assistant" as const),

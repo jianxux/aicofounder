@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveProjectResearchResponse } from "@/lib/project-research";
+import { buildResearchMemoEvidenceSnapshot, resolveProjectResearchResponse } from "@/lib/project-research";
 import type { ProjectResearch } from "@/lib/types";
 
 const report = {
@@ -670,5 +670,69 @@ describe("resolveProjectResearchResponse", () => {
         rejectionReason: "invalid",
       }),
     ]);
+  });
+});
+
+describe("buildResearchMemoEvidenceSnapshot", () => {
+  it("builds a grounded memo snapshot from the latest research report", () => {
+    const snapshot = buildResearchMemoEvidenceSnapshot({
+      status: "success",
+      researchQuestion: report.researchQuestion,
+      sourceContext: "Saved locally",
+      updatedAt: "2025-01-09T00:00:00.000Z",
+      artifact: {
+        status: "partial",
+      },
+      report: {
+        ...report,
+        keyFindings: [
+          {
+            id: "finding-1",
+            statement: "Teams lose time on manual synthesis.",
+            citationIds: ["c1"],
+            strength: "moderate",
+          },
+        ],
+        contradictions: [
+          {
+            id: "contradiction-1",
+            statement: "Teams want automation but distrust black-box output.",
+            citationIds: ["c1"],
+          },
+        ],
+        unansweredQuestions: [
+          {
+            id: "question-1",
+            question: "Who signs the budget?",
+          },
+        ],
+      },
+    });
+
+    expect(snapshot).toEqual({
+      artifactType: "customer-research-memo",
+      researchStatus: "success",
+      artifactStatus: "partial",
+      executiveSummary: "Stored summary",
+      keyFindings: ["Teams lose time on manual synthesis."],
+      contradictions: ["Teams want automation but distrust black-box output."],
+      unansweredQuestions: ["Who signs the budget?"],
+      sourceCount: 1,
+      sectionCount: 0,
+    });
+  });
+
+  it("returns an empty snapshot when the memo has no meaningful research yet", () => {
+    expect(buildResearchMemoEvidenceSnapshot(null)).toEqual({
+      artifactType: "customer-research-memo",
+      researchStatus: "empty",
+      artifactStatus: undefined,
+      executiveSummary: undefined,
+      keyFindings: [],
+      contradictions: [],
+      unansweredQuestions: [],
+      sourceCount: 0,
+      sectionCount: 0,
+    });
   });
 });

@@ -1,14 +1,17 @@
 import {
+  type ArtifactContextPayload,
   type CustomerResearchMemoArtifact,
   type CustomerResearchMemoArtifactRevision,
   type Project,
   type ProjectArtifactStatus,
   type ProjectResearch,
+  type ValidationScorecardEvidenceSnapshot,
   type ValidationScorecardArtifact,
   type ValidationScorecardArtifactRevision,
   getProjectArtifactByType,
   normalizeProject,
 } from "@/lib/types";
+import { buildResearchMemoEvidenceSnapshot } from "@/lib/project-research";
 
 function createRevisionId(artifactId: string, revisionNumber: number) {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -28,6 +31,26 @@ function validationStatus(summary: string | undefined, criteria: ValidationScore
 
 function stringify(value: unknown) {
   return JSON.stringify(value);
+}
+
+function hasMeaningfulValidationOutput(artifact: ValidationScorecardArtifact) {
+  return Boolean(normalizeText(artifact.summary)) || artifact.criteria.length > 0;
+}
+
+function buildValidationScorecardEvidenceSnapshot(
+  artifact: ValidationScorecardArtifact,
+): ValidationScorecardEvidenceSnapshot {
+  return {
+    artifactType: "validation-scorecard",
+    summary: normalizeText(artifact.summary) || undefined,
+    criteriaCount: artifact.criteria.length,
+    scoredCriteriaCount: artifact.criteria.filter((criterion) => typeof criterion.score === "number").length,
+    criteria: artifact.criteria.slice(0, 3).map((criterion) => ({
+      label: criterion.label,
+      score: criterion.score,
+      notes: normalizeText(criterion.notes) || undefined,
+    })),
+  };
 }
 
 function appendRevisionIfChanged<TArtifact extends ValidationScorecardArtifact | CustomerResearchMemoArtifact, TRevision extends {
@@ -183,5 +206,42 @@ export function applyCustomerResearchMemoUpdate(project: Project, research: Proj
       artifacts: normalizedProject.artifacts?.map((entry) => (entry.id === artifact.id ? nextArtifact : entry)),
       activeArtifactId: artifact.id,
     }),
+  };
+}
+
+export function buildArtifactContextPayload(project: Project): ArtifactContextPayload | null {
+  const normalizedProject = normalizeProject(project);
+  const artifact = normalizedProject.artifacts?.find((entry) => entry.id === normalizedProject.activeArtifactId) ?? null;
+
+  if (!artifact) {
+    return null;
+  }
+
+  if (artifact.type === "validation-scorecard") {
+    const hasMeaningfulOutput = hasMeaningfulValidationOutput(artifact);
+
+    return {
+      id: artifact.id,
+      type: artifact.type,
+      label: artifact.title,
+      status: artifact.status,
+      mode: hasMeaningfulOutput ? "artifact-follow-up" : "create",
+      hasMeaningfulOutput,
+      revision: artifact.currentRevision,
+      evidenceSnapshot: buildValidationScorecardEvidenceSnapshot(artifact),
+    };
+  }
+
+  const hasMeaningfulOutput = Boolean(artifact.research?.report || artifact.research?.artifact);
+
+  return {
+    id: artifact.id,
+    type: artifact.type,
+    label: artifact.title,
+    status: artifact.status,
+    mode: hasMeaningfulOutput ? "artifact-follow-up" : "create",
+    hasMeaningfulOutput,
+    revision: artifact.currentRevision,
+    evidenceSnapshot: buildResearchMemoEvidenceSnapshot(artifact.research),
   };
 }
