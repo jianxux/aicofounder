@@ -272,6 +272,28 @@ vi.mock("@/components/ResearchReport", () => ({
   ),
 }));
 
+vi.mock("@/components/ResearchMemoDualView", () => ({
+  default: ({
+    artifact,
+    status,
+    report,
+    researchArtifact,
+  }: {
+    artifact: { id: string; type: string; sharedState?: { entities?: Array<unknown> } } | null;
+    status: string;
+    report?: { executiveSummary?: string } | null;
+    researchArtifact?: { status?: string };
+  }) => (
+    <div data-testid="research-memo-dual-view">
+      <div data-testid="dual-view-artifact-id">{artifact?.id ?? "none"}</div>
+      <div data-testid="dual-view-status">{status}</div>
+      <div data-testid="dual-view-entity-count">{artifact?.sharedState?.entities?.length ?? 0}</div>
+      {report?.executiveSummary ? <div data-testid="dual-view-summary">{report.executiveSummary}</div> : null}
+      {researchArtifact?.status ? <div data-testid="dual-view-research-artifact-status">{researchArtifact.status}</div> : null}
+    </div>
+  ),
+}));
+
 function makeProject(overrides: Partial<Project> & { artifacts?: unknown } = {}): Project {
   return normalizeProject({
     id: "project-1",
@@ -353,12 +375,11 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("research-status")).toHaveTextContent("success");
+      expect(screen.getAllByTestId("dual-view-status")[0]).toHaveTextContent("success");
     });
 
-    expect(screen.getByTestId("research-question")).toHaveTextContent("What are the key opportunities and risks?");
-    expect(screen.getByTestId("research-context")).toHaveTextContent("Saved locally");
-    expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("completed");
+    expect(screen.getAllByTestId("dual-view-summary")[0]).toHaveTextContent("Stored summary");
+    expect(screen.getAllByTestId("dual-view-research-artifact-status")[0]).toHaveTextContent("completed");
     expect(screen.getAllByText("Customer research memo").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Active artifact")[0]).toBeInTheDocument();
     expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Customer research memo");
@@ -405,7 +426,7 @@ describe("ProjectWorkspacePage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("success");
+      expect(screen.getAllByTestId("dual-view-status")[0]).toHaveTextContent("success");
     });
 
     expect(fetch).toHaveBeenCalledWith(
@@ -511,7 +532,7 @@ describe("ProjectWorkspacePage", () => {
     render(<ProjectWorkspacePage />);
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("success");
+      expect(screen.getAllByTestId("dual-view-status")[0]).toHaveTextContent("success");
     });
 
     fireEvent.click(
@@ -519,7 +540,7 @@ describe("ProjectWorkspacePage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("research-status")[0]).toHaveTextContent("error");
+      expect(screen.getAllByTestId("dual-view-status")[0]).toHaveTextContent("error");
     });
 
     expect(fetch).toHaveBeenCalledWith(
@@ -528,14 +549,8 @@ describe("ProjectWorkspacePage", () => {
         body: expect.stringContaining("Current phase: Discovery. Open tasks: Interview users."),
       }),
     );
-    expect(screen.getAllByTestId("research-error")[0]).toHaveTextContent("Provider timeout");
-    expect(screen.getAllByTestId("research-question")[0]).toHaveTextContent(
-      "What are the key opportunities and risks for the Discovery phase?",
-    );
-    expect(screen.getAllByTestId("research-summary")[0]).toHaveTextContent("Stored summary");
-    expect(screen.getAllByTestId("research-artifact-status")[0]).toHaveTextContent("failed");
-    expect(screen.getAllByTestId("research-attempted-angles")[0]).toHaveTextContent("2");
-    expect(screen.getAllByTestId("research-last-updated")[0]).toHaveTextContent("2025-01-09T00:00:00.000Z");
+    expect(screen.getAllByTestId("dual-view-summary")[0]).toHaveTextContent("Stored summary");
+    expect(screen.getAllByTestId("dual-view-research-artifact-status")[0]).toHaveTextContent("failed");
     const savedProject = mockSaveProject.mock.lastCall?.[0] as Project | undefined;
 
     expect(savedProject).toEqual(
@@ -1008,6 +1023,51 @@ describe("ProjectWorkspacePage", () => {
     });
   });
 
+  it("shows the synchronized dual view when the customer research memo is active", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        activeArtifactId: "artifact-customer-research-memo",
+        research: {
+          status: "success",
+          researchQuestion: "What are the key opportunities and risks?",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-11T00:00:00.000Z",
+          artifact: {
+            status: "partial",
+          },
+          report: {
+            sections: [{ id: "market", title: "Market", angle: "Demand", findings: "Strong pain", citations: [] }],
+            executiveSummary: "Teams feel heavy workflow pain.",
+            researchQuestion: "What are the key opportunities and risks?",
+            generatedAt: "2025-01-11T00:00:00.000Z",
+            keyFindings: [{ id: "finding-1", statement: "Ops teams lose hours.", citationIds: [], strength: "moderate" }],
+          },
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.getAllByTestId("research-memo-dual-view")[0]).toBeInTheDocument();
+    expect(screen.getAllByTestId("dual-view-artifact-id")[0]).toHaveTextContent("artifact-customer-research-memo");
+    expect(screen.getAllByTestId("dual-view-status")[0]).toHaveTextContent("success");
+    expect(screen.getAllByTestId("dual-view-summary")[0]).toHaveTextContent("Teams feel heavy workflow pain.");
+    expect(screen.queryByTestId("research-status")).not.toBeInTheDocument();
+  });
+
+  it("keeps the validation scorecard view unchanged when the research memo is not active", async () => {
+    mockGetProject.mockResolvedValue(makeProject({ activeArtifactId: "artifact-validation-scorecard" }));
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.queryByTestId("research-memo-dual-view")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Validation scorecard").length).toBeGreaterThan(0);
+  });
+
   it("handles chat request failures with an assistant fallback message", async () => {
     mockGetProject.mockResolvedValue(makeProject());
     vi.stubGlobal(
@@ -1325,7 +1385,7 @@ describe("ProjectWorkspacePage", () => {
     const mobileResearchButtons = screen.getAllByRole("button", { name: "Customer research memo" });
     fireEvent.click(mobileResearchButtons[mobileResearchButtons.length - 1]);
 
-    const researchStatuses = await screen.findAllByTestId("research-status");
+    const researchStatuses = await screen.findAllByTestId("dual-view-status");
     expect(researchStatuses[researchStatuses.length - 1]).toHaveTextContent("empty");
 
     const canvases = await screen.findAllByTestId("canvas");

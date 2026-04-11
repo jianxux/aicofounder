@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
-import ResearchReport from "@/components/ResearchReport";
+import ResearchMemoDualView from "@/components/ResearchMemoDualView";
 import UltraplanReport from "@/components/UltraplanReport";
 import { useRealtimeProject } from "@/hooks/useRealtimeProject";
 import {
@@ -1022,14 +1022,15 @@ export default function ProjectWorkspacePage() {
             {activeArtifact?.type === "validation-scorecard" ? (
               <ValidationScorecardPanel artifact={activeArtifact} />
             ) : (
-              <ResearchReport
+              <ResearchMemoDualView
+                artifact={activeResearchMemo}
                 status={getResearchPanelStatus(activeResearchMemo?.research ?? project.research, isResearchLoading)}
                 report={activeResearchMemo?.research?.report ?? project.research?.report ?? null}
                 errorMessage={activeResearchMemo?.research?.errorMessage ?? project.research?.errorMessage}
                 lastUpdatedAt={activeResearchMemo?.research?.updatedAt ?? project.research?.updatedAt}
                 researchQuestion={activeResearchMemo?.research?.researchQuestion ?? project.research?.researchQuestion}
                 sourceContext={activeResearchMemo?.research?.sourceContext ?? project.research?.sourceContext}
-                artifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
+                researchArtifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
                 onRunResearch={handleResearch}
               />
             )}
@@ -1079,14 +1080,15 @@ export default function ProjectWorkspacePage() {
               {activeArtifact?.type === "validation-scorecard" ? (
                 <ValidationScorecardPanel artifact={activeArtifact} />
               ) : (
-                <ResearchReport
+                <ResearchMemoDualView
+                  artifact={activeResearchMemo}
                   status={getResearchPanelStatus(activeResearchMemo?.research ?? project.research, isResearchLoading)}
                   report={activeResearchMemo?.research?.report ?? project.research?.report ?? null}
                   errorMessage={activeResearchMemo?.research?.errorMessage ?? project.research?.errorMessage}
                   lastUpdatedAt={activeResearchMemo?.research?.updatedAt ?? project.research?.updatedAt}
                   researchQuestion={activeResearchMemo?.research?.researchQuestion ?? project.research?.researchQuestion}
                   sourceContext={activeResearchMemo?.research?.sourceContext ?? project.research?.sourceContext}
-                  artifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
+                  researchArtifact={activeResearchMemo?.research?.artifact ?? project.research?.artifact}
                   onRunResearch={handleResearch}
                 />
               )}
