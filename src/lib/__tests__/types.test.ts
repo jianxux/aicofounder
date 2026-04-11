@@ -358,6 +358,18 @@ describe("lib/types guards", () => {
         status: "completed",
       },
       research: researchReport,
+      sharedState: types.deriveResearchMemoSharedState({
+        artifactId: "artifact-customer-research-memo",
+        revision: {
+          id: "artifact-customer-research-memo-revision-1",
+          number: 1,
+          createdAt: "2025-01-03T00:00:00.000Z",
+          status: "completed",
+        },
+        updatedAt: "2025-01-03T00:00:00.000Z",
+        project,
+        research: researchReport,
+      }),
       revisionHistory: [
         {
           id: "artifact-customer-research-memo-revision-1",
@@ -435,6 +447,69 @@ describe("lib/types guards", () => {
       }),
     ]);
     expect(normalized.activeArtifactId).toBe("artifact-customer-research-memo");
+  });
+
+  it("normalizes legacy memo shared state into the current synchronized primitive shape", () => {
+    const legacySharedState = types.deriveResearchMemoSharedState({
+      artifactId: "artifact-customer-research-memo",
+      revision: {
+        id: "artifact-customer-research-memo-revision-1",
+        number: 1,
+        createdAt: "2025-01-03T00:00:00.000Z",
+        status: "completed",
+      },
+      updatedAt: "2025-01-03T00:00:00.000Z",
+      project,
+      research: researchReport,
+    });
+    const { records, entities, ...legacyStateWithoutSharedRecords } = legacySharedState;
+    const legacyEntities = entities.map(({ recordIds, ...entity }) => entity);
+
+    expect(types.isProject({
+      ...project,
+      research: null,
+      artifacts: [
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Legacy memo",
+          updatedAt: "2025-01-03T00:00:00.000Z",
+          status: "completed",
+          research: researchReport,
+          sharedState: {
+            ...legacyStateWithoutSharedRecords,
+            entities: legacyEntities,
+          },
+        },
+      ],
+    })).toBe(true);
+
+    const normalized = types.normalizeProject({
+      ...project,
+      research: null,
+      artifacts: [
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Legacy memo",
+          updatedAt: "2025-01-03T00:00:00.000Z",
+          status: "completed",
+          research: researchReport,
+          sharedState: {
+            ...legacyStateWithoutSharedRecords,
+            entities: legacyEntities,
+          },
+        },
+      ] as unknown as types.ProjectArtifact[],
+    });
+    const memo = types.getProjectArtifactByType(normalized, "customer-research-memo");
+
+    expect(memo?.type).toBe("customer-research-memo");
+    expect(memo?.type === "customer-research-memo" ? memo.sharedState.records.length : 0).toBeGreaterThan(0);
+    expect(memo?.type === "customer-research-memo" ? memo.sharedState.entities[0]?.recordIds : []).toEqual(
+      expect.any(Array),
+    );
+    expect(records.length).toBeGreaterThan(0);
   });
 
   it("normalizes partial persisted artifacts and derives project research from the memo artifact", () => {

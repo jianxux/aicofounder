@@ -1,4 +1,4 @@
-import type { ResearchReport, ResearchRunArtifact, ResearchSource } from "@/lib/research";
+import type { ResearchCitation, ResearchReport, ResearchRunArtifact, ResearchSource } from "@/lib/research";
 
 export type Sender = "user" | "assistant";
 
@@ -193,6 +193,140 @@ export type CustomerResearchMemoArtifactRevision = ArtifactRevisionMetadata & {
   research: ProjectResearch | null;
 };
 
+export type SharedProjectRevisionMetadata<TFamily extends string = string> = {
+  artifactId: string;
+  family: TFamily;
+  revisionId: string;
+  revisionNumber: number;
+  updatedAt: string;
+};
+
+export type SharedProjectFact<TKey extends string = string> = {
+  id: string;
+  key: TKey;
+  label: string;
+  value: string;
+  updatedAt: string;
+};
+
+export type SharedProjectRecord = {
+  id: string;
+  updatedAt: string;
+};
+
+export type SharedProjectEntity<TKind extends string = string> = SharedProjectRecord & {
+  kind: TKind;
+  title: string;
+  content?: string;
+  recordIds: string[];
+};
+
+export type SharedProjectViewLayout = {
+  entityId: string;
+  parentId?: string;
+  order?: number;
+  x?: number;
+  y?: number;
+};
+
+export type SharedProjectViewState<TView extends string = string> = {
+  view: TView;
+  updatedAt: string;
+  layouts: SharedProjectViewLayout[];
+};
+
+export type SharedProjectState<
+  TFamily extends string = string,
+  TFact extends SharedProjectFact = SharedProjectFact,
+  TRecord extends SharedProjectRecord = SharedProjectRecord,
+  TEntity extends SharedProjectEntity = SharedProjectEntity,
+  TView extends SharedProjectViewState = SharedProjectViewState,
+> = SharedProjectRevisionMetadata<TFamily> & {
+  projectFacts: TFact[];
+  records: TRecord[];
+  entities: TEntity[];
+  views: TView[];
+};
+
+export const RESEARCH_MEMO_VIEW_TYPES = ["report", "diagram"] as const;
+
+export type ResearchMemoViewType = (typeof RESEARCH_MEMO_VIEW_TYPES)[number];
+
+export const RESEARCH_MEMO_ENTITY_KINDS = [
+  "summary",
+  "section",
+  "finding",
+  "contradiction",
+  "question",
+  "source",
+  "error",
+] as const;
+
+export type ResearchMemoEntityKind = (typeof RESEARCH_MEMO_ENTITY_KINDS)[number];
+
+export const RESEARCH_MEMO_PROJECT_FACT_KEYS = [
+  "project-name",
+  "project-description",
+  "research-question",
+  "source-context",
+] as const;
+
+export type ResearchMemoProjectFactKey = (typeof RESEARCH_MEMO_PROJECT_FACT_KEYS)[number];
+
+export type ResearchMemoProjectFact = SharedProjectFact<ResearchMemoProjectFactKey>;
+
+export type ResearchMemoSourceReference = SharedProjectRecord & {
+  sourceId: string;
+  title: string;
+  sourceType?: ResearchSource["sourceType"];
+  url?: string;
+  domain?: string;
+  citationIds: string[];
+  sectionIds: string[];
+};
+
+export type ResearchMemoEvidenceReference = SharedProjectRecord & {
+  citationId: string;
+  sourceId?: string;
+  source: string;
+  claim: string;
+  url?: string;
+  sectionIds: string[];
+};
+
+export type ResearchMemoRecord = ResearchMemoSourceReference | ResearchMemoEvidenceReference;
+
+export type ResearchMemoEntity = SharedProjectEntity<ResearchMemoEntityKind> & {
+  kind: ResearchMemoEntityKind;
+  title: string;
+  content?: string;
+  sourceRefIds: string[];
+  evidenceRefIds: string[];
+};
+
+export type ResearchMemoViewLayout = SharedProjectViewLayout;
+
+export type ResearchMemoViewState = SharedProjectViewState<ResearchMemoViewType>;
+
+type ResearchMemoViewLayoutCandidate = ResearchMemoViewLayout & {
+  source?: "default" | "persisted-diagram";
+};
+
+export type ResearchMemoSharedState = SharedProjectState<
+  "customer-research-memo",
+  ResearchMemoProjectFact,
+  ResearchMemoRecord,
+  ResearchMemoEntity,
+  ResearchMemoViewState
+> & {
+  projectFacts: ResearchMemoProjectFact[];
+  records: ResearchMemoRecord[];
+  sourceRefs: ResearchMemoSourceReference[];
+  evidenceRefs: ResearchMemoEvidenceReference[];
+  entities: ResearchMemoEntity[];
+  views: ResearchMemoViewState[];
+};
+
 export type ProjectArtifactBase = {
   id: string;
   title: string;
@@ -214,6 +348,7 @@ export type CustomerResearchMemoArtifact = {
   type: "customer-research-memo";
 } & ProjectArtifactBase & {
   research: ProjectResearch | null;
+  sharedState: ResearchMemoSharedState;
 };
 
 export type ProjectArtifact = ValidationScorecardArtifact | CustomerResearchMemoArtifact;
@@ -287,6 +422,473 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === "nu
 
 function createStableRecordId(prefix: string, fallbackSeed: string) {
   return `${prefix}-${fallbackSeed}`;
+}
+
+function normalizeResearchMemoText(value: string | undefined | null) {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  return normalized || undefined;
+}
+
+function normalizeResearchMemoSourceUrl(value: string | undefined) {
+  const normalized = normalizeResearchMemoText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.origin.toLowerCase()}${pathname}`;
+  } catch {
+    return normalized.toLowerCase();
+  }
+}
+
+function getResearchMemoSourceDomain(url: string | undefined) {
+  const normalized = normalizeResearchMemoText(url);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  try {
+    return new URL(normalized).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function hashResearchMemoSourceKey(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash.toString(36);
+}
+
+function createFallbackResearchMemoSourceKey(citation: ResearchCitation) {
+  const normalizedUrl = normalizeResearchMemoSourceUrl(citation.url);
+  const normalizedSource = normalizeResearchMemoText(citation.source)?.toLowerCase();
+  const normalizedSourceType = citation.sourceType?.toLowerCase();
+  const normalizedPublicationDate = normalizeResearchMemoText(citation.publicationDate)?.toLowerCase();
+
+  if (normalizedUrl) {
+    return `url:${normalizedUrl}`;
+  }
+
+  if (normalizedSource && normalizedSourceType) {
+    return `source:${normalizedSourceType}:${normalizedSource}`;
+  }
+
+  if (normalizedSource && normalizedPublicationDate) {
+    return `source:${normalizedSource}:${normalizedPublicationDate}`;
+  }
+
+  if (normalizedSource) {
+    return `source:${normalizedSource}`;
+  }
+
+  return `citation:${citation.id}`;
+}
+
+function createResearchMemoFact(
+  key: ResearchMemoProjectFactKey,
+  label: string,
+  value: string | undefined,
+  updatedAt: string,
+): ResearchMemoProjectFact | null {
+  const normalizedValue = normalizeResearchMemoText(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return {
+    id: `fact:${key}`,
+    key,
+    label,
+    value: normalizedValue,
+    updatedAt,
+  };
+}
+
+function createResearchMemoEntityId(kind: Exclude<ResearchMemoEntityKind, "summary" | "error">, id: string) {
+  return `research:${kind}:${id}`;
+}
+
+function getResearchMemoDiagramPrefix() {
+  return "branch:research:";
+}
+
+function mergeResearchMemoViewState(
+  view: ResearchMemoViewType,
+  updatedAt: string,
+  entityIds: Set<string>,
+  nextLayouts: ResearchMemoViewLayoutCandidate[],
+  existingView: ResearchMemoViewState | undefined,
+): ResearchMemoViewState {
+  const mergedLayouts = new Map<string, ResearchMemoViewLayout>();
+
+  for (const layout of existingView?.layouts ?? []) {
+    if (entityIds.has(layout.entityId)) {
+      mergedLayouts.set(layout.entityId, layout);
+    }
+  }
+
+  for (const layout of nextLayouts) {
+    const existingLayout = mergedLayouts.get(layout.entityId);
+
+    if (!existingLayout) {
+      mergedLayouts.set(layout.entityId, {
+        entityId: layout.entityId,
+        parentId: layout.parentId,
+        order: layout.order,
+        x: layout.x,
+        y: layout.y,
+      });
+      continue;
+    }
+
+    if (layout.source !== "persisted-diagram") {
+      mergedLayouts.set(layout.entityId, existingLayout);
+      continue;
+    }
+
+    mergedLayouts.set(layout.entityId, {
+      entityId: layout.entityId,
+      parentId: layout.parentId ?? existingLayout.parentId,
+      order: layout.order ?? existingLayout.order,
+      x: layout.x ?? existingLayout.x,
+      y: layout.y ?? existingLayout.y,
+    });
+  }
+
+  return {
+    view,
+    updatedAt,
+    layouts: [...mergedLayouts.values()].sort(
+      (left, right) =>
+        (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER) ||
+        left.entityId.localeCompare(right.entityId),
+    ),
+  };
+}
+
+export function deriveResearchMemoSharedState(input: {
+  artifactId: string;
+  revision: ArtifactRevisionMetadata;
+  updatedAt: string;
+  project: Pick<Project, "name" | "description" | "diagram">;
+  research: ProjectResearch | null;
+  existingState?: ResearchMemoSharedState | null;
+}): ResearchMemoSharedState {
+  const report = input.research?.report;
+  const updatedAt = input.updatedAt;
+  const reportCitations = [
+    ...new Map(
+      (report?.citations ?? report?.sections.flatMap((section) => section.citations) ?? []).map((citation) => [
+        citation.id,
+        citation,
+      ]),
+    ).values(),
+  ];
+  const citationSectionIds = new Map<string, string[]>();
+  report?.sections.forEach((section) => {
+    section.citations.forEach((citation) => {
+      const existingSectionIds = citationSectionIds.get(citation.id) ?? [];
+      citationSectionIds.set(
+        citation.id,
+        existingSectionIds.includes(section.id) ? existingSectionIds : [...existingSectionIds, section.id],
+      );
+    });
+  });
+  const explicitSourceRefs = (report?.sources ?? input.research?.artifact?.sourceInventory?.selected ?? []).map<ResearchMemoSourceReference>((source) => ({
+    id: `research:source:${source.id}`,
+    sourceId: source.id,
+    title: normalizeResearchMemoText(source.title) ?? "Untitled source",
+    sourceType: source.sourceType,
+    url: source.url,
+    domain: source.domain,
+    citationIds: source.citationIds,
+    sectionIds: source.sectionIds,
+    updatedAt,
+  }));
+  const coveredCitationIds = new Set(explicitSourceRefs.flatMap((sourceRef) => sourceRef.citationIds));
+  const fallbackSourceRefs = new Map<string, ResearchMemoSourceReference>();
+
+  reportCitations.forEach((citation) => {
+    if (coveredCitationIds.has(citation.id)) {
+      return;
+    }
+
+    const groupingKey = createFallbackResearchMemoSourceKey(citation);
+    const existingSourceRef = fallbackSourceRefs.get(groupingKey);
+    const sectionIds = citationSectionIds.get(citation.id) ?? [];
+    const title = normalizeResearchMemoText(citation.source) ?? "Untitled source";
+
+    if (existingSourceRef) {
+      existingSourceRef.citationIds = [...existingSourceRef.citationIds, citation.id];
+      existingSourceRef.sectionIds = Array.from(new Set([...existingSourceRef.sectionIds, ...sectionIds]));
+      existingSourceRef.url ??= citation.url;
+      existingSourceRef.domain ??= getResearchMemoSourceDomain(citation.url);
+      existingSourceRef.sourceType ??= citation.sourceType;
+
+      if (existingSourceRef.title === "Untitled source" && title !== "Untitled source") {
+        existingSourceRef.title = title;
+      }
+
+      return;
+    }
+
+    const sourceId = createStableRecordId("research-fallback-source", hashResearchMemoSourceKey(groupingKey));
+    fallbackSourceRefs.set(groupingKey, {
+      id: `research:source:${sourceId}`,
+      sourceId,
+      title,
+      sourceType: citation.sourceType,
+      url: citation.url,
+      domain: getResearchMemoSourceDomain(citation.url),
+      citationIds: [citation.id],
+      sectionIds,
+      updatedAt,
+    });
+  });
+
+  const sourceRefs = [...explicitSourceRefs, ...fallbackSourceRefs.values()];
+  const citationSourceIds = new Map<string, string>();
+  sourceRefs.forEach((sourceRef) => {
+    sourceRef.citationIds.forEach((citationId) => {
+      citationSourceIds.set(citationId, sourceRef.sourceId);
+    });
+  });
+
+  const evidenceRefs = reportCitations.map<ResearchMemoEvidenceReference>((citation) => ({
+    id: `evidence:${citation.id}`,
+    citationId: citation.id,
+    sourceId: citationSourceIds.get(citation.id),
+    source: normalizeResearchMemoText(citation.source) ?? "Unknown source",
+    claim: normalizeResearchMemoText(citation.claim) ?? "",
+    url: citation.url,
+    sectionIds: report?.sections
+      .filter((section) => section.citations.some((sectionCitation) => sectionCitation.id === citation.id))
+      .map((section) => section.id) ?? [],
+    updatedAt,
+  }));
+  const evidenceRefIds = new Set(evidenceRefs.map((evidenceRef) => evidenceRef.id));
+
+  const entities: ResearchMemoEntity[] = [];
+
+  if (input.research?.status === "error") {
+    entities.push({
+      id: "research:error",
+      kind: "error",
+      title: "Research blocked",
+      content: normalizeResearchMemoText(input.research.errorMessage ?? "Research run failed."),
+      recordIds: [],
+      sourceRefIds: [],
+      evidenceRefIds: [],
+      updatedAt,
+    });
+  } else if (report) {
+    const executiveSummary = normalizeResearchMemoText(report.executiveSummary);
+    if (executiveSummary) {
+      entities.push({
+        id: "research:summary",
+        kind: "summary",
+        title: "Executive summary",
+        content: executiveSummary,
+        recordIds: [...sourceRefs.map((sourceRef) => sourceRef.id), ...evidenceRefs.map((evidenceRef) => evidenceRef.id)],
+        sourceRefIds: sourceRefs.map((sourceRef) => sourceRef.id),
+        evidenceRefIds: evidenceRefs.map((evidenceRef) => evidenceRef.id),
+        updatedAt,
+      });
+    }
+
+    report.sections.forEach((section) => {
+      entities.push({
+        id: createResearchMemoEntityId("section", section.id),
+        kind: "section",
+        title: normalizeResearchMemoText(section.title) ?? "Untitled section",
+        content: normalizeResearchMemoText(section.findings),
+        recordIds: [
+          ...sourceRefs.filter((sourceRef) => sourceRef.sectionIds.includes(section.id)).map((sourceRef) => sourceRef.id),
+          ...section.citations.map((citation) => `evidence:${citation.id}`).filter((id) => evidenceRefIds.has(id)),
+        ],
+        sourceRefIds: sourceRefs
+          .filter((sourceRef) => sourceRef.sectionIds.includes(section.id))
+          .map((sourceRef) => sourceRef.id),
+        evidenceRefIds: section.citations
+          .map((citation) => `evidence:${citation.id}`)
+          .filter((id) => evidenceRefIds.has(id)),
+        updatedAt,
+      });
+    });
+
+    (report.keyFindings ?? []).forEach((finding) => {
+      entities.push({
+        id: createResearchMemoEntityId("finding", finding.id),
+        kind: "finding",
+        title: "Key finding",
+        content: normalizeResearchMemoText(finding.statement),
+        recordIds: [
+          ...sourceRefs
+            .filter((sourceRef) => sourceRef.citationIds.some((citationId) => finding.citationIds.includes(citationId)))
+            .map((sourceRef) => sourceRef.id),
+          ...finding.citationIds.map((citationId) => `evidence:${citationId}`).filter((id) => evidenceRefIds.has(id)),
+        ],
+        sourceRefIds: sourceRefs
+          .filter((sourceRef) => sourceRef.citationIds.some((citationId) => finding.citationIds.includes(citationId)))
+          .map((sourceRef) => sourceRef.id),
+        evidenceRefIds: finding.citationIds.map((citationId) => `evidence:${citationId}`).filter((id) => evidenceRefIds.has(id)),
+        updatedAt,
+      });
+    });
+
+    (report.contradictions ?? []).forEach((contradiction) => {
+      entities.push({
+        id: createResearchMemoEntityId("contradiction", contradiction.id),
+        kind: "contradiction",
+        title: "Contradiction",
+        content: normalizeResearchMemoText(contradiction.statement),
+        recordIds: [
+          ...sourceRefs
+            .filter((sourceRef) => sourceRef.citationIds.some((citationId) => contradiction.citationIds.includes(citationId)))
+            .map((sourceRef) => sourceRef.id),
+          ...contradiction.citationIds
+            .map((citationId) => `evidence:${citationId}`)
+            .filter((id) => evidenceRefIds.has(id)),
+        ],
+        sourceRefIds: sourceRefs
+          .filter((sourceRef) => sourceRef.citationIds.some((citationId) => contradiction.citationIds.includes(citationId)))
+          .map((sourceRef) => sourceRef.id),
+        evidenceRefIds: contradiction.citationIds
+          .map((citationId) => `evidence:${citationId}`)
+          .filter((id) => evidenceRefIds.has(id)),
+        updatedAt,
+      });
+    });
+
+    (report.unansweredQuestions ?? []).forEach((question) => {
+      entities.push({
+        id: createResearchMemoEntityId("question", question.id),
+        kind: "question",
+        title: "Open question",
+        content: normalizeResearchMemoText(question.question),
+        recordIds: [
+          ...sourceRefs
+            .filter((sourceRef) => sourceRef.citationIds.some((citationId) => question.citationIds?.includes(citationId)))
+            .map((sourceRef) => sourceRef.id),
+          ...(question.citationIds ?? []).map((citationId) => `evidence:${citationId}`).filter((id) => evidenceRefIds.has(id)),
+        ],
+        sourceRefIds: sourceRefs
+          .filter((sourceRef) => sourceRef.citationIds.some((citationId) => question.citationIds?.includes(citationId)))
+          .map((sourceRef) => sourceRef.id),
+        evidenceRefIds: (question.citationIds ?? [])
+          .map((citationId) => `evidence:${citationId}`)
+          .filter((id) => evidenceRefIds.has(id)),
+        updatedAt,
+      });
+    });
+
+    sourceRefs.forEach((sourceRef) => {
+      entities.push({
+        id: sourceRef.id,
+        kind: "source",
+        title: sourceRef.title,
+        content: normalizeResearchMemoText(sourceRef.domain ?? sourceRef.sourceType),
+        recordIds: [
+          sourceRef.id,
+          ...sourceRef.citationIds.map((citationId) => `evidence:${citationId}`).filter((id) => evidenceRefIds.has(id)),
+        ],
+        sourceRefIds: [sourceRef.id],
+        evidenceRefIds: sourceRef.citationIds
+          .map((citationId) => `evidence:${citationId}`)
+          .filter((id) => evidenceRefIds.has(id)),
+        updatedAt,
+      });
+    });
+  }
+
+  const entityIds = new Set(entities.map((entity) => entity.id));
+  const reportLayouts: ResearchMemoViewLayoutCandidate[] = [];
+  const pushLayout = (entityId: string, order: number) => {
+    if (entityIds.has(entityId)) {
+      reportLayouts.push({ entityId, order });
+    }
+  };
+
+  let reportOrder = 0;
+  pushLayout("research:summary", reportOrder++);
+  (report?.sections ?? []).forEach((section) => pushLayout(createResearchMemoEntityId("section", section.id), reportOrder++));
+  (report?.keyFindings ?? []).forEach((finding) => pushLayout(createResearchMemoEntityId("finding", finding.id), reportOrder++));
+  (report?.contradictions ?? []).forEach((entry) => pushLayout(createResearchMemoEntityId("contradiction", entry.id), reportOrder++));
+  (report?.unansweredQuestions ?? []).forEach((entry) => pushLayout(createResearchMemoEntityId("question", entry.id), reportOrder++));
+  sourceRefs.forEach((sourceRef) => pushLayout(sourceRef.id, reportOrder++));
+  pushLayout("research:error", reportOrder++);
+
+  const diagramEntityIds: string[] = [];
+  if (entityIds.has("research:error")) {
+    diagramEntityIds.push("research:error");
+  } else {
+    if (entityIds.has("research:summary")) {
+      diagramEntityIds.push("research:summary");
+    }
+    const findingIds = (report?.keyFindings ?? [])
+      .slice(0, 3)
+      .map((finding) => createResearchMemoEntityId("finding", finding.id))
+      .filter((entityId) => entityIds.has(entityId));
+    if (findingIds.length > 0) {
+      diagramEntityIds.push(...findingIds);
+    } else {
+      diagramEntityIds.push(
+        ...(report?.sections ?? [])
+          .slice(0, 3)
+          .map((section) => createResearchMemoEntityId("section", section.id))
+          .filter((entityId) => entityIds.has(entityId)),
+      );
+    }
+    diagramEntityIds.push(...sourceRefs.slice(0, 2).map((sourceRef) => sourceRef.id).filter((entityId) => entityIds.has(entityId)));
+  }
+
+  const diagramLayouts = diagramEntityIds.map<ResearchMemoViewLayoutCandidate>((entityId, index) => {
+    const persistedNode = input.project.diagram?.nodes.find(
+      (node) => node.id === `${getResearchMemoDiagramPrefix()}${entityId}`,
+    );
+
+    return {
+      entityId,
+      parentId: persistedNode?.layout?.parentId ?? "branch:research",
+      order: persistedNode?.layout?.order ?? index,
+      x: persistedNode?.x,
+      y: persistedNode?.y,
+      source: persistedNode ? "persisted-diagram" : "default",
+    };
+  });
+
+  return {
+    artifactId: input.artifactId,
+    family: "customer-research-memo",
+    revisionId: input.revision.id,
+    revisionNumber: input.revision.number,
+    updatedAt,
+    projectFacts: [
+      createResearchMemoFact("project-name", "Project name", input.project.name, updatedAt),
+      createResearchMemoFact("project-description", "Project description", input.project.description, updatedAt),
+      createResearchMemoFact("research-question", "Research question", input.research?.researchQuestion, updatedAt),
+      createResearchMemoFact("source-context", "Source context", input.research?.sourceContext, updatedAt),
+    ].filter((fact): fact is ResearchMemoProjectFact => fact !== null),
+    records: [...sourceRefs, ...evidenceRefs],
+    sourceRefs,
+    evidenceRefs,
+    entities,
+    views: [
+      mergeResearchMemoViewState("report", updatedAt, entityIds, reportLayouts, input.existingState?.views.find((view) => view.view === "report")),
+      mergeResearchMemoViewState("diagram", updatedAt, entityIds, diagramLayouts, input.existingState?.views.find((view) => view.view === "diagram")),
+    ],
+  };
 }
 
 function asArtifactRecord(
@@ -880,6 +1482,182 @@ export const isCustomerResearchMemoArtifactRevision = (value: unknown): value is
   return isArtifactRevisionMetadata(value) && (research === null || isProjectResearch(research));
 };
 
+export const isResearchMemoViewType = (value: unknown): value is ResearchMemoViewType =>
+  RESEARCH_MEMO_VIEW_TYPES.includes(value as ResearchMemoViewType);
+
+export const isResearchMemoEntityKind = (value: unknown): value is ResearchMemoEntityKind =>
+  RESEARCH_MEMO_ENTITY_KINDS.includes(value as ResearchMemoEntityKind);
+
+export const isResearchMemoProjectFactKey = (value: unknown): value is ResearchMemoProjectFactKey =>
+  RESEARCH_MEMO_PROJECT_FACT_KEYS.includes(value as ResearchMemoProjectFactKey);
+
+export const isResearchMemoProjectFact = (value: unknown): value is ResearchMemoProjectFact => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isResearchMemoProjectFactKey(value.key) &&
+    typeof value.label === "string" &&
+    typeof value.value === "string" &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+export const isResearchMemoSourceReference = (value: unknown): value is ResearchMemoSourceReference => {
+  if (!isRecord(value) || !Array.isArray(value.citationIds) || !Array.isArray(value.sectionIds)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.sourceId === "string" &&
+    typeof value.title === "string" &&
+    (value.sourceType === undefined || typeof value.sourceType === "string") &&
+    (value.url === undefined || typeof value.url === "string") &&
+    (value.domain === undefined || typeof value.domain === "string") &&
+    value.citationIds.every((entry) => typeof entry === "string") &&
+    value.sectionIds.every((entry) => typeof entry === "string") &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+export const isResearchMemoEvidenceReference = (value: unknown): value is ResearchMemoEvidenceReference => {
+  if (!isRecord(value) || !Array.isArray(value.sectionIds)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.citationId === "string" &&
+    (value.sourceId === undefined || typeof value.sourceId === "string") &&
+    typeof value.source === "string" &&
+    typeof value.claim === "string" &&
+    (value.url === undefined || typeof value.url === "string") &&
+    value.sectionIds.every((entry) => typeof entry === "string") &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+export const isResearchMemoEntity = (value: unknown): value is ResearchMemoEntity => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.recordIds) ||
+    !Array.isArray(value.sourceRefIds) ||
+    !Array.isArray(value.evidenceRefIds)
+  ) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isResearchMemoEntityKind(value.kind) &&
+    typeof value.title === "string" &&
+    (value.content === undefined || typeof value.content === "string") &&
+    value.recordIds.every((entry) => typeof entry === "string") &&
+    value.sourceRefIds.every((entry) => typeof entry === "string") &&
+    value.evidenceRefIds.every((entry) => typeof entry === "string") &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+export const isResearchMemoViewLayout = (value: unknown): value is ResearchMemoViewLayout => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.entityId === "string" &&
+    (value.parentId === undefined || typeof value.parentId === "string") &&
+    (value.order === undefined || isFiniteNumber(value.order)) &&
+    (value.x === undefined || isFiniteNumber(value.x)) &&
+    (value.y === undefined || isFiniteNumber(value.y))
+  );
+};
+
+export const isResearchMemoViewState = (value: unknown): value is ResearchMemoViewState => {
+  if (!isRecord(value) || !Array.isArray(value.layouts)) {
+    return false;
+  }
+
+  return (
+    isResearchMemoViewType(value.view) &&
+    typeof value.updatedAt === "string" &&
+    value.layouts.every(isResearchMemoViewLayout)
+  );
+};
+
+export const isResearchMemoSharedState = (value: unknown): value is ResearchMemoSharedState => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.projectFacts) ||
+    !Array.isArray(value.records) ||
+    !Array.isArray(value.sourceRefs) ||
+    !Array.isArray(value.evidenceRefs) ||
+    !Array.isArray(value.entities) ||
+    !Array.isArray(value.views)
+  ) {
+    return false;
+  }
+
+  return (
+    typeof value.artifactId === "string" &&
+    value.family === "customer-research-memo" &&
+    typeof value.revisionId === "string" &&
+    typeof value.revisionNumber === "number" &&
+    typeof value.updatedAt === "string" &&
+    value.projectFacts.every(isResearchMemoProjectFact) &&
+    value.records.every((entry) => isResearchMemoSourceReference(entry) || isResearchMemoEvidenceReference(entry)) &&
+    value.sourceRefs.every(isResearchMemoSourceReference) &&
+    value.evidenceRefs.every(isResearchMemoEvidenceReference) &&
+    value.entities.every(isResearchMemoEntity) &&
+    value.views.every(isResearchMemoViewState)
+  );
+};
+
+const isLegacyResearchMemoEntity = (value: unknown): value is Omit<ResearchMemoEntity, "recordIds"> => {
+  if (!isRecord(value) || !Array.isArray(value.sourceRefIds) || !Array.isArray(value.evidenceRefIds)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isResearchMemoEntityKind(value.kind) &&
+    typeof value.title === "string" &&
+    (value.content === undefined || typeof value.content === "string") &&
+    value.sourceRefIds.every((entry) => typeof entry === "string") &&
+    value.evidenceRefIds.every((entry) => typeof entry === "string") &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+const isLegacyResearchMemoSharedState = (value: unknown) => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.projectFacts) ||
+    !Array.isArray(value.sourceRefs) ||
+    !Array.isArray(value.evidenceRefs) ||
+    !Array.isArray(value.entities) ||
+    !Array.isArray(value.views)
+  ) {
+    return false;
+  }
+
+  return (
+    typeof value.artifactId === "string" &&
+    value.family === "customer-research-memo" &&
+    typeof value.revisionId === "string" &&
+    typeof value.revisionNumber === "number" &&
+    typeof value.updatedAt === "string" &&
+    value.projectFacts.every(isResearchMemoProjectFact) &&
+    value.sourceRefs.every(isResearchMemoSourceReference) &&
+    value.evidenceRefs.every(isResearchMemoEvidenceReference) &&
+    value.entities.every(isLegacyResearchMemoEntity) &&
+    value.views.every(isResearchMemoViewState)
+  );
+};
+
 function hasValidCurrentRevisionFields(value: Record<string, unknown>) {
   return (
     typeof value.currentRevisionId === "string" &&
@@ -930,7 +1708,10 @@ export const isCustomerResearchMemoArtifact = (value: unknown): value is Custome
       (typeof value.currentRevisionId === "string" &&
         typeof value.currentRevisionNumber === "number" &&
         typeof value.currentRevisionCreatedAt === "string")) &&
-    (value.research === null || isProjectResearch(value.research))
+    (value.research === null || isProjectResearch(value.research)) &&
+    (!("sharedState" in value) ||
+      isResearchMemoSharedState(value.sharedState) ||
+      isLegacyResearchMemoSharedState(value.sharedState))
   );
 };
 
@@ -1093,12 +1874,30 @@ function normalizeCustomerResearchMemoArtifact(
     normalizedRevisionHistory.find((entry) => entry.id === (typeof artifactRecord?.currentRevisionId === "string" ? artifactRecord.currentRevisionId : undefined)) ??
     normalizedRevisionHistory[normalizedRevisionHistory.length - 1] ??
     initialRevision;
+  const updatedAt = memoResearch?.updatedAt ?? (typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt);
+  const sharedState = deriveResearchMemoSharedState({
+    artifactId: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
+    revision: {
+      id: currentRevision.id,
+      number: currentRevision.number,
+      createdAt: currentRevision.createdAt,
+      status: currentRevision.status,
+    },
+    updatedAt,
+    project: {
+      name: "",
+      description: "",
+      diagram: undefined,
+    },
+    research: memoResearch,
+    existingState: isResearchMemoSharedState(artifactRecord?.sharedState) ? artifactRecord.sharedState : artifact?.sharedState,
+  });
 
   return {
     id: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
     type: "customer-research-memo",
     title: typeof artifactRecord?.title === "string" ? artifactRecord.title : "Customer research memo",
-    updatedAt: memoResearch?.updatedAt ?? (typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt),
+    updatedAt,
     status: currentRevision.status,
     currentRevision: {
       id: currentRevision.id,
@@ -1107,6 +1906,7 @@ function normalizeCustomerResearchMemoArtifact(
       status: currentRevision.status,
     },
     research: memoResearch,
+    sharedState,
     revisionHistory: normalizedRevisionHistory,
   };
 }
@@ -1139,14 +1939,35 @@ export function normalizeProject(value: Project): Project {
     normalizeValidationScorecardArtifact(existingArtifacts.get("validation-scorecard"), value.updatedAt),
     normalizeCustomerResearchMemoArtifact(value.research ?? null, existingArtifacts.get("customer-research-memo"), value.updatedAt),
   ];
-  const memoArtifact = getProjectArtifactByType({ artifacts }, "customer-research-memo");
+  const hydratedArtifacts = artifacts.map<ProjectArtifact>((artifact) => {
+    if (artifact.type !== "customer-research-memo") {
+      return artifact;
+    }
+
+    return {
+      ...artifact,
+      sharedState: deriveResearchMemoSharedState({
+        artifactId: artifact.id,
+        revision: artifact.currentRevision,
+        updatedAt: artifact.updatedAt,
+        project: {
+          name: value.name,
+          description: value.description,
+          diagram: value.diagram,
+        },
+        research: artifact.research,
+        existingState: artifact.sharedState,
+      }),
+    };
+  });
+  const memoArtifact = getProjectArtifactByType({ artifacts: hydratedArtifacts }, "customer-research-memo");
   const memoResearch = isCustomerResearchMemoArtifact(memoArtifact) ? memoArtifact.research : null;
   const research = value.research ?? memoResearch ?? null;
-  const activeArtifactId = artifacts.some((artifact) => artifact.id === value.activeArtifactId)
+  const activeArtifactId = hydratedArtifacts.some((artifact) => artifact.id === value.activeArtifactId)
     ? value.activeArtifactId
     : research
-      ? artifacts[1]?.id
-      : artifacts[0]?.id;
+      ? hydratedArtifacts[1]?.id
+      : hydratedArtifacts[0]?.id;
 
   return {
     ...value,
@@ -1154,7 +1975,7 @@ export function normalizeProject(value: Project): Project {
     documents: value.documents ?? [],
     websiteBuilders: value.websiteBuilders ?? [],
     research,
-    artifacts,
+    artifacts: hydratedArtifacts,
     activeArtifactId,
     diagram: value.diagram ?? createDefaultProjectDiagram(),
   };

@@ -1,4 +1,10 @@
 import type { BrainstormResult } from "@/lib/brainstorm";
+import {
+  getProjectArtifactByType,
+  normalizeProject,
+  type ResearchMemoEntity,
+  type ResearchMemoViewLayout,
+} from "@/lib/types";
 import type {
   DiagramDragMetadata,
   DiagramEdge,
@@ -211,68 +217,43 @@ function getWebsiteBuilderItems(project: Project): BranchItem[] {
 }
 
 function getResearchItems(project: Project): BranchItem[] {
-  const research = project.research;
+  const normalizedProject = normalizeProject(project);
+  const artifact = getProjectArtifactByType(normalizedProject, "customer-research-memo");
 
-  if (!research) {
+  if (!artifact || artifact.type !== "customer-research-memo") {
     return [];
   }
 
-  if (research.status === "error") {
-    return [
-      {
-        id: "research:error",
-        label: "Research blocked",
-        content: compactText(research.errorMessage ?? "Research run failed.", 140),
-        kind: "detail",
-      },
-    ];
-  }
+  const entityById = new Map(artifact.sharedState.entities.map((entity) => [entity.id, entity]));
+  const diagramView = artifact.sharedState.views.find((view) => view.view === "diagram");
 
-  const report = research.report;
-
-  if (!report) {
+  if (!diagramView) {
     return [];
   }
 
-  const items: BranchItem[] = [
-    {
-      id: "research:summary",
-      label: "Executive summary",
-      content: compactText(report.executiveSummary, 160),
-      kind: "detail",
-    },
-  ];
+  return diagramView.layouts
+    .slice()
+    .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
+    .map((layout) => getResearchBranchItem(layout, entityById))
+    .filter((item): item is BranchItem => item !== null);
+}
 
-  (report.keyFindings ?? []).slice(0, 3).forEach((finding) => {
-    items.push({
-      id: `research:finding:${finding.id}`,
-      label: "Key finding",
-      content: compactText(finding.statement, 140),
-      kind: "detail",
-    });
-  });
+function getResearchBranchItem(
+  layout: ResearchMemoViewLayout,
+  entityById: Map<string, ResearchMemoEntity>,
+): BranchItem | null {
+  const entity = entityById.get(layout.entityId);
 
-  if (items.length === 1) {
-    report.sections.slice(0, 3).forEach((section) => {
-      items.push({
-        id: `research:section:${section.id}`,
-        label: section.title,
-        content: compactText(section.findings, 140),
-        kind: "detail",
-      });
-    });
+  if (!entity) {
+    return null;
   }
 
-  (report.sources ?? []).slice(0, 2).forEach((source) => {
-    items.push({
-      id: `research:source:${source.id}`,
-      label: source.title,
-      content: compactText(source.domain ?? source.sourceType, 80),
-      kind: "reference",
-    });
-  });
-
-  return items;
+  return {
+    id: entity.id,
+    label: entity.title,
+    content: compactText(entity.content, entity.kind === "source" ? 80 : 160),
+    kind: entity.kind === "source" ? "reference" : "detail",
+  };
 }
 
 function getBrainstormItems(brainstormResult?: BrainstormResult | null): BranchItem[] {
