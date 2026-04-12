@@ -1,7 +1,9 @@
 import type { BrainstormResult } from "@/lib/brainstorm";
 import {
+  getActiveProjectArtifact,
   getProjectArtifactByType,
   normalizeProject,
+  PROJECT_MEMORY_FIELDS,
   type ResearchMemoEntity,
   type ResearchMemoViewLayout,
 } from "@/lib/types";
@@ -10,11 +12,14 @@ import type {
   DiagramEdge,
   DiagramLayoutMetadata,
   DiagramLinkedCanvasItemKind,
+  DiagramNodeLink,
   DiagramNode,
   DiagramNodeShape,
   DiagramNodeSource,
   NoteColor,
   Phase,
+  ProjectMemoryEntry,
+  ProjectMemoryField,
   Project,
   ProjectDiagram,
 } from "@/lib/types";
@@ -38,6 +43,7 @@ type BranchItem = {
   content?: string;
   kind: "detail" | "reference";
   source?: DiagramNodeSource;
+  links?: DiagramNodeLink[];
 };
 
 const ROOT_NODE_ID = "diagram-root";
@@ -100,6 +106,7 @@ function createNode(input: {
   color?: NoteColor;
   shape?: DiagramNodeShape;
   source?: DiagramNodeSource;
+  links?: DiagramNodeLink[];
   parentId?: string;
   order?: number;
 }): DiagramNode {
@@ -113,6 +120,7 @@ function createNode(input: {
     width: input.width,
     height: input.height,
     source: input.source,
+    links: input.links,
     style:
       input.color || input.shape
         ? {
@@ -136,6 +144,27 @@ function createCanvasItemSource(itemKind: DiagramLinkedCanvasItemKind, itemId: s
     itemKind,
     itemId,
   };
+}
+
+function createCanvasItemLink(itemKind: DiagramLinkedCanvasItemKind, itemId: string): DiagramNodeLink {
+  return {
+    type: "canvas_item",
+    itemKind,
+    itemId,
+  };
+}
+
+function normalizeMatchText(value: string | undefined): string | undefined {
+  const normalized = value?.replace(/\s+/g, " ").trim().toLowerCase();
+  return normalized || undefined;
+}
+
+function isForgivingMatch(left: string | undefined, right: string | undefined): boolean {
+  if (!left || !right) {
+    return false;
+  }
+
+  return left === right || left.includes(right) || right.includes(left);
 }
 
 function getPhaseTaskItems(project: Project): BranchItem[] {
@@ -183,6 +212,7 @@ function getNoteItems(project: Project): BranchItem[] {
     content: compactText(note.content, 120),
     kind: "detail",
     source: createCanvasItemSource("note", note.id),
+    links: [createCanvasItemLink("note", note.id)],
   }));
 
   const sectionItems = (project.sections ?? []).slice(0, 3).map<BranchItem>((section) => ({
@@ -191,6 +221,7 @@ function getNoteItems(project: Project): BranchItem[] {
     content: "Canvas section",
     kind: "reference",
     source: createCanvasItemSource("section", section.id),
+    links: [createCanvasItemLink("section", section.id)],
   }));
 
   return [...noteItems, ...sectionItems];
@@ -203,6 +234,7 @@ function getDocumentItems(project: Project): BranchItem[] {
     content: compactText(document.content, 120),
     kind: "detail" as const,
     source: createCanvasItemSource("document", document.id),
+    links: [createCanvasItemLink("document", document.id)],
   }));
 }
 
@@ -213,7 +245,52 @@ function getWebsiteBuilderItems(project: Project): BranchItem[] {
     content: compactText(websiteBuilder.blocks.map((block) => block.heading).join(" • "), 120),
     kind: "detail" as const,
     source: createCanvasItemSource("website_builder", websiteBuilder.id),
+    links: [createCanvasItemLink("website_builder", websiteBuilder.id)],
   }));
+}
+
+function mergeDiagramLinks(...groups: Array<DiagramNodeLink[] | undefined>): DiagramNodeLink[] | undefined {
+  const seen = new Set<string>();
+  const merged: DiagramNodeLink[] = [];
+
+  groups.flat().filter(Boolean).forEach((link) => {
+    const key = JSON.stringify(link);
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    merged.push(link as DiagramNodeLink);
+  });
+
+  return merged.length > 0 ? merged : undefined;
+}
+
+function getProjectMemoryLinksForEntity(
+  entity: ResearchMemoEntity,
+  artifactId: string,
+  memoryEntries: Array<{ field: ProjectMemoryField; entry: ProjectMemoryEntry }>,
+): DiagramNodeLink[] {
+  const normalizedTitle = normalizeMatchText(entity.title);
+  const normalizedContent = normalizeMatchText(entity.content);
+
+  return memoryEntries
+    .filter(({ entry }) => {
+      return (
+        isForgivingMatch(normalizedTitle, normalizeMatchText(entry.label)) ||
+        isForgivingMatch(normalizedTitle, normalizeMatchText(entry.content)) ||
+        isForgivingMatch(normalizedContent, normalizeMatchText(entry.label)) ||
+        isForgivingMatch(normalizedContent, normalizeMatchText(entry.content))
+      );
+    })
+    .map<DiagramNodeLink>(({ field, entry }) => ({
+      type: "project_memory",
+      memoryField: field,
+      memoryEntryId: entry.id,
+      artifactId,
+      artifactType: "customer-research-memo",
+    }));
 }
 
 function getResearchItems(project: Project): BranchItem[] {
@@ -226,6 +303,9 @@ function getResearchItems(project: Project): BranchItem[] {
 
   const entityById = new Map(artifact.sharedState.entities.map((entity) => [entity.id, entity]));
   const diagramView = artifact.sharedState.views.find((view) => view.view === "diagram");
+  const memoryEntries = PROJECT_MEMORY_FIELDS.flatMap((field) =>
+    (normalizedProject.projectMemory?.[field] ?? []).map((entry) => ({ field, entry })),
+  );
 
   if (!diagramView) {
     return [];
@@ -234,13 +314,15 @@ function getResearchItems(project: Project): BranchItem[] {
   return diagramView.layouts
     .slice()
     .sort((left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER))
-    .map((layout) => getResearchBranchItem(layout, entityById))
+    .map((layout) => getResearchBranchItem(layout, entityById, artifact.id, memoryEntries))
     .filter((item): item is BranchItem => item !== null);
 }
 
 function getResearchBranchItem(
   layout: ResearchMemoViewLayout,
   entityById: Map<string, ResearchMemoEntity>,
+  artifactId: string,
+  memoryEntries: Array<{ field: ProjectMemoryField; entry: ProjectMemoryEntry }>,
 ): BranchItem | null {
   const entity = entityById.get(layout.entityId);
 
@@ -253,6 +335,11 @@ function getResearchBranchItem(
     label: entity.title,
     content: compactText(entity.content, entity.kind === "source" ? 80 : 160),
     kind: entity.kind === "source" ? "reference" : "detail",
+    links: mergeDiagramLinks(
+      [{ type: "artifact", artifactId, artifactType: "customer-research-memo" }],
+      [{ type: "research_memo_entity", entityId: entity.id, artifactId, artifactType: "customer-research-memo" }],
+      getProjectMemoryLinksForEntity(entity, artifactId, memoryEntries),
+    ),
   };
 }
 
@@ -326,8 +413,10 @@ function applyPersistedNodePosition(node: DiagramNode, existingDiagram: Project[
 }
 
 export function generateProjectDiagram(project: Project, options: GeneratedDiagramOptions = {}): ProjectDiagram {
+  const normalizedProject = normalizeProject(project);
   const applyExistingPosition = (node: DiagramNode) => applyPersistedNodePosition(node, project.diagram);
   const branchItems = getBranchItems(project, options);
+  const activeArtifact = getActiveProjectArtifact(normalizedProject);
   const nodes: DiagramNode[] = [
     applyExistingPosition(
       createNode({
@@ -342,6 +431,7 @@ export function generateProjectDiagram(project: Project, options: GeneratedDiagr
         color: "yellow",
         shape: "pill",
         source: { type: "generated" },
+        links: activeArtifact ? [{ type: "artifact", artifactId: activeArtifact.id, artifactType: activeArtifact.type }] : undefined,
       }),
     ),
   ];
@@ -394,6 +484,7 @@ export function generateProjectDiagram(project: Project, options: GeneratedDiagr
             color: branch.color,
             shape: item.kind === "reference" ? "circle" : "rounded_rect",
             source: item.source ?? { type: "generated" },
+            links: item.links,
             parentId: branchId,
             order: itemIndex,
           }),

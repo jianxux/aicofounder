@@ -82,6 +82,33 @@ export type DiagramNodeSource =
       itemId: string;
     };
 
+export type DiagramNodeLinkTargetType = "artifact" | "project_memory" | "research_memo_entity" | "canvas_item";
+
+export type DiagramNodeLink =
+  | {
+      type: "artifact";
+      artifactId: string;
+      artifactType?: ProjectArtifactType;
+    }
+  | {
+      type: "project_memory";
+      memoryField: ProjectMemoryField;
+      memoryEntryId: string;
+      artifactId?: string;
+      artifactType?: ProjectArtifactType;
+    }
+  | {
+      type: "research_memo_entity";
+      entityId: string;
+      artifactId?: string;
+      artifactType?: ProjectArtifactType;
+    }
+  | {
+      type: "canvas_item";
+      itemKind: DiagramLinkedCanvasItemKind;
+      itemId: string;
+    };
+
 export type DiagramNode = {
   id: string;
   type: DiagramNodeType;
@@ -92,6 +119,7 @@ export type DiagramNode = {
   width?: number;
   height?: number;
   source?: DiagramNodeSource;
+  links?: DiagramNodeLink[];
   style?: {
     color?: NoteColor;
     shape?: DiagramNodeShape;
@@ -1076,6 +1104,9 @@ export const isDiagramNodeType = (value: unknown): value is DiagramNodeType =>
 export const isDiagramNodeShape = (value: unknown): value is DiagramNodeShape =>
   value === "pill" || value === "rounded_rect" || value === "circle";
 
+export const isDiagramNodeLinkTargetType = (value: unknown): value is DiagramNodeLinkTargetType =>
+  value === "artifact" || value === "project_memory" || value === "research_memo_entity" || value === "canvas_item";
+
 export const isDiagramNodeSource = (value: unknown): value is DiagramNodeSource => {
   if (!isRecord(value)) {
     return false;
@@ -1086,6 +1117,35 @@ export const isDiagramNodeSource = (value: unknown): value is DiagramNodeSource 
   }
 
   return value.type === "canvas_item" && isDiagramLinkedCanvasItemKind(value.itemKind) && typeof value.itemId === "string";
+};
+
+export const isDiagramNodeLink = (value: unknown): value is DiagramNodeLink => {
+  if (!isRecord(value) || !isDiagramNodeLinkTargetType(value.type)) {
+    return false;
+  }
+
+  if (value.type === "artifact") {
+    return typeof value.artifactId === "string" && (value.artifactType === undefined || isProjectArtifactType(value.artifactType));
+  }
+
+  if (value.type === "project_memory") {
+    return (
+      isProjectMemoryField(value.memoryField) &&
+      typeof value.memoryEntryId === "string" &&
+      (value.artifactId === undefined || typeof value.artifactId === "string") &&
+      (value.artifactType === undefined || isProjectArtifactType(value.artifactType))
+    );
+  }
+
+  if (value.type === "research_memo_entity") {
+    return (
+      typeof value.entityId === "string" &&
+      (value.artifactId === undefined || typeof value.artifactId === "string") &&
+      (value.artifactType === undefined || isProjectArtifactType(value.artifactType))
+    );
+  }
+
+  return typeof value.itemId === "string" && isDiagramLinkedCanvasItemKind(value.itemKind);
 };
 
 export const isDiagramNode = (value: unknown): value is DiagramNode => {
@@ -1106,6 +1166,7 @@ export const isDiagramNode = (value: unknown): value is DiagramNode => {
     (value.width === undefined || isFiniteNumber(value.width)) &&
     (value.height === undefined || isFiniteNumber(value.height)) &&
     (value.source === undefined || isDiagramNodeSource(value.source)) &&
+    (value.links === undefined || (Array.isArray(value.links) && value.links.every(isDiagramNodeLink))) &&
     (style === undefined ||
       (isRecord(style) &&
         (style.color === undefined || isNoteColor(style.color)) &&
@@ -1890,6 +1951,55 @@ export function createDefaultProjectDiagram(): ProjectDiagram {
   };
 }
 
+function sanitizeDiagramNode(value: unknown): DiagramNode | null {
+  if (isDiagramNode(value)) {
+    return value;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const sanitizedNode: Record<string, unknown> = { ...value };
+
+  if ("links" in sanitizedNode) {
+    if (sanitizedNode.links === undefined) {
+      delete sanitizedNode.links;
+    } else if (Array.isArray(sanitizedNode.links)) {
+      const sanitizedLinks = sanitizedNode.links.filter(isDiagramNodeLink);
+
+      if (sanitizedLinks.length > 0) {
+        sanitizedNode.links = sanitizedLinks;
+      } else {
+        delete sanitizedNode.links;
+      }
+    } else {
+      delete sanitizedNode.links;
+    }
+  }
+
+  return isDiagramNode(sanitizedNode) ? sanitizedNode : null;
+}
+
+function normalizeProjectDiagram(diagram: Project["diagram"] | undefined): ProjectDiagram {
+  if (!diagram) {
+    return createDefaultProjectDiagram();
+  }
+
+  const sanitizedNodes = Array.isArray(diagram.nodes)
+    ? diagram.nodes
+        .map(sanitizeDiagramNode)
+        .filter((node): node is DiagramNode => node !== null)
+    : [];
+
+  return {
+    nodes: sanitizedNodes,
+    edges: Array.isArray(diagram.edges) ? diagram.edges.filter(isDiagramEdge) : [],
+    layout: isDiagramLayoutMetadata(diagram.layout) ? diagram.layout : createDefaultProjectDiagram().layout,
+    drag: isDiagramDragMetadata(diagram.drag) ? diagram.drag : createDefaultProjectDiagram().drag,
+  };
+}
+
 function normalizeValidationScorecardArtifact(
   existingArtifact: unknown,
   fallbackUpdatedAt: string,
@@ -2168,7 +2278,7 @@ export function normalizeProject(value: Project): Project {
     research,
     artifacts: hydratedArtifacts,
     activeArtifactId,
-    diagram: value.diagram ?? createDefaultProjectDiagram(),
+    diagram: normalizeProjectDiagram(value.diagram),
     projectMemory: deriveProjectMemoryFromArtifacts({
       artifacts: hydratedArtifacts,
       existingMemory: isProjectMemory(value.projectMemory) ? value.projectMemory : undefined,

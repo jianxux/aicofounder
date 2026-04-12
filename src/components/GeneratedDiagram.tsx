@@ -90,6 +90,11 @@ export default function GeneratedDiagram({ diagram, onNodeDragStart = () => unde
           key={node.id}
           data-testid="generated-diagram-node"
           data-diagram-node-id={node.id}
+          data-diagram-node-source={node.source ? JSON.stringify(node.source) : undefined}
+          data-diagram-source-type={node.source?.type}
+          data-diagram-source-item-kind={node.source?.type === "canvas_item" ? node.source.itemKind : undefined}
+          data-diagram-source-item-id={node.source?.type === "canvas_item" ? node.source.itemId : undefined}
+          data-diagram-node-links={node.links?.length ? JSON.stringify(node.links) : undefined}
           onPointerDown={(event) => {
             event.stopPropagation();
             onNodeDragStart(node.id, event);

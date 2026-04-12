@@ -29,6 +29,11 @@ function createDiagram(): ProjectDiagram {
         label: "Detail node",
         x: 380,
         y: 240,
+        source: { type: "canvas_item", itemKind: "document", itemId: "doc-1" },
+        links: [
+          { type: "canvas_item", itemKind: "document", itemId: "doc-1" },
+          { type: "artifact", artifactId: "artifact-customer-research-memo", artifactType: "customer-research-memo" },
+        ],
       },
       {
         id: "reference:1",
@@ -149,5 +154,26 @@ describe("GeneratedDiagram", () => {
     expect(topicNode).toHaveStyle({ width: "320px", minHeight: "120px" });
     expect(branchNode).toHaveStyle({ width: "220px", minHeight: "96px" });
     expect(edge).toHaveAttribute("d", "M 100 120 C 100 204 100 276 100 360");
+  });
+
+  it("renders machine-readable source and link metadata on nodes", () => {
+    render(<GeneratedDiagram diagram={createDiagram()} />);
+
+    const detailNode = screen.getByText("Detail node").closest("[data-diagram-node-id]");
+
+    expect(detailNode).toHaveAttribute(
+      "data-diagram-node-source",
+      JSON.stringify({ type: "canvas_item", itemKind: "document", itemId: "doc-1" }),
+    );
+    expect(detailNode).toHaveAttribute("data-diagram-source-type", "canvas_item");
+    expect(detailNode).toHaveAttribute("data-diagram-source-item-kind", "document");
+    expect(detailNode).toHaveAttribute("data-diagram-source-item-id", "doc-1");
+    expect(detailNode).toHaveAttribute(
+      "data-diagram-node-links",
+      JSON.stringify([
+        { type: "canvas_item", itemKind: "document", itemId: "doc-1" },
+        { type: "artifact", artifactId: "artifact-customer-research-memo", artifactType: "customer-research-memo" },
+      ]),
+    );
   });
 });

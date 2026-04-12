@@ -78,6 +78,13 @@ describe("lib/types guards", () => {
       itemKind: "note",
       itemId: stickyNote.id,
     },
+    links: [
+      {
+        type: "canvas_item",
+        itemKind: "note",
+        itemId: stickyNote.id,
+      },
+    ],
     style: {
       color: "yellow",
       shape: "pill",
@@ -367,6 +374,28 @@ describe("lib/types guards", () => {
   it("accepts a valid PhaseTask and Phase", () => {
     expect(types.isPhaseTask(phaseTask)).toBe(true);
     expect(types.isPhase(phase)).toBe(true);
+  });
+
+  it("accepts diagram node links for artifact, project memory, research entities, and canvas items", () => {
+    expect(types.isDiagramNodeLinkTargetType("artifact")).toBe(true);
+    expect(types.isDiagramNodeLinkTargetType("project_memory")).toBe(true);
+    expect(types.isDiagramNodeLinkTargetType("research_memo_entity")).toBe(true);
+    expect(types.isDiagramNodeLinkTargetType("canvas_item")).toBe(true);
+
+    expect(
+      types.isDiagramNodeLink({ type: "artifact", artifactId: "artifact-research", artifactType: "customer-research-memo" }),
+    ).toBe(true);
+    expect(
+      types.isDiagramNodeLink({
+        type: "project_memory",
+        memoryField: "icp",
+        memoryEntryId: "memory-icp-1",
+        artifactId: "artifact-validation-scorecard",
+      }),
+    ).toBe(true);
+    expect(types.isDiagramNodeLink({ type: "research_memo_entity", entityId: "research:summary" })).toBe(true);
+    expect(types.isDiagramNodeLink({ type: "canvas_item", itemKind: "note", itemId: "note-1" })).toBe(true);
+    expect(types.isDiagramNodeLink({ type: "canvas_item", itemKind: "sticky", itemId: "note-1" })).toBe(false);
   });
 
   it("accepts a valid Project with nested data", () => {
@@ -862,6 +891,94 @@ describe("lib/types guards", () => {
     ]);
     expect(normalized.activeArtifactId).toBe("artifact-validation-scorecard");
     expect(normalized.diagram).toEqual(types.createDefaultProjectDiagram());
+  });
+
+  it("keeps persisted diagram nodes while dropping only malformed links", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      diagram: {
+        ...project.diagram!,
+        nodes: [
+          {
+            ...diagramNode,
+            links: [
+              { type: "canvas_item", itemKind: "note", itemId: stickyNote.id },
+              { type: "canvas_item", itemKind: "sticky", itemId: "bad-link" },
+              { type: "artifact", artifactId: "artifact-customer-research-memo", artifactType: "customer-research-memo" },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(normalized.diagram.nodes).toEqual([
+      {
+        ...diagramNode,
+        links: [
+          { type: "canvas_item", itemKind: "note", itemId: stickyNote.id },
+          { type: "artifact", artifactId: "artifact-customer-research-memo", artifactType: "customer-research-memo" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps persisted diagram nodes when every persisted link is malformed", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      diagram: {
+        ...project.diagram!,
+        nodes: [
+          {
+            ...diagramNode,
+            links: [{ type: "canvas_item", itemKind: "sticky", itemId: "bad-link" }],
+          },
+        ],
+      },
+    });
+
+    expect(normalized.diagram.nodes).toHaveLength(1);
+    expect(normalized.diagram.nodes[0]).toMatchObject({
+      id: diagramNode.id,
+      type: diagramNode.type,
+      label: diagramNode.label,
+      content: diagramNode.content,
+      x: diagramNode.x,
+      y: diagramNode.y,
+      source: diagramNode.source,
+      style: diagramNode.style,
+      layout: diagramNode.layout,
+    });
+    expect(normalized.diagram.nodes[0]).not.toHaveProperty("links");
+  });
+
+  it("normalizes legacy diagram nodes that do not include links", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      diagram: {
+        ...projectDiagram,
+        nodes: [
+          {
+            id: "legacy-diagram-node",
+            type: "detail",
+            label: "Legacy node",
+            x: 10,
+            y: 20,
+            source: { type: "generated" },
+          },
+          ...projectDiagram.nodes,
+        ],
+      },
+    });
+
+    expect(normalized.diagram.nodes.find((node) => node.id === "legacy-diagram-node")).toEqual({
+      id: "legacy-diagram-node",
+      type: "detail",
+      label: "Legacy node",
+      x: 10,
+      y: 20,
+      source: { type: "generated" },
+    });
+    expect(normalized.diagram.nodes.find((node) => node.id === "diagram-node-1")?.links).toEqual(diagramNode.links);
   });
 
   it("normalizes artifacts from research and resolves the active artifact safely", () => {

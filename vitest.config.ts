@@ -1,9 +1,8 @@
 /// <reference types="vitest/config" />
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
 
-const config = defineConfig({
+const config = {
   plugins: [react()],
   resolve: {
     alias: {
@@ -19,6 +18,6 @@ const config = defineConfig({
       provider: "v8",
     },
   },
-});
+};
 
 export default config;

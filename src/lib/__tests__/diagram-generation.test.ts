@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { BrainstormResult } from "@/lib/brainstorm";
 import { generateProjectDiagram } from "@/lib/diagram-generation";
-import type { Project } from "@/lib/types";
+import { normalizeProject, type Project } from "@/lib/types";
 
 function makeProject(overrides: Partial<Project> = {}): Project {
-  return {
+  return normalizeProject({
     id: "project-1",
     name: "Founder Graph",
     description: "Organize startup research, planning, and execution context in one place.",
@@ -96,14 +96,21 @@ function makeProject(overrides: Partial<Project> = {}): Project {
             title: "Demand",
             angle: "Market demand",
             findings: "Founders repeatedly mention scattered notes and decisions.",
-            citations: [],
+            citations: [
+              {
+                id: "citation-1",
+                source: "Indie Hackers thread",
+                claim: "Founders want one place to turn loose research into decisions.",
+                relevance: "high",
+              },
+            ],
           },
         ],
         keyFindings: [
           {
             id: "finding-1",
             statement: "Founders want one place to turn loose research into decisions.",
-            citationIds: [],
+            citationIds: ["citation-1"],
             strength: "moderate",
           },
         ],
@@ -114,8 +121,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
             canonicalId: "indie-hackers-thread",
             sourceType: "community",
             status: "selected",
-            citationIds: [],
-            sectionIds: [],
+            citationIds: ["citation-1"],
+            sectionIds: ["section-demand"],
             domain: "indiehackers.com",
             claimCount: 1,
           },
@@ -123,8 +130,32 @@ function makeProject(overrides: Partial<Project> = {}): Project {
       },
     },
     diagram: undefined,
+    projectMemory: {
+      icp: [],
+      constraints: [],
+      hypotheses: [],
+      experiments: [],
+      validatedFindings: [
+        {
+          id: "memory-finding-1",
+          field: "validatedFindings",
+          label: "Key finding",
+          content: "Founders want one place to turn loose research into decisions.",
+          confidence: "supported",
+          updatedAt: "2025-01-12T00:00:00.000Z",
+          sources: [
+            {
+              artifactId: "artifact-customer-research-memo",
+              artifactType: "customer-research-memo",
+              revisionId: "artifact-revision-customer-research-memo-1",
+              updatedAt: "2025-01-12T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+    },
     ...overrides,
-  };
+  });
 }
 
 const brainstormResult: BrainstormResult = {
@@ -209,6 +240,53 @@ describe("generateProjectDiagram", () => {
       to: "branch:notes:note:note-1",
       type: "parent_child",
     });
+    expect(noteNode?.links).toEqual([{ type: "canvas_item", itemKind: "note", itemId: "note-1" }]);
+  });
+
+  it("adds artifact and research-entity links to research-derived nodes", () => {
+    const project = makeProject({ activeArtifactId: "artifact-customer-research-memo" });
+    const diagram = generateProjectDiagram(project, { brainstormResult });
+    const root = diagram.nodes.find((node) => node.id === "diagram-root");
+    const researchNode = diagram.nodes.find((node) => node.id === "branch:research:research:summary");
+    const findingNode = diagram.nodes.find((node) => node.id === "branch:research:research:finding:finding-1");
+
+    expect(root?.links).toContainEqual({
+      type: "artifact",
+      artifactId: "artifact-customer-research-memo",
+      artifactType: "customer-research-memo",
+    });
+    expect(researchNode?.links).toContainEqual({
+      type: "artifact",
+      artifactId: "artifact-customer-research-memo",
+      artifactType: "customer-research-memo",
+    });
+    expect(researchNode?.links).toContainEqual({
+      type: "research_memo_entity",
+      entityId: "research:summary",
+      artifactId: "artifact-customer-research-memo",
+      artifactType: "customer-research-memo",
+    });
+    expect(findingNode?.links).toEqual(
+      expect.arrayContaining([
+        {
+          type: "artifact",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        },
+        {
+          type: "research_memo_entity",
+          entityId: "research:finding:finding-1",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        },
+        expect.objectContaining({
+          type: "project_memory",
+          memoryField: "validatedFindings",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        }),
+      ]),
+    );
   });
 
   it("handles research errors", () => {
@@ -582,7 +660,7 @@ describe("generateProjectDiagram", () => {
     const persistedDiagram = {
       ...generated,
       nodes: generated.nodes.map((node) =>
-        node.id === "branch:research"
+        node.id === "branch:research:research:finding:finding-1"
           ? {
               ...node,
               x: 760,
@@ -600,11 +678,35 @@ describe("generateProjectDiagram", () => {
       { brainstormResult },
     );
 
-    expect(regenerated.nodes.find((node) => node.id === "branch:research")).toMatchObject({
-      label: "Research",
+    expect(regenerated.nodes.find((node) => node.id === "branch:research:research:finding:finding-1")).toMatchObject({
+      label: "Key finding",
       x: 760,
       y: 1180,
     });
+    expect(regenerated.nodes.find((node) => node.id === "branch:research:research:finding:finding-1")?.links).toEqual(
+      expect.arrayContaining([
+        {
+          type: "artifact",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        },
+        {
+          type: "research_memo_entity",
+          entityId: "research:finding:finding-1",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        },
+        expect.objectContaining({
+          type: "project_memory",
+          memoryField: "validatedFindings",
+          artifactId: "artifact-customer-research-memo",
+          artifactType: "customer-research-memo",
+        }),
+      ]),
+    );
+    expect(regenerated.nodes.find((node) => node.id === "branch:notes:note:note-1")?.links).toEqual([
+      { type: "canvas_item", itemKind: "note", itemId: "note-1" },
+    ]);
     expect(regenerated.nodes.find((node) => node.id === "diagram-root")?.content).toBe(
       "Updated description after saving a dragged diagram position.",
     );
