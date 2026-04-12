@@ -15,11 +15,12 @@ type OnboardingModalProps = {
   open: boolean;
   onComplete: (intake: OnboardingIntake) => void;
   onSkip: () => void;
+  initialIntake?: Partial<OnboardingIntake>;
 };
 
 const TOTAL_STEPS = 3;
 
-export default function OnboardingModal({ open, onComplete, onSkip }: OnboardingModalProps) {
+export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
   const [url, setUrl] = useState("");
@@ -31,6 +32,16 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
 
   useEffect(() => {
+    if (open) {
+      const nextPrimaryIdea = initialIntake?.primaryIdea?.trim() ?? "";
+      setStep(nextPrimaryIdea ? 2 : 1);
+      setPrimaryIdea(nextPrimaryIdea);
+      setUrl(initialIntake?.url?.trim() ?? "");
+      setTargetUser(initialIntake?.targetUser?.trim() ?? "");
+      setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      return;
+    }
+
     if (!open) {
       setStep(1);
       setPrimaryIdea("");
@@ -38,7 +49,7 @@ export default function OnboardingModal({ open, onComplete, onSkip }: Onboarding
       setTargetUser("");
       setMainUncertainty("");
     }
-  }, [open]);
+  }, [initialIntake, open]);
 
   if (!open) {
     return null;
