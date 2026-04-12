@@ -85,6 +85,25 @@ describe("LandingPage", () => {
     });
   });
 
+  it("renders a founder FAQ section with four concise pre-sign-in questions", () => {
+    render(<LandingPage />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Founder questions, answered before you sign in/i,
+      }),
+    ).toBeInTheDocument();
+
+    [
+      /What do I get from the first session\?/i,
+      /Do I need a polished brief before I start\?/i,
+      /What happens after I sign in\?/i,
+      /Are my uploaded notes private\?/i,
+    ].forEach((question) => {
+      expect(screen.getByText(question)).toBeInTheDocument();
+    });
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
