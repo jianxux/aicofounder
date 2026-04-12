@@ -30,49 +30,30 @@ describe("LandingPage", () => {
     });
   });
 
-  it("renders the hero heading", () => {
+  it("renders the premium hero heading and supporting copy", () => {
     render(<LandingPage />);
 
-    expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Build the startup story/i })).toBeInTheDocument();
+    expect(screen.getByText(/Premium AI product strategy for founders/i)).toBeInTheDocument();
+    expect(screen.getByText(/validate demand, sharpen positioning/i)).toBeInTheDocument();
   });
 
-  it("renders all 6 feature cards", () => {
+  it("renders trust metrics and conversion proof sections", () => {
     render(<LandingPage />);
 
-    const featureTitles = [
-      "Deep research",
-      "Visual canvas",
-      "Intelligent and critical",
-      "Secure & private",
-      "Structured phases",
-      "For every founder",
-    ];
-
-    expect(featureTitles).toHaveLength(6);
-    featureTitles.forEach((title) => {
-      expect(screen.getByText(title)).toBeInTheDocument();
+    ["12k+", "500+", "18 hrs", "Sharper positioning", "Less founder drift", "More credible launches"].forEach((value) => {
+      expect(screen.getByText(value)).toBeInTheDocument();
     });
   });
 
-  it("renders the how it works steps", () => {
+  it("renders the workflow steps and founder testimonials", () => {
     render(<LandingPage />);
 
-    const stepTitles = ["Describe your idea", "Research & validate", "Build & launch"];
-
-    expect(screen.getByText("How it works")).toBeInTheDocument();
-    expect(stepTitles).toHaveLength(3);
-    stepTitles.forEach((title) => {
+    ["Frame the opportunity", "Pressure-test with evidence", "Ship with a coherent plan"].forEach((title) => {
       expect(screen.getByText(title)).toBeInTheDocument();
     });
-  });
 
-  it("renders the 3 testimonials", () => {
-    render(<LandingPage />);
-
-    const testimonialNames = ["Maya Chen", "Jordan Alvarez", "Priya Patel"];
-
-    expect(testimonialNames).toHaveLength(3);
-    testimonialNames.forEach((name) => {
+    ["Maya Chen", "Jordan Alvarez", "Priya Patel"].forEach((name) => {
       expect(screen.getByText(name)).toBeInTheDocument();
     });
   });
@@ -80,9 +61,9 @@ describe("LandingPage", () => {
   it("tracks all primary CTA clicks", () => {
     render(<LandingPage />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Get started free →" }));
-    fireEvent.click(screen.getByRole("link", { name: "See the workspace" }));
-    fireEvent.click(screen.getAllByRole("link", { name: /Get started free/ })[1]!);
+    fireEvent.click(screen.getByRole("link", { name: "Start building free" }));
+    fireEvent.click(screen.getByRole("link", { name: "Explore the workspace" }));
+    fireEvent.click(screen.getByRole("link", { name: "Get started free" }));
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",

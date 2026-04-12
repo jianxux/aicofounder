@@ -2,57 +2,63 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import BrandMark from "@/components/BrandMark";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
 
-const features = [
+const trustMetrics = [
+  { label: "Signals reviewed", value: "12k+" },
+  { label: "Founder workflows launched", value: "500+" },
+  { label: "Time saved per validation cycle", value: "18 hrs" },
+];
+
+const featureColumns = [
   {
-    emoji: "🔍",
-    title: "Deep research",
-    description: "Do market research in minutes by searching through social media discussions.",
+    eyebrow: "Research depth",
+    title: "Turn scattered founder noise into clear market conviction.",
+    description:
+      "Pull evidence from community conversations, identify repeated pain points, and separate signal from polite encouragement before you build.",
+    bullets: ["Community-backed pain points", "Competitive framing and positioning angles", "Opinionated guidance when the idea is weak"],
   },
   {
-    emoji: "🎨",
-    title: "Visual canvas",
-    description: "Turn concepts into something real, organize your ideas, and get a complete overview.",
-  },
-  {
-    emoji: "🧠",
-    title: "Intelligent and critical",
-    description: "Your idea to sell hats for ducks won't be an \"Amazing idea!\"",
-  },
-  {
-    emoji: "🔒",
-    title: "Secure & private",
-    description: "Industry standard encryption and privacy mode keeps your project secure.",
-  },
-  {
-    emoji: "📋",
-    title: "Structured phases",
-    description: "Work through guided phases taking you from raw idea to validated product.",
-  },
-  {
-    emoji: "👥",
-    title: "For every founder",
-    description: "Build your first app, expand your consulting service, or launch your next brand.",
+    eyebrow: "Execution clarity",
+    title: "Move from idea to launch plan without losing narrative quality.",
+    description:
+      "Shape messaging, map the product, and keep strategy, research, and launch artifacts in one focused workspace that stays usable under pressure.",
+    bullets: ["Structured phases from concept to GTM", "Visual canvas for assets and priorities", "A single workspace for research and delivery"],
   },
 ];
 
-const steps = [
+const workflowSteps = [
   {
-    number: "1",
-    title: "Describe your idea",
-    description: "Tell your AI cofounder what you want to build",
+    number: "01",
+    title: "Frame the opportunity",
+    description: "Define the audience, sharpest pain, and promise worth testing before the product scope drifts.",
   },
   {
-    number: "2",
-    title: "Research & validate",
-    description: "AI agents search communities for real pain points and evidence",
+    number: "02",
+    title: "Pressure-test with evidence",
+    description: "Review synthesized signals from founder communities and customer language, not empty trend-chasing.",
   },
   {
-    number: "3",
-    title: "Build & launch",
-    description: "Get a plan, build your MVP, and ship to customers",
+    number: "03",
+    title: "Ship with a coherent plan",
+    description: "Leave with clearer positioning, an execution roadmap, and a startup narrative that can convert.",
+  },
+];
+
+const proofCards = [
+  {
+    title: "Sharper positioning",
+    body: "Get to a category-defining message faster by grounding the homepage promise in evidence instead of instinct.",
+  },
+  {
+    title: "Less founder drift",
+    body: "Keep research, planning, and build decisions connected so the product story stays consistent across launch.",
+  },
+  {
+    title: "More credible launches",
+    body: "Use structured output that looks investor-ready, team-ready, and customer-ready from the first draft.",
   },
 ];
 
@@ -60,28 +66,46 @@ const testimonials = [
   {
     name: "Maya Chen",
     title: "Founder, SignalLayer",
-    initials: "MC",
-    avatarColor: "#f0d9c8",
     quote:
-      "It pushed past vague startup advice and gave me concrete evidence from real founder conversations before I wrote a line of code.",
+      "It replaced vague momentum with real conviction. I could see the problem language, the angle, and the path to a better product story in one session.",
   },
   {
     name: "Jordan Alvarez",
     title: "Solo builder, Northstar Studio",
-    initials: "JA",
-    avatarColor: "#d9e7d2",
     quote:
-      "The research flow saved me days of digging through Reddit and product forums. I got a sharper positioning angle and a build plan I could actually follow.",
+      "The quality bar felt high. Instead of flattering the idea, it tightened the pitch and showed me where the market signal was actually strong enough to pursue.",
   },
   {
     name: "Priya Patel",
-    title: "Product consultant turned founder",
-    initials: "PP",
-    avatarColor: "#d8ddf4",
+    title: "Operator turned founder",
     quote:
-      "It feels trustworthy because it challenges bad assumptions instead of flattering them. That made it far more useful than a generic AI chat window.",
+      "The interface feels premium, but the practical value is the clarity. I left with a clearer homepage, research direction, and launch plan the same day.",
   },
 ];
+
+function LandingCta({ button, children, variant = "primary" }: { button: string; children: React.ReactNode; variant?: "primary" | "secondary" }) {
+  const baseClassName =
+    "inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold tracking-[-0.01em] transition duration-200";
+  const variantClassName =
+    variant === "primary"
+      ? "bg-stone-950 text-white shadow-[0_18px_45px_rgba(20,18,16,0.24)] hover:-translate-y-0.5 hover:bg-stone-900"
+      : "border border-white/15 bg-white/8 text-stone-100 backdrop-blur-sm hover:border-white/25 hover:bg-white/12";
+
+  return (
+    <Link
+      href="/dashboard"
+      onClick={() =>
+        void trackEvent("cta_click", {
+          page: "/",
+          button,
+        })
+      }
+      className={`${baseClassName} ${variantClassName}`}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function LandingPage() {
   useEffect(() => {
@@ -92,354 +116,236 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, rgba(245, 214, 180, 0.18), rgba(255, 255, 255, 0) 32%), linear-gradient(180deg, #ffffff 0%, #f9f8f6 100%)",
-        color: "#1c1917",
-      }}
-    >
-      <Navbar />
+    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,rgba(241,200,136,0.22),transparent_24%),linear-gradient(180deg,#fffdf9_0%,#f6f1ea_45%,#f7f4ef_100%)] text-stone-950">
+      <div className="relative">
+        <div className="absolute inset-x-0 top-0 -z-10 h-[44rem] bg-[radial-gradient(circle_at_20%_10%,rgba(244,196,123,0.22),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(255,255,255,0.62),transparent_20%),radial-gradient(circle_at_50%_0%,rgba(17,24,39,0.06),transparent_36%)]" />
+        <Navbar />
 
-      {/* Hero */}
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px", textAlign: "center" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            borderRadius: 999,
-            border: "1px solid #d4d4d4",
-            background: "#f5f5f4",
-            padding: "8px 20px",
-            fontSize: 14,
-            color: "#57534e",
-          }}
-        >
-          Your AI cofounder — opinionated product thinking
-        </div>
-
-        <h1
-          style={{
-            fontFamily: "Georgia, 'Times New Roman', serif",
-            fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-            lineHeight: 1.1,
-            fontWeight: 400,
-            color: "#0c0a09",
-            marginTop: 32,
-          }}
-        >
-          Make something people
-          <br />
-          <em>actually</em> want
-        </h1>
-
-        <p style={{ fontSize: 18, color: "#78716c", marginTop: 20, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
-          Research and build your product with AI. From idea to launch, with a cofounder that challenges your thinking.
-        </p>
-
-        <div
-          style={{
-            marginTop: 16,
-            fontSize: 14,
-            color: "#a8a29e",
-            letterSpacing: "0.02em",
-          }}
-        >
-          Trusted by 500+ founders
-        </div>
-
-        <div style={{ marginTop: 36, display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
-          <Link
-            href="/dashboard"
-            onClick={() =>
-              void trackEvent("cta_click", {
-                page: "/",
-                button: "hero_get_started_free",
-              })
-            }
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 999,
-              background: "#0c0a09",
-              color: "#ffffff",
-              padding: "14px 32px",
-              fontSize: 15,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Get started free →
-          </Link>
-          <Link
-            href="/dashboard"
-            onClick={() =>
-              void trackEvent("cta_click", {
-                page: "/",
-                button: "hero_see_workspace",
-              })
-            }
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 999,
-              border: "1px solid #a8a29e",
-              background: "transparent",
-              color: "#44403c",
-              padding: "14px 32px",
-              fontSize: 15,
-              fontWeight: 500,
-              textDecoration: "none",
-            }}
-          >
-            See the workspace
-          </Link>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              style={{
-                borderRadius: 24,
-                border: "1px solid #d6d3d1",
-                background: "#f5f5f4",
-                padding: "32px 28px",
-                transition: "transform 0.15s, box-shadow 0.15s",
-              }}
-            >
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: "#fef3c7",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  marginBottom: 20,
-                }}
-              >
-                {feature.emoji}
-              </div>
-              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#1c1917" }}>{feature.title}</h2>
-              <p style={{ fontSize: 14, lineHeight: 1.7, color: "#57534e", marginTop: 8 }}>{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "#78716c",
-            }}
-          >
-            How it works
-          </div>
-          <h2
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: "clamp(2rem, 4vw, 3rem)",
-              fontWeight: 400,
-              lineHeight: 1.2,
-              color: "#0c0a09",
-              marginTop: 16,
-            }}
-          >
-            A tighter path from idea to proof
-          </h2>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {steps.map((step) => (
-            <div
-              key={step.number}
-              style={{
-                borderRadius: 24,
-                border: "1px solid #d6d3d1",
-                background: "rgba(255, 255, 255, 0.7)",
-                padding: "28px",
-                boxShadow: "0 18px 40px rgba(28, 25, 23, 0.06)",
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 999,
-                  background: "#1c1917",
-                  color: "#ffffff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 16,
-                  fontWeight: 700,
-                }}
-              >
-                {step.number}
-              </div>
-              <h3 style={{ fontSize: 20, fontWeight: 600, color: "#1c1917", marginTop: 20 }}>{step.title}</h3>
-              <p style={{ fontSize: 15, lineHeight: 1.7, color: "#57534e", marginTop: 10 }}>{step.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "#78716c",
-            }}
-          >
-            Founders say
-          </div>
-          <h2
-            style={{
-              fontFamily: "Georgia, 'Times New Roman', serif",
-              fontSize: "clamp(2rem, 4vw, 3rem)",
-              fontWeight: 400,
-              lineHeight: 1.2,
-              color: "#0c0a09",
-              marginTop: 16,
-            }}
-          >
-            Trusted when the idea is still fragile
-          </h2>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {testimonials.map((testimonial) => (
-            <div
-              key={testimonial.name}
-              style={{
-                borderRadius: 28,
-                border: "1px solid #d6d3d1",
-                background: "#fafaf9",
-                padding: "28px",
-                boxShadow: "0 20px 40px rgba(28, 25, 23, 0.06)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 999,
-                    background: testimonial.avatarColor,
-                    color: "#1c1917",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 16,
-                    fontWeight: 700,
-                  }}
-                >
-                  {testimonial.initials}
-                </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: "#1c1917" }}>{testimonial.name}</div>
-                  <div style={{ fontSize: 14, color: "#78716c", marginTop: 4 }}>{testimonial.title}</div>
-                </div>
-              </div>
-              <blockquote
-                style={{
-                  fontSize: 15,
-                  lineHeight: 1.8,
-                  color: "#44403c",
-                  marginTop: 20,
-                }}
-              >
-                &ldquo;{testimonial.quote}&rdquo;
-              </blockquote>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Footer CTA */}
-      <footer
-        style={{
-          borderTop: "1px solid #e7e5e4",
-          background: "#f5f5f4",
-          padding: "40px 24px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 20,
-          }}
-        >
+        <section className="mx-auto grid w-full max-w-7xl gap-12 px-6 pb-24 pt-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:pb-28">
           <div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "#1c1917" }}>Start building with your AI cofounder</div>
-            <p style={{ fontSize: 14, color: "#78716c", marginTop: 4 }}>
-              Research faster, think more critically, and ship with confidence.
+            <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/70 bg-white/70 px-4 py-2 text-sm font-medium text-stone-600 shadow-[0_10px_35px_rgba(120,92,44,0.08)] backdrop-blur-sm">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Premium AI product strategy for founders who need signal, not hype
+            </div>
+
+            <h1 className="mt-8 max-w-4xl text-[clamp(3.4rem,8vw,6.4rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-stone-950">
+              Build the startup story
+              <span className="block text-stone-500">before you build the wrong product.</span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600 sm:text-xl">
+              AI Cofounder helps founders validate demand, sharpen positioning, and move from messy concept to credible launch plan with a cleaner, more focused workflow.
+            </p>
+
+            <div className="mt-10 flex flex-wrap gap-4">
+              <LandingCta button="hero_get_started_free">Start building free</LandingCta>
+              <LandingCta button="hero_see_workspace" variant="secondary">
+                Explore the workspace
+              </LandingCta>
+            </div>
+
+            <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
+              {trustMetrics.map((metric) => (
+                <div key={metric.label} className="rounded-3xl border border-stone-200/80 bg-white/72 px-5 py-5 shadow-[0_18px_40px_rgba(46,34,18,0.08)] backdrop-blur-sm">
+                  <div className="text-2xl font-semibold tracking-[-0.04em] text-stone-950">{metric.value}</div>
+                  <div className="mt-1 text-sm leading-6 text-stone-500">{metric.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-amber-300/35 blur-3xl" />
+            <div className="absolute -right-10 bottom-10 h-44 w-44 rounded-full bg-stone-900/10 blur-3xl" />
+
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-[linear-gradient(160deg,rgba(21,19,17,0.98)_0%,rgba(39,33,28,0.95)_52%,rgba(78,59,37,0.92)_100%)] p-6 text-stone-50 shadow-[0_35px_120px_rgba(24,18,12,0.32)] sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <BrandMark className="h-12 w-12 shrink-0" />
+                  <div>
+                    <div className="text-sm font-medium uppercase tracking-[0.24em] text-amber-200/80">Live project</div>
+                    <div className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Launch clarity dashboard</div>
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs font-medium text-stone-300">Beta</div>
+              </div>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/6 p-5 backdrop-blur-sm">
+                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Primary insight</div>
+                  <div className="mt-3 text-2xl font-semibold leading-tight tracking-[-0.03em] text-white">
+                    Teams do not need more AI ideas. They need evidence-backed product direction.
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-stone-300">
+                    Distill research into a positioning angle, homepage promise, and rollout plan without opening five different tools.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Workflow</div>
+                    <div className="mt-3 space-y-3 text-sm text-stone-200">
+                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
+                        <span>Research synthesis</span>
+                        <span className="text-emerald-300">Ready</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
+                        <span>Homepage narrative</span>
+                        <span className="text-amber-300">In review</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
+                        <span>Launch plan</span>
+                        <span className="text-sky-300">Queued</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-amber-200/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Outcome</div>
+                    <p className="mt-3 text-sm leading-7 text-stone-200">
+                      Founders leave with clearer messaging, stronger market proof, and an execution path that looks premium enough to share.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {["Evidence-backed positioning", "Opinionated product critique", "Launch-ready outputs"].map((item) => (
+                  <div key={item} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="mx-auto w-full max-w-7xl px-6 pb-6 lg:px-8">
+        <div className="grid gap-5 rounded-[2rem] border border-stone-200/70 bg-white/70 p-6 shadow-[0_20px_80px_rgba(64,43,15,0.08)] backdrop-blur-sm lg:grid-cols-3 lg:p-8">
+          {proofCards.map((card) => (
+            <div key={card.title} className="rounded-[1.5rem] border border-stone-200/80 bg-stone-50/70 p-6">
+              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-400">Why it converts</div>
+              <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-stone-950">{card.title}</h2>
+              <p className="mt-3 text-base leading-7 text-stone-600">{card.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-20 lg:grid-cols-2 lg:px-8">
+        {featureColumns.map((feature) => (
+          <div
+            key={feature.title}
+            className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,242,233,0.9))] p-8 shadow-[0_22px_90px_rgba(41,27,10,0.08)]"
+          >
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-400">{feature.eyebrow}</div>
+            <h2 className="mt-5 max-w-xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              {feature.title}
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">{feature.description}</p>
+            <div className="mt-8 space-y-3">
+              {feature.bullets.map((bullet) => (
+                <div
+                  key={bullet}
+                  className="flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white/75 px-4 py-4 text-sm font-medium text-stone-700"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  {bullet}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-6 lg:px-8">
+        <div className="grid gap-6 rounded-[2rem] border border-stone-200/70 bg-stone-950 px-6 py-8 text-white shadow-[0_35px_120px_rgba(17,12,7,0.22)] lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
+          <div>
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200/70">How it works</div>
+            <h2 className="mt-5 text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-[1] tracking-[-0.05em]">
+              A tighter path from concept to market proof.
+            </h2>
+            <p className="mt-5 max-w-lg text-base leading-8 text-stone-300">
+              The product is designed to reduce founder noise, improve message quality, and keep momentum focused on validation and launch.
             </p>
           </div>
-          <Link
-            href="/dashboard"
-            onClick={() =>
-              void trackEvent("cta_click", {
-                page: "/",
-                button: "footer_get_started",
-              })
-            }
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 999,
-              background: "#0c0a09",
-              color: "#ffffff",
-              padding: "14px 28px",
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Get started free
-          </Link>
+
+          <div className="grid gap-4">
+            {workflowSteps.map((step) => (
+              <div key={step.number} className="rounded-[1.5rem] border border-white/10 bg-white/6 p-6 backdrop-blur-sm">
+                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200/70">{step.number}</div>
+                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">{step.title}</h3>
+                <p className="mt-3 text-base leading-7 text-stone-300">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-400">Founder proof</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              Trusted when the homepage, pitch, and product direction all need work at once.
+            </h2>
+          </div>
+          <p className="max-w-xl text-base leading-8 text-stone-600">
+            The value is not just speed. It is better decisions, cleaner outputs, and a product story that holds together under scrutiny.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          {testimonials.map((testimonial) => (
+            <figure
+              key={testimonial.name}
+              className="rounded-[2rem] border border-stone-200/80 bg-white/85 p-7 shadow-[0_20px_90px_rgba(53,36,12,0.08)]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-950 text-sm font-semibold text-white">
+                  {testimonial.name
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")}
+                </div>
+                <figcaption>
+                  <div className="text-base font-semibold text-stone-950">{testimonial.name}</div>
+                  <div className="text-sm text-stone-500">{testimonial.title}</div>
+                </figcaption>
+              </div>
+              <blockquote className="mt-6 text-base leading-8 text-stone-600">&ldquo;{testimonial.quote}&rdquo;</blockquote>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      <footer className="px-6 pb-12 pt-4 lg:px-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 rounded-[2.4rem] border border-stone-200/70 bg-[linear-gradient(135deg,#f3e2c2_0%,#f6eee1_40%,#ffffff_100%)] p-8 shadow-[0_30px_100px_rgba(69,48,17,0.12)] lg:flex-row lg:items-center lg:justify-between lg:p-10">
+          <div className="max-w-2xl">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Start now</div>
+            <h2 className="mt-4 text-[clamp(2rem,5vw,3.2rem)] font-semibold leading-[1.02] tracking-[-0.05em] text-stone-950">
+              Research faster. Position better. Launch with a premium level of clarity.
+            </h2>
+            <p className="mt-4 text-base leading-8 text-stone-600">
+              Use AI Cofounder to turn raw startup ambition into a sharper offer, stronger evidence, and a better first impression.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/dashboard"
+              onClick={() =>
+                void trackEvent("cta_click", {
+                  page: "/",
+                  button: "footer_get_started",
+                })
+              }
+              className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(20,18,16,0.18)] transition hover:-translate-y-0.5 hover:bg-stone-900"
+            >
+              Get started free
+            </Link>
+          </div>
         </div>
       </footer>
     </main>
