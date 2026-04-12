@@ -46,18 +46,24 @@ const workflowMoments = [
   },
 ];
 
-const founderVoices = [
+const firstSessionTimeline = [
   {
-    quote: "I do not need more features. I need the sentence that makes the product make sense.",
-    role: "Pre-seed founder",
+    minute: "0-5 min",
+    title: "Drop in the messy draft",
+    body: "Paste the pitch, homepage, or raw customer notes that still feel too broad.",
+    output: "A working brief with the founder goal, buyer, and open questions.",
   },
   {
-    quote: "The real cost was not building slowly. It was validating the wrong promise in public.",
-    role: "Second-time operator",
+    minute: "6-14 min",
+    title: "Pressure-test the claim",
+    body: "The session compares your promise against customer language and competing alternatives.",
+    output: "A sharper positioning angle and the proof gaps blocking it.",
   },
   {
-    quote: "When the research and the narrative finally matched, every next decision got easier.",
-    role: "Founder after repositioning",
+    minute: "15-25 min",
+    title: "Leave with founder-ready outputs",
+    body: "Turn the strongest signal into the next assets you can actually use after the call.",
+    output: "Homepage headline direction, ICP notes, and the next 3 validation tasks.",
   },
 ];
 
@@ -296,29 +302,38 @@ export default function LandingPage() {
         <div className="rounded-[2.25rem] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(250,243,233,0.9)_100%)] p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Founder voices</div>
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">First session timeline</div>
               <h2 className="mt-4 text-[clamp(2rem,4vw,3.3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
-                The emotional job is clarity, not volume.
+                What happens in your first session
               </h2>
             </div>
             <p className="max-w-md text-sm leading-7 text-stone-600">
-              These are the kinds of tensions this workflow is built to resolve, presented like notes from the edge of company formation.
+              Time-to-value stays concrete: one working session should turn rough founder inputs into decisions you can reuse the same day.
             </p>
           </div>
 
           <div className="mt-8 space-y-4">
-            {founderVoices.map((voice, index) => (
-              <figure
-                key={voice.quote}
+            {firstSessionTimeline.map((item, index) => (
+              <div
+                key={item.minute}
                 className={`rounded-[1.8rem] border p-6 shadow-[0_18px_50px_rgba(55,37,12,0.06)] ${
                   index === 1 ? "border-stone-900/85 bg-stone-950 text-stone-100" : "border-stone-200/80 bg-white/86 text-stone-900"
                 }`}
               >
-                <blockquote className="text-[1.05rem] leading-8 tracking-[-0.02em]">
-                  &ldquo;{voice.quote}&rdquo;
-                </blockquote>
-                <figcaption className={`mt-5 text-sm font-medium ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>{voice.role}</figcaption>
-              </figure>
+                <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>{item.minute}</div>
+                <h3 className="mt-3 text-[1.2rem] font-semibold tracking-[-0.03em]">{item.title}</h3>
+                <p className={`mt-3 text-sm leading-7 ${index === 1 ? "text-stone-200" : "text-stone-600"}`}>{item.body}</p>
+                <div
+                  className={`mt-5 rounded-[1.2rem] border px-4 py-4 ${
+                    index === 1 ? "border-white/15 bg-white/8 text-stone-100" : "border-stone-200 bg-[#fcfaf7] text-stone-800"
+                  }`}
+                >
+                  <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>
+                    Founder output
+                  </div>
+                  <p className={`mt-2 text-sm leading-6 ${index === 1 ? "text-stone-100" : "text-stone-700"}`}>{item.output}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>

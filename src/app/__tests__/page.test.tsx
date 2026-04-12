@@ -67,7 +67,7 @@ describe("LandingPage", () => {
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
-  it("renders proof metrics, workflow moments, and curated founder voices", () => {
+  it("renders proof metrics, workflow moments, and the first-session timeline", () => {
     render(<LandingPage />);
 
     [
@@ -77,9 +77,11 @@ describe("LandingPage", () => {
       "Interrogate the idea",
       "Pull signal into focus",
       "Leave with launch-ready clarity",
-      "Pre-seed founder",
-      "Second-time operator",
-      "Founder after repositioning",
+      "First session timeline",
+      "0-5 min",
+      "6-14 min",
+      "15-25 min",
+      "Homepage headline direction, ICP notes, and the next 3 validation tasks.",
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
