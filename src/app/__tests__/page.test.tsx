@@ -30,13 +30,14 @@ describe("LandingPage", () => {
     });
   });
 
-  it("renders the editorial hero, highlighted founder tagline, and static chat prompt", () => {
+  it("renders a calmer hero with an interactive-looking founder prompt workspace", () => {
     render(<LandingPage />);
 
-    expect(screen.getByRole("heading", { name: /Build the company people can/i })).toBeInTheDocument();
-    expect(screen.getByText(/less founder theater, more founder certainty/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ask the hard founder question first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Describe the founder, the customer tension/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Find the clearest angle for/i })).toBeInTheDocument();
+    expect(screen.getByText(/Start with the question you cannot shake/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pressure-test the ICP/i)).toBeInTheDocument();
+    expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
   it("renders proof metrics, workflow moments, and curated founder voices", () => {
