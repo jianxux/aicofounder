@@ -1,3 +1,4 @@
+import { deriveProjectMemoryFromArtifacts } from "@/lib/project-memory";
 import type { ResearchCitation, ResearchReport, ResearchRunArtifact, ResearchSource } from "@/lib/research";
 
 export type Sender = "user" | "assistant";
@@ -394,6 +395,45 @@ export type ArtifactContextPayload = {
   evidenceSnapshot: ArtifactEvidenceSnapshot;
 };
 
+export const PROJECT_MEMORY_FIELDS = [
+  "icp",
+  "constraints",
+  "hypotheses",
+  "experiments",
+  "validatedFindings",
+] as const;
+
+export type ProjectMemoryField = (typeof PROJECT_MEMORY_FIELDS)[number];
+
+export const PROJECT_MEMORY_CONFIDENCE_VALUES = ["validated", "supported", "tentative"] as const;
+
+export type ProjectMemoryConfidence = (typeof PROJECT_MEMORY_CONFIDENCE_VALUES)[number];
+
+export type ProjectMemorySource = {
+  artifactId: string;
+  artifactType: ProjectArtifactType;
+  revisionId: string;
+  updatedAt: string;
+};
+
+export type ProjectMemoryEntry = {
+  id: string;
+  field: ProjectMemoryField;
+  label: string;
+  content: string;
+  confidence: ProjectMemoryConfidence;
+  updatedAt: string;
+  sources: ProjectMemorySource[];
+};
+
+export type ProjectMemory = {
+  icp: ProjectMemoryEntry[];
+  constraints: ProjectMemoryEntry[];
+  hypotheses: ProjectMemoryEntry[];
+  experiments: ProjectMemoryEntry[];
+  validatedFindings: ProjectMemoryEntry[];
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -410,6 +450,7 @@ export type Project = {
   artifacts?: ProjectArtifact[];
   activeArtifactId?: string;
   diagram?: ProjectDiagram;
+  projectMemory?: ProjectMemory;
 };
 
 const DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID = "artifact-validation-scorecard";
@@ -1718,6 +1759,49 @@ export const isCustomerResearchMemoArtifact = (value: unknown): value is Custome
 export const isProjectArtifact = (value: unknown): value is ProjectArtifact =>
   isValidationScorecardArtifact(value) || isCustomerResearchMemoArtifact(value);
 
+export const isProjectMemoryField = (value: unknown): value is ProjectMemoryField =>
+  PROJECT_MEMORY_FIELDS.includes(value as ProjectMemoryField);
+
+export const isProjectMemoryConfidence = (value: unknown): value is ProjectMemoryConfidence =>
+  PROJECT_MEMORY_CONFIDENCE_VALUES.includes(value as ProjectMemoryConfidence);
+
+export const isProjectMemorySource = (value: unknown): value is ProjectMemorySource => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.artifactId === "string" &&
+    isProjectArtifactType(value.artifactType) &&
+    typeof value.revisionId === "string" &&
+    typeof value.updatedAt === "string"
+  );
+};
+
+export const isProjectMemoryEntry = (value: unknown): value is ProjectMemoryEntry => {
+  if (!isRecord(value) || !Array.isArray(value.sources)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    isProjectMemoryField(value.field) &&
+    typeof value.label === "string" &&
+    typeof value.content === "string" &&
+    isProjectMemoryConfidence(value.confidence) &&
+    typeof value.updatedAt === "string" &&
+    value.sources.every(isProjectMemorySource)
+  );
+};
+
+export const isProjectMemory = (value: unknown): value is ProjectMemory => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return PROJECT_MEMORY_FIELDS.every((field) => Array.isArray(value[field]) && value[field].every(isProjectMemoryEntry));
+};
+
 export const isProject = (value: unknown): value is Project => {
   if (
     !isRecord(value) ||
@@ -1745,7 +1829,8 @@ export const isProject = (value: unknown): value is Project => {
     (value.research == null || isProjectResearch(value.research)) &&
     (value.artifacts == null || (Array.isArray(value.artifacts) && value.artifacts.every(isProjectArtifact))) &&
     (value.activeArtifactId === undefined || typeof value.activeArtifactId === "string") &&
-    (value.diagram === undefined || isProjectDiagram(value.diagram))
+    (value.diagram === undefined || isProjectDiagram(value.diagram)) &&
+    (value.projectMemory === undefined || isProjectMemory(value.projectMemory))
   );
 };
 
@@ -1978,5 +2063,9 @@ export function normalizeProject(value: Project): Project {
     artifacts: hydratedArtifacts,
     activeArtifactId,
     diagram: value.diagram ?? createDefaultProjectDiagram(),
+    projectMemory: deriveProjectMemoryFromArtifacts({
+      artifacts: hydratedArtifacts,
+      existingMemory: isProjectMemory(value.projectMemory) ? value.projectMemory : undefined,
+    }),
   };
 }

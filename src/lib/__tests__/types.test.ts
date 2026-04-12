@@ -145,6 +145,30 @@ describe("lib/types guards", () => {
     phases: [phase],
     research: null,
     diagram: projectDiagram,
+    projectMemory: {
+      icp: [
+        {
+          id: "memory-icp-1",
+          field: "icp",
+          label: "Ideal customer profile",
+          content: "RevOps leaders at 50-200 seat SaaS teams.",
+          confidence: "supported",
+          updatedAt: "2025-01-02T00:00:00.000Z",
+          sources: [
+            {
+              artifactId: "artifact-validation-scorecard",
+              artifactType: "validation-scorecard",
+              revisionId: "artifact-validation-scorecard-revision-1",
+              updatedAt: "2025-01-02T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+      constraints: [],
+      hypotheses: [],
+      experiments: [],
+      validatedFindings: [],
+    },
   };
 
   const researchReport: types.ProjectResearch = {
@@ -214,6 +238,54 @@ describe("lib/types guards", () => {
   it("accepts a valid ChatMessage", () => {
     expect(types.isChatMessage(chatMessage)).toBe(true);
     expect(types.isSender(chatMessage.sender)).toBe(true);
+  });
+
+  it("accepts valid project memory fields", () => {
+    expect(types.isProjectMemory(project.projectMemory)).toBe(true);
+    expect(types.isProjectMemoryEntry(project.projectMemory?.icp[0])).toBe(true);
+    expect(types.isProjectMemorySource(project.projectMemory?.icp[0]?.sources[0])).toBe(true);
+  });
+
+  it("rejects invalid project memory fields", () => {
+    expect(
+      types.isProjectMemorySource({
+        artifactId: "artifact-validation-scorecard",
+        artifactType: "not-a-real-artifact-type",
+        revisionId: "revision-1",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(
+      types.isProjectMemoryEntry({
+        id: "entry-1",
+        field: "icp",
+        label: "ICP",
+        content: "RevOps leaders",
+        confidence: "supported",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+        sources: [{ artifactId: "artifact-1" }],
+      }),
+    ).toBe(false);
+    expect(
+      types.isProjectMemory({
+        icp: [],
+        constraints: [],
+        hypotheses: [],
+        experiments: [],
+      }),
+    ).toBe(false);
+    expect(
+      types.isProject({
+        ...project,
+        projectMemory: {
+          icp: [],
+          constraints: [],
+          hypotheses: [],
+          experiments: [],
+          validatedFindings: [{ id: "bad" }],
+        },
+      }),
+    ).toBe(false);
   });
 
   it("accepts a valid StickyNoteData object", () => {

@@ -153,6 +153,69 @@ describe("project-artifacts", () => {
     );
   });
 
+  it("keeps persisted project memory in sync as artifacts update", () => {
+    const validationUpdated = applyValidationScorecardChatUpdate(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [
+              {
+                id: "criterion-1",
+                label: "Problem urgency",
+                score: 5,
+                notes: "Operators escalate churn every week.",
+              },
+            ],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+      }),
+      "Budget constraints slow procurement. Run five ICP interviews next week.",
+      "2025-01-12T00:00:00.000Z",
+    ).project;
+
+    const researchUpdated = applyCustomerResearchMemoUpdate(
+      validationUpdated,
+      makeResearch({
+        updatedAt: "2025-01-13T00:00:00.000Z",
+        report: {
+          ...makeResearch().report!,
+          executiveSummary: "The best-fit customer is RevOps teams with weekly renewal risk.",
+          keyFindings: [
+            {
+              id: "finding-1",
+              statement: "The best-fit customer is RevOps teams with weekly renewal risk.",
+              citationIds: ["citation-1"],
+              strength: "strong",
+            },
+          ],
+        },
+      }),
+    ).project;
+
+    expect(researchUpdated.projectMemory).toEqual(
+      expect.objectContaining({
+        constraints: [expect.objectContaining({ content: "Budget constraints slow procurement." })],
+        experiments: [expect.objectContaining({ content: "Run five ICP interviews next week." })],
+        validatedFindings: expect.arrayContaining([
+          expect.objectContaining({ content: "Problem urgency: Operators escalate churn every week." }),
+          expect.objectContaining({ content: "The best-fit customer is RevOps teams with weekly renewal risk." }),
+        ]),
+      }),
+    );
+  });
+
   it("uses a deterministic fallback revision id when crypto.randomUUID is unavailable", () => {
     vi.stubGlobal("crypto", {});
     vi.spyOn(Date, "now").mockReturnValue(12345);
@@ -200,6 +263,19 @@ describe("project-artifacts", () => {
         status: "failed",
       }),
     );
+  });
+
+  it("keeps draft memo status for successful research without a report or nested artifact status", () => {
+    const research = makeResearch({
+      artifact: undefined,
+      report: undefined,
+    });
+
+    const updated = applyCustomerResearchMemoUpdate(makeProject(), research);
+    const memo = updated.project.artifacts?.find((artifact) => artifact.type === "customer-research-memo");
+
+    expect(memo?.status).toBe("draft");
+    expect(memo?.currentRevision.status).toBe("draft");
   });
 
   it("skips appending a memo revision when the research state is unchanged", () => {
