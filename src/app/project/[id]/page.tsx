@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
+import ProjectMemoryPanel from "@/components/ProjectMemoryPanel";
 import ResearchMemoDualView from "@/components/ResearchMemoDualView";
 import UltraplanReport from "@/components/UltraplanReport";
 import { useRealtimeProject } from "@/hooks/useRealtimeProject";
@@ -1034,6 +1035,7 @@ export default function ProjectWorkspacePage() {
                 onRunResearch={handleResearch}
               />
             )}
+            <ProjectMemoryPanel project={project} />
             {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
             {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
             <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">
@@ -1092,6 +1094,7 @@ export default function ProjectWorkspacePage() {
                   onRunResearch={handleResearch}
                 />
               )}
+              <ProjectMemoryPanel project={project} />
               {ultraplanResult ? <UltraplanReport result={ultraplanResult} /> : null}
               {brainstormResult ? <BrainstormResults result={brainstormResult} /> : null}
               <div className="rounded-[32px] border border-stone-200 bg-white p-3 shadow-sm">

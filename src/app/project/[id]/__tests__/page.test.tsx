@@ -387,6 +387,60 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("artifact-follow-up");
   });
 
+  it("shows promoted project memory alongside the active artifact in the workspace", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Independent practice memo",
+            updatedAt: "2025-01-11T00:00:00.000Z",
+            research: {
+              status: "success",
+              researchQuestion: "Who feels this pain most?",
+              sourceContext: "Saved research context",
+              updatedAt: "2025-01-11T00:00:00.000Z",
+              artifact: {
+                status: "completed",
+              },
+              report: {
+                sections: [],
+                executiveSummary: "Best-fit customer: Clinic managers at independent practices feel the pain every day.",
+                researchQuestion: "Who feels this pain most?",
+                generatedAt: "2025-01-11T00:00:00.000Z",
+              },
+            },
+          },
+        ],
+        activeArtifactId: "artifact-customer-research-memo",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("project-memory-panel")).toBeInTheDocument();
+    });
+
+    const memoryPanel = screen.getByTestId("project-memory-panel");
+
+    expect(within(memoryPanel).getByText("What the workspace is carrying forward")).toBeInTheDocument();
+    expect(within(memoryPanel).getAllByText("Ideal customer profile").length).toBeGreaterThan(0);
+    expect(
+      within(memoryPanel).getByText("Best-fit customer: Clinic managers at independent practices feel the pain every day."),
+    ).toBeInTheDocument();
+    expect(within(memoryPanel).getByText("Independent practice memo")).toBeInTheDocument();
+  });
+
   it("runs research from the latest user message and persists the result", async () => {
     mockGetProject.mockResolvedValue(makeProject());
     vi.stubGlobal(
