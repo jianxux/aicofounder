@@ -1,95 +1,78 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import BrandMark from "@/components/BrandMark";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
 
-const trustMetrics = [
-  { label: "Signals reviewed", value: "12k+" },
-  { label: "Founder workflows launched", value: "500+" },
-  { label: "Time saved per validation cycle", value: "18 hrs" },
+const proofMetrics = [
+  { value: "12k+", label: "founder and customer signals reviewed" },
+  { value: "500+", label: "launch workflows shaped inside the workspace" },
+  { value: "18 hrs", label: "saved from each validation cycle on average" },
 ];
 
-const featureColumns = [
+const founderSignals = [
   {
-    eyebrow: "Research depth",
-    title: "Turn scattered founder noise into clear market conviction.",
-    description:
-      "Pull evidence from community conversations, identify repeated pain points, and separate signal from polite encouragement before you build.",
-    bullets: ["Community-backed pain points", "Competitive framing and positioning angles", "Opinionated guidance when the idea is weak"],
+    label: "What founders come in with",
+    title: "A strong instinct, but weak proof.",
+    body: "The product looks promising until the homepage, pitch, and roadmap all say different things.",
   },
   {
-    eyebrow: "Execution clarity",
-    title: "Move from idea to launch plan without losing narrative quality.",
-    description:
-      "Shape messaging, map the product, and keep strategy, research, and launch artifacts in one focused workspace that stays usable under pressure.",
-    bullets: ["Structured phases from concept to GTM", "Visual canvas for assets and priorities", "A single workspace for research and delivery"],
+    label: "What the workspace helps produce",
+    title: "One sharper point of view.",
+    body: "Research, messaging, and rollout planning stay connected so the idea reads clearly under pressure.",
   },
 ];
 
-const workflowSteps = [
+const workflowMoments = [
   {
     number: "01",
-    title: "Frame the opportunity",
-    description: "Define the audience, sharpest pain, and promise worth testing before the product scope drifts.",
+    title: "Interrogate the idea",
+    body: "Clarify the user, the specific tension, and the promise worth testing before features start multiplying.",
   },
   {
     number: "02",
-    title: "Pressure-test with evidence",
-    description: "Review synthesized signals from founder communities and customer language, not empty trend-chasing.",
+    title: "Pull signal into focus",
+    body: "Sift recurring market language, competing claims, and founder assumptions into a tighter product angle.",
   },
   {
     number: "03",
-    title: "Ship with a coherent plan",
-    description: "Leave with clearer positioning, an execution roadmap, and a startup narrative that can convert.",
+    title: "Leave with launch-ready clarity",
+    body: "Turn the strongest insight into a homepage direction, a product plan, and a more credible story to share.",
   },
 ];
 
-const proofCards = [
+const founderVoices = [
   {
-    title: "Sharper positioning",
-    body: "Get to a category-defining message faster by grounding the homepage promise in evidence instead of instinct.",
+    quote: "I do not need more features. I need the sentence that makes the product make sense.",
+    role: "Pre-seed founder",
   },
   {
-    title: "Less founder drift",
-    body: "Keep research, planning, and build decisions connected so the product story stays consistent across launch.",
+    quote: "The real cost was not building slowly. It was validating the wrong promise in public.",
+    role: "Second-time operator",
   },
   {
-    title: "More credible launches",
-    body: "Use structured output that looks investor-ready, team-ready, and customer-ready from the first draft.",
-  },
-];
-
-const testimonials = [
-  {
-    name: "Maya Chen",
-    title: "Founder, SignalLayer",
-    quote:
-      "It replaced vague momentum with real conviction. I could see the problem language, the angle, and the path to a better product story in one session.",
-  },
-  {
-    name: "Jordan Alvarez",
-    title: "Solo builder, Northstar Studio",
-    quote:
-      "The quality bar felt high. Instead of flattering the idea, it tightened the pitch and showed me where the market signal was actually strong enough to pursue.",
-  },
-  {
-    name: "Priya Patel",
-    title: "Operator turned founder",
-    quote:
-      "The interface feels premium, but the practical value is the clarity. I left with a clearer homepage, research direction, and launch plan the same day.",
+    quote: "When the research and the narrative finally matched, every next decision got easier.",
+    role: "Founder after repositioning",
   },
 ];
 
-function LandingCta({ button, children, variant = "primary" }: { button: string; children: React.ReactNode; variant?: "primary" | "secondary" }) {
+function LandingCta({
+  button,
+  children,
+  variant = "primary",
+}: {
+  button: string;
+  children: ReactNode;
+  variant?: "primary" | "secondary";
+}) {
   const baseClassName =
-    "inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold tracking-[-0.01em] transition duration-200";
+    "inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold tracking-[0.01em] transition duration-200";
   const variantClassName =
     variant === "primary"
-      ? "bg-stone-950 text-white shadow-[0_18px_45px_rgba(20,18,16,0.24)] hover:-translate-y-0.5 hover:bg-stone-900"
-      : "border border-white/15 bg-white/8 text-stone-100 backdrop-blur-sm hover:border-white/25 hover:bg-white/12";
+      ? "bg-stone-950 text-white shadow-[0_20px_55px_rgba(16,12,10,0.2)] hover:-translate-y-0.5 hover:bg-stone-900"
+      : "border border-stone-300/80 bg-white/70 text-stone-800 backdrop-blur-sm hover:border-stone-400 hover:bg-white/90";
 
   return (
     <Link
@@ -116,219 +99,196 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,rgba(241,200,136,0.22),transparent_24%),linear-gradient(180deg,#fffdf9_0%,#f6f1ea_45%,#f7f4ef_100%)] text-stone-950">
-      <div className="relative">
-        <div className="absolute inset-x-0 top-0 -z-10 h-[44rem] bg-[radial-gradient(circle_at_20%_10%,rgba(244,196,123,0.22),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(255,255,255,0.62),transparent_20%),radial-gradient(circle_at_50%_0%,rgba(17,24,39,0.06),transparent_36%)]" />
+    <main className="min-h-screen overflow-x-hidden bg-[#f6f0e7] text-stone-950">
+      <div className="relative isolate">
+        <div className="absolute inset-x-0 top-0 -z-10 h-[46rem] bg-[radial-gradient(circle_at_12%_8%,rgba(205,156,90,0.26),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(255,255,255,0.88),transparent_22%),linear-gradient(180deg,#f8f4ed_0%,#f4ede3_55%,#f6f0e7_100%)]" />
+        <div className="absolute left-[-8rem] top-[14rem] -z-10 h-[24rem] w-[24rem] rounded-full bg-amber-300/20 blur-3xl" />
+        <div className="absolute right-[-6rem] top-[10rem] -z-10 h-[22rem] w-[22rem] rounded-full bg-stone-900/8 blur-3xl" />
+
         <Navbar />
 
-        <section className="mx-auto grid w-full max-w-7xl gap-12 px-6 pb-24 pt-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8 lg:pb-28">
-          <div>
-            <div className="inline-flex items-center gap-3 rounded-full border border-amber-200/70 bg-white/70 px-4 py-2 text-sm font-medium text-stone-600 shadow-[0_10px_35px_rgba(120,92,44,0.08)] backdrop-blur-sm">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Premium AI product strategy for founders who need signal, not hype
+        <section className="mx-auto grid w-full max-w-7xl gap-14 px-6 pb-20 pt-6 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:items-start lg:px-8 lg:pb-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-3 rounded-full border border-stone-300/70 bg-white/72 px-4 py-2 text-sm font-medium text-stone-600 shadow-[0_14px_40px_rgba(74,52,21,0.08)] backdrop-blur-sm">
+              <span className="h-2 w-2 rounded-full bg-amber-600" />
+              AI strategy for founders who want conviction before momentum
             </div>
 
-            <h1 className="mt-8 max-w-4xl text-[clamp(3.4rem,8vw,6.4rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-stone-950">
-              Build the startup story
-              <span className="block text-stone-500">before you build the wrong product.</span>
+            <p className="mt-10 text-sm font-semibold uppercase tracking-[0.24em] text-stone-500">Founder-focused clarity</p>
+
+            <h1 className="mt-4 max-w-4xl text-[clamp(3.5rem,8vw,6.9rem)] font-semibold leading-[0.92] tracking-[-0.07em]">
+              Build the company people can
+              <span className="block [font-family:var(--font-serif)] text-[clamp(3.7rem,8.4vw,7.4rem)] font-semibold italic text-stone-700">
+                feel in a sentence.
+              </span>
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600 sm:text-xl">
-              AI Cofounder helps founders validate demand, sharpen positioning, and move from messy concept to credible launch plan with a cleaner, more focused workflow.
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-stone-600 sm:text-[1.18rem]">
+              AI Cofounder helps startup founders turn scattered research, vague positioning, and launch anxiety into a cleaner story,
+              sharper market evidence, and a more deliberate first impression.
             </p>
+
+            <div className="mt-8 inline-flex max-w-xl items-start gap-3 rounded-[1.75rem] border border-amber-200/70 bg-amber-50/70 px-5 py-4 text-stone-800 shadow-[0_18px_45px_rgba(128,86,29,0.08)]">
+              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-600" />
+              <p className="text-base leading-7">
+                The tagline here is simple on purpose: <span className="font-semibold">less founder theater, more founder certainty.</span>
+              </p>
+            </div>
 
             <div className="mt-10 flex flex-wrap gap-4">
               <LandingCta button="hero_get_started_free">Start building free</LandingCta>
               <LandingCta button="hero_see_workspace" variant="secondary">
-                Explore the workspace
+                See the founder workflow
               </LandingCta>
             </div>
 
-            <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
-              {trustMetrics.map((metric) => (
-                <div key={metric.label} className="rounded-3xl border border-stone-200/80 bg-white/72 px-5 py-5 shadow-[0_18px_40px_rgba(46,34,18,0.08)] backdrop-blur-sm">
-                  <div className="text-2xl font-semibold tracking-[-0.04em] text-stone-950">{metric.value}</div>
-                  <div className="mt-1 text-sm leading-6 text-stone-500">{metric.label}</div>
+            <div className="mt-12 grid max-w-3xl gap-4 sm:grid-cols-3">
+              {proofMetrics.map((metric) => (
+                <div key={metric.label} className="border-l border-stone-300/90 pl-4">
+                  <div className="text-3xl font-semibold tracking-[-0.05em] text-stone-950">{metric.value}</div>
+                  <div className="mt-2 max-w-[14rem] text-sm leading-6 text-stone-500">{metric.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="relative">
-            <div className="absolute -left-10 top-10 h-36 w-36 rounded-full bg-amber-300/35 blur-3xl" />
-            <div className="absolute -right-10 bottom-10 h-44 w-44 rounded-full bg-stone-900/10 blur-3xl" />
+            <div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-amber-200/35 blur-3xl" />
+            <div className="absolute bottom-8 right-8 h-40 w-40 rounded-full bg-stone-950/10 blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-[linear-gradient(160deg,rgba(21,19,17,0.98)_0%,rgba(39,33,28,0.95)_52%,rgba(78,59,37,0.92)_100%)] p-6 text-stone-50 shadow-[0_35px_120px_rgba(24,18,12,0.32)] sm:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <BrandMark className="h-12 w-12 shrink-0" />
-                  <div>
-                    <div className="text-sm font-medium uppercase tracking-[0.24em] text-amber-200/80">Live project</div>
-                    <div className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Launch clarity dashboard</div>
+            <div className="relative overflow-hidden rounded-[2.4rem] border border-white/70 bg-[linear-gradient(155deg,rgba(255,251,245,0.94)_0%,rgba(248,239,227,0.92)_42%,rgba(34,27,20,0.98)_43%,rgba(22,17,13,0.98)_100%)] p-5 shadow-[0_38px_120px_rgba(28,20,12,0.24)] sm:p-7">
+              <div className="grid gap-5">
+                <div className="rounded-[1.8rem] border border-stone-200/80 bg-white/85 p-5 shadow-[0_18px_40px_rgba(48,33,14,0.08)] backdrop-blur-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <BrandMark className="h-11 w-11 shrink-0" />
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">Hero prompt</div>
+                        <div className="mt-1 text-xl font-semibold tracking-[-0.03em] text-stone-950">Ask the hard founder question first</div>
+                      </div>
+                    </div>
+                    <div className="rounded-full bg-stone-950 px-3 py-1 text-xs font-medium text-white">Static preview</div>
                   </div>
-                </div>
-                <div className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs font-medium text-stone-300">Beta</div>
-              </div>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-[1.5rem] border border-white/10 bg-white/6 p-5 backdrop-blur-sm">
-                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Primary insight</div>
-                  <div className="mt-3 text-2xl font-semibold leading-tight tracking-[-0.03em] text-white">
-                    Teams do not need more AI ideas. They need evidence-backed product direction.
-                  </div>
-                  <p className="mt-4 text-sm leading-7 text-stone-300">
-                    Distill research into a positioning angle, homepage promise, and rollout plan without opening five different tools.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5">
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Workflow</div>
-                    <div className="mt-3 space-y-3 text-sm text-stone-200">
-                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
-                        <span>Research synthesis</span>
-                        <span className="text-emerald-300">Ready</span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
-                        <span>Homepage narrative</span>
-                        <span className="text-amber-300">In review</span>
-                      </div>
-                      <div className="flex items-center justify-between rounded-2xl bg-black/15 px-4 py-3">
-                        <span>Launch plan</span>
-                        <span className="text-sky-300">Queued</span>
-                      </div>
+                  <div className="mt-6 space-y-4">
+                    <div className="max-w-[85%] rounded-[1.5rem] rounded-bl-md bg-stone-950 px-5 py-4 text-sm leading-7 text-stone-100 shadow-[0_18px_45px_rgba(15,12,10,0.24)]">
+                      What would make a founder abandon this idea after the first five customer calls?
+                    </div>
+                    <div className="ml-auto max-w-[88%] rounded-[1.5rem] rounded-br-md border border-stone-200/80 bg-[#f8f3eb] px-5 py-4 text-sm leading-7 text-stone-700">
+                      Start with the evidence that could break the story: weak urgency, fuzzy buyer language, or a promise that sounds better than it converts.
                     </div>
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-amber-200/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04))] p-5">
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-400">Outcome</div>
-                    <p className="mt-3 text-sm leading-7 text-stone-200">
-                      Founders leave with clearer messaging, stronger market proof, and an execution path that looks premium enough to share.
-                    </p>
+                  <div className="mt-5 rounded-[1.6rem] border border-stone-200/80 bg-white px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
+                    <div className="flex items-center justify-between gap-4 rounded-[1.25rem] bg-stone-950 px-4 py-4 text-sm text-stone-100">
+                      <span className="max-w-[18rem] leading-6 text-stone-200">
+                        Describe the founder, the customer tension, and the promise you want to pressure-test.
+                      </span>
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-stone-950">↑</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-500">
+                      {["Positioning critique", "Pain-point synthesis", "Homepage narrative", "Launch sequence"].map((item) => (
+                        <span key={item} className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {["Evidence-backed positioning", "Opinionated product critique", "Launch-ready outputs"].map((item) => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-black/10 px-4 py-3 text-sm text-stone-200">
-                    {item}
+                <div className="grid gap-4 md:grid-cols-[0.94fr_1.06fr]">
+                  <div className="rounded-[1.8rem] border border-white/10 bg-stone-950/92 p-5 text-stone-100">
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200/70">Workspace outcome</div>
+                    <div className="mt-4 text-2xl font-semibold tracking-[-0.04em]">A calmer next move.</div>
+                    <p className="mt-4 text-sm leading-7 text-stone-300">
+                      The interface should feel like a founder atelier, not a dashboard full of noisy widgets.
+                    </p>
                   </div>
-                ))}
+
+                  <div className="rounded-[1.8rem] border border-stone-200/80 bg-white/85 p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Founder tension, resolved</div>
+                    <div className="mt-4 space-y-3">
+                      {founderSignals.map((signal) => (
+                        <div key={signal.title} className="rounded-[1.35rem] border border-stone-200/80 bg-[#f8f2e9] px-4 py-4">
+                          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-stone-500">{signal.label}</div>
+                          <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">{signal.title}</div>
+                          <p className="mt-2 text-sm leading-6 text-stone-600">{signal.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
       </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 pb-6 lg:px-8">
-        <div className="grid gap-5 rounded-[2rem] border border-stone-200/70 bg-white/70 p-6 shadow-[0_20px_80px_rgba(64,43,15,0.08)] backdrop-blur-sm lg:grid-cols-3 lg:p-8">
-          {proofCards.map((card) => (
-            <div key={card.title} className="rounded-[1.5rem] border border-stone-200/80 bg-stone-50/70 p-6">
-              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-400">Why it converts</div>
-              <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-stone-950">{card.title}</h2>
-              <p className="mt-3 text-base leading-7 text-stone-600">{card.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm">
+          <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Credibility, used with restraint</div>
+          <h2 className="mt-5 text-[clamp(2.2rem,4.6vw,4rem)] font-semibold leading-[0.96] tracking-[-0.06em] text-stone-950">
+            A founder page should feel
+            <span className="block [font-family:var(--font-serif)] font-semibold italic text-stone-700">edited, not over-explained.</span>
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">
+            The product promise is deliberately narrow: help founders understand what deserves to exist, how to describe it, and what to do next.
+          </p>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-20 lg:grid-cols-2 lg:px-8">
-        {featureColumns.map((feature) => (
-          <div
-            key={feature.title}
-            className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,242,233,0.9))] p-8 shadow-[0_22px_90px_rgba(41,27,10,0.08)]"
-          >
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-400">{feature.eyebrow}</div>
-            <h2 className="mt-5 max-w-xl text-[clamp(2rem,4vw,3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
-              {feature.title}
-            </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">{feature.description}</p>
-            <div className="mt-8 space-y-3">
-              {feature.bullets.map((bullet) => (
-                <div
-                  key={bullet}
-                  className="flex items-center gap-3 rounded-2xl border border-stone-200/80 bg-white/75 px-4 py-4 text-sm font-medium text-stone-700"
-                >
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  {bullet}
+          <div className="mt-8 grid gap-4">
+            {workflowMoments.map((moment) => (
+              <div key={moment.number} className="grid gap-3 rounded-[1.6rem] border border-stone-200/80 bg-[#fbf7f1] p-5 sm:grid-cols-[auto_1fr] sm:items-start">
+                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">{moment.number}</div>
+                <div>
+                  <h3 className="text-xl font-semibold tracking-[-0.03em] text-stone-950">{moment.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-stone-600">{moment.body}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </section>
+        </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-6 lg:px-8">
-        <div className="grid gap-6 rounded-[2rem] border border-stone-200/70 bg-stone-950 px-6 py-8 text-white shadow-[0_35px_120px_rgba(17,12,7,0.22)] lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200/70">How it works</div>
-            <h2 className="mt-5 text-[clamp(2rem,5vw,3.5rem)] font-semibold leading-[1] tracking-[-0.05em]">
-              A tighter path from concept to market proof.
-            </h2>
-            <p className="mt-5 max-w-lg text-base leading-8 text-stone-300">
-              The product is designed to reduce founder noise, improve message quality, and keep momentum focused on validation and launch.
+        <div className="rounded-[2.25rem] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.72)_0%,rgba(250,243,233,0.9)_100%)] p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Founder voices</div>
+              <h2 className="mt-4 text-[clamp(2rem,4vw,3.3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                The emotional job is clarity, not volume.
+              </h2>
+            </div>
+            <p className="max-w-md text-sm leading-7 text-stone-600">
+              These are the kinds of tensions this workflow is built to resolve, presented like notes from the edge of company formation.
             </p>
           </div>
 
-          <div className="grid gap-4">
-            {workflowSteps.map((step) => (
-              <div key={step.number} className="rounded-[1.5rem] border border-white/10 bg-white/6 p-6 backdrop-blur-sm">
-                <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200/70">{step.number}</div>
-                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">{step.title}</h3>
-                <p className="mt-3 text-base leading-7 text-stone-300">{step.description}</p>
-              </div>
+          <div className="mt-8 space-y-4">
+            {founderVoices.map((voice, index) => (
+              <figure
+                key={voice.quote}
+                className={`rounded-[1.8rem] border p-6 shadow-[0_18px_50px_rgba(55,37,12,0.06)] ${
+                  index === 1 ? "border-stone-900/85 bg-stone-950 text-stone-100" : "border-stone-200/80 bg-white/86 text-stone-900"
+                }`}
+              >
+                <blockquote className="text-[1.05rem] leading-8 tracking-[-0.02em]">
+                  &ldquo;{voice.quote}&rdquo;
+                </blockquote>
+                <figcaption className={`mt-5 text-sm font-medium ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>{voice.role}</figcaption>
+              </figure>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-400">Founder proof</div>
-            <h2 className="mt-4 text-[clamp(2rem,4vw,3.3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
-              Trusted when the homepage, pitch, and product direction all need work at once.
+      <footer className="px-6 pb-12 pt-8 lg:px-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 overflow-hidden rounded-[2.5rem] border border-stone-200/80 bg-[linear-gradient(135deg,#f7efe3_0%,#efe3d1_32%,#17120f_32.4%,#17120f_100%)] p-8 shadow-[0_32px_110px_rgba(45,31,12,0.16)] lg:flex-row lg:items-end lg:justify-between lg:p-10">
+          <div className="max-w-3xl text-white">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200/70">Start with a better question</div>
+            <h2 className="mt-4 text-[clamp(2.4rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.06em]">
+              Founder-grade direction
+              <span className="block [font-family:var(--font-serif)] font-semibold italic text-amber-100">without the founder fog.</span>
             </h2>
-          </div>
-          <p className="max-w-xl text-base leading-8 text-stone-600">
-            The value is not just speed. It is better decisions, cleaner outputs, and a product story that holds together under scrutiny.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {testimonials.map((testimonial) => (
-            <figure
-              key={testimonial.name}
-              className="rounded-[2rem] border border-stone-200/80 bg-white/85 p-7 shadow-[0_20px_90px_rgba(53,36,12,0.08)]"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-stone-950 text-sm font-semibold text-white">
-                  {testimonial.name
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")}
-                </div>
-                <figcaption>
-                  <div className="text-base font-semibold text-stone-950">{testimonial.name}</div>
-                  <div className="text-sm text-stone-500">{testimonial.title}</div>
-                </figcaption>
-              </div>
-              <blockquote className="mt-6 text-base leading-8 text-stone-600">&ldquo;{testimonial.quote}&rdquo;</blockquote>
-            </figure>
-          ))}
-        </div>
-      </section>
-
-      <footer className="px-6 pb-12 pt-4 lg:px-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 rounded-[2.4rem] border border-stone-200/70 bg-[linear-gradient(135deg,#f3e2c2_0%,#f6eee1_40%,#ffffff_100%)] p-8 shadow-[0_30px_100px_rgba(69,48,17,0.12)] lg:flex-row lg:items-center lg:justify-between lg:p-10">
-          <div className="max-w-2xl">
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Start now</div>
-            <h2 className="mt-4 text-[clamp(2rem,5vw,3.2rem)] font-semibold leading-[1.02] tracking-[-0.05em] text-stone-950">
-              Research faster. Position better. Launch with a premium level of clarity.
-            </h2>
-            <p className="mt-4 text-base leading-8 text-stone-600">
-              Use AI Cofounder to turn raw startup ambition into a sharper offer, stronger evidence, and a better first impression.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-stone-300">
+              Use AI Cofounder when you need product thinking, evidence, and launch narrative to read like they belong to the same company.
             </p>
           </div>
 
@@ -341,7 +301,7 @@ export default function LandingPage() {
                   button: "footer_get_started",
                 })
               }
-              className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(20,18,16,0.18)] transition hover:-translate-y-0.5 hover:bg-stone-900"
+              className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-stone-950 shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-stone-100"
             >
               Get started free
             </Link>

@@ -30,31 +30,30 @@ describe("LandingPage", () => {
     });
   });
 
-  it("renders the premium hero heading and supporting copy", () => {
+  it("renders the editorial hero, highlighted founder tagline, and static chat prompt", () => {
     render(<LandingPage />);
 
-    expect(screen.getByRole("heading", { name: /Build the startup story/i })).toBeInTheDocument();
-    expect(screen.getByText(/Premium AI product strategy for founders/i)).toBeInTheDocument();
-    expect(screen.getByText(/validate demand, sharpen positioning/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Build the company people can/i })).toBeInTheDocument();
+    expect(screen.getByText(/less founder theater, more founder certainty/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ask the hard founder question first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Describe the founder, the customer tension/i)).toBeInTheDocument();
   });
 
-  it("renders trust metrics and conversion proof sections", () => {
+  it("renders proof metrics, workflow moments, and curated founder voices", () => {
     render(<LandingPage />);
 
-    ["12k+", "500+", "18 hrs", "Sharper positioning", "Less founder drift", "More credible launches"].forEach((value) => {
+    [
+      "12k+",
+      "500+",
+      "18 hrs",
+      "Interrogate the idea",
+      "Pull signal into focus",
+      "Leave with launch-ready clarity",
+      "Pre-seed founder",
+      "Second-time operator",
+      "Founder after repositioning",
+    ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
-    });
-  });
-
-  it("renders the workflow steps and founder testimonials", () => {
-    render(<LandingPage />);
-
-    ["Frame the opportunity", "Pressure-test with evidence", "Ship with a coherent plan"].forEach((title) => {
-      expect(screen.getByText(title)).toBeInTheDocument();
-    });
-
-    ["Maya Chen", "Jordan Alvarez", "Priya Patel"].forEach((name) => {
-      expect(screen.getByText(name)).toBeInTheDocument();
     });
   });
 
@@ -62,7 +61,7 @@ describe("LandingPage", () => {
     render(<LandingPage />);
 
     fireEvent.click(screen.getByRole("link", { name: "Start building free" }));
-    fireEvent.click(screen.getByRole("link", { name: "Explore the workspace" }));
+    fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
     fireEvent.click(screen.getByRole("link", { name: "Get started free" }));
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
