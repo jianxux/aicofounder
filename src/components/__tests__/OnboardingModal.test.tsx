@@ -50,7 +50,36 @@ describe("OnboardingModal", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+    expect(screen.getByText("First Session Preview")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Get Started" })).toBeInTheDocument();
+  });
+
+  it("moves focus into the dialog when opened", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    expect(screen.getByRole("button", { name: "Skip" })).toHaveFocus();
+  });
+
+  it("shows concrete first-session deliverables before the user starts", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    const preview = screen.getByLabelText("First session deliverables");
+
+    expect(within(preview).getByText("First Session Preview")).toBeInTheDocument();
+    expect(
+      within(preview).getByText(
+        "You will leave with a sharper brief for your startup idea and a clear starting point for the next phase.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(preview).getByText("A concise problem statement grounded in the founder idea you provide."),
+    ).toBeInTheDocument();
+    expect(
+      within(preview).getByText("A target user and core assumption to validate first."),
+    ).toBeInTheDocument();
+    expect(
+      within(preview).getByText("A recommended next-step plan for discovery, planning, and build."),
+    ).toBeInTheDocument();
   });
 
   it("does not render when open=false", () => {
@@ -65,7 +94,36 @@ describe("OnboardingModal", () => {
 
     moveToIdeaStep();
 
-    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "About Your Idea" })).toBeInTheDocument();
+  });
+
+  it("keeps inactive steps out of the accessible tree and updates dialog labeling per step", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    const initialDialog = screen.getByRole("dialog", { name: "Welcome to AI Cofounder" });
+    const initialDescription = document.getElementById(initialDialog.getAttribute("aria-describedby") ?? "");
+
+    expect(initialDescription).toHaveTextContent("Start with a focused first session");
+
+    moveToIdeaStep();
+
+    const ideaDialog = screen.getByRole("dialog", { name: "About Your Idea" });
+    const ideaDescription = document.getElementById(ideaDialog.getAttribute("aria-describedby") ?? "");
+    const stepOneSection = screen.getByText("Welcome to AI Cofounder").closest("section");
+
+    expect(ideaDescription).toHaveTextContent("Start with one clear idea.");
+    expect(screen.queryByRole("button", { name: "Get Started" })).not.toBeInTheDocument();
+    expect(stepOneSection).toHaveAttribute("hidden");
+
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const launchDialog = screen.getByRole("dialog", { name: "Ready to Launch" });
+    const launchDescription = document.getElementById(launchDialog.getAttribute("aria-describedby") ?? "");
+    const stepTwoSection = screen.getByText("About Your Idea").closest("section");
+
+    expect(launchDescription).toHaveTextContent("Here’s what you’re starting with.");
+    expect(stepTwoSection).toHaveAttribute("hidden");
   });
 
   it("step 2 has the primary idea prompt and optional fields", () => {
@@ -230,6 +288,21 @@ describe("OnboardingModal", () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
+  it("traps keyboard focus within the dialog while open", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    const skipButton = screen.getByRole("button", { name: "Skip" });
+    const getStartedButton = screen.getByRole("button", { name: "Get Started" });
+
+    skipButton.focus();
+    fireEvent.keyDown(skipButton, { key: "Tab", shiftKey: true });
+    expect(getStartedButton).toHaveFocus();
+
+    getStartedButton.focus();
+    fireEvent.keyDown(getStartedButton, { key: "Tab" });
+    expect(skipButton).toHaveFocus();
+  });
+
   it("step indicator shows correct active step", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -306,5 +379,35 @@ describe("OnboardingModal", () => {
       "Carry this prompt into onboarding.",
     );
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("restores focus to the previously active element when closed", () => {
+    const { rerender } = render(
+      <>
+        <button type="button">Open onboarding</button>
+        <OnboardingModal open={false} onComplete={onComplete} onSkip={onSkip} />
+      </>,
+    );
+
+    const opener = screen.getByRole("button", { name: "Open onboarding" });
+    opener.focus();
+
+    rerender(
+      <>
+        <button type="button">Open onboarding</button>
+        <OnboardingModal open onComplete={onComplete} onSkip={onSkip} />
+      </>,
+    );
+
+    expect(screen.getByRole("button", { name: "Skip" })).toHaveFocus();
+
+    rerender(
+      <>
+        <button type="button">Open onboarding</button>
+        <OnboardingModal open={false} onComplete={onComplete} onSkip={onSkip} />
+      </>,
+    );
+
+    expect(screen.getByRole("button", { name: "Open onboarding" })).toHaveFocus();
   });
 });
