@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect } from "react";
+import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -60,14 +61,16 @@ const founderVoices = [
   },
 ];
 
-function LandingCta({
+function LandingLinkCta({
   button,
   children,
   variant = "primary",
+  href = "/dashboard",
 }: {
   button: string;
   children: ReactNode;
   variant?: "primary" | "secondary";
+  href?: string;
 }) {
   const baseClassName =
     "inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold tracking-[0.01em] transition duration-200";
@@ -78,7 +81,7 @@ function LandingCta({
 
   return (
     <Link
-      href="/dashboard"
+      href={href}
       onClick={() =>
         void trackEvent("cta_click", {
           page: "/",
@@ -131,14 +134,21 @@ export default function LandingPage() {
             </p>
 
             <p className="mt-5 max-w-lg text-sm leading-7 text-stone-500">
-              Designed for the moment when the product might be real, but the story still feels too soft to ship.
+              Designed for the moment when the product might be real, but the story still feels too soft to ship. Continue with Google to open your
+              workspace and onboarding flow.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-4">
-              <LandingCta button="hero_get_started_free">Start building free</LandingCta>
-              <LandingCta button="hero_see_workspace" variant="secondary">
+              <AuthButton
+                redirectTo="/dashboard"
+                label="Continue with Google"
+                analyticsButton="hero_get_started_free"
+                analyticsPage="/"
+                className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold tracking-[0.01em] text-white shadow-[0_20px_55px_rgba(16,12,10,0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-900"
+              />
+              <LandingLinkCta button="hero_see_workspace" variant="secondary">
                 See the founder workflow
-              </LandingCta>
+              </LandingLinkCta>
             </div>
 
             <div className="mt-10 grid max-w-2xl gap-4 sm:grid-cols-3">
@@ -328,18 +338,13 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <Link
-              href="/dashboard"
-              onClick={() =>
-                void trackEvent("cta_click", {
-                  page: "/",
-                  button: "footer_get_started",
-                })
-              }
+            <AuthButton
+              redirectTo="/dashboard"
+              label="Continue with Google"
+              analyticsButton="footer_get_started"
+              analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-stone-950 shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-stone-100"
-            >
-              Get started free
-            </Link>
+            />
           </div>
         </div>
       </footer>

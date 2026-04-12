@@ -8,6 +8,10 @@ import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 
 type AuthButtonProps = {
   redirectTo?: string;
+  label?: string;
+  className?: string;
+  analyticsButton?: string;
+  analyticsPage?: string;
 };
 
 function getInitials(user: User) {
@@ -24,7 +28,13 @@ function getInitials(user: User) {
     .join("");
 }
 
-export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProps) {
+export default function AuthButton({
+  redirectTo = "/dashboard",
+  label = "Continue with Google",
+  className,
+  analyticsButton,
+  analyticsPage,
+}: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = useMemo(() => createBrowserClient(), []);
@@ -76,6 +86,12 @@ export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProp
     }
 
     const origin = window.location.origin;
+    if (analyticsButton) {
+      void trackEvent("cta_click", {
+        page: analyticsPage ?? window.location.pathname,
+        button: analyticsButton,
+      });
+    }
     void trackEvent("login_attempt", {
       provider: "google",
       redirect_to: redirectTo,
@@ -101,6 +117,16 @@ export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProp
     return (
       <Link
         href={redirectTo}
+        onClick={() => {
+          if (!analyticsButton) {
+            return;
+          }
+
+          void trackEvent("cta_click", {
+            page: analyticsPage ?? window.location.pathname,
+            button: analyticsButton,
+          });
+        }}
         className="inline-flex items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:bg-stone-50"
       >
         Explore demo
@@ -121,9 +147,12 @@ export default function AuthButton({ redirectTo = "/dashboard" }: AuthButtonProp
       <button
         type="button"
         onClick={signIn}
-        className="inline-flex items-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+        className={
+          className ??
+          "inline-flex items-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+        }
       >
-        Get started free
+        {label}
       </button>
     );
   }

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
 import { trackEvent } from "@/lib/analytics";
+import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
@@ -19,6 +20,32 @@ vi.mock("@/components/Navbar", () => ({
 vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
+
+vi.mock("@/lib/supabase", () => ({
+  isSupabaseConfigured: vi.fn(),
+  createBrowserClient: vi.fn(),
+}));
+
+const signInWithOAuth = vi.fn().mockResolvedValue({});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(isSupabaseConfigured).mockReturnValue(true);
+  vi.mocked(createBrowserClient).mockReturnValue({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: {
+          subscription: {
+            unsubscribe: vi.fn(),
+          },
+        },
+      }),
+      signInWithOAuth,
+      signOut: vi.fn(),
+    },
+  } as any);
+});
 
 describe("LandingPage", () => {
   it("tracks the landing page view on mount", () => {
@@ -58,12 +85,14 @@ describe("LandingPage", () => {
     });
   });
 
-  it("tracks all primary CTA clicks", () => {
+  it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Start building free" }));
+    const authButtons = await screen.findAllByRole("button", { name: "Continue with Google" });
+
+    fireEvent.click(authButtons[0]);
     fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
-    fireEvent.click(screen.getByRole("link", { name: "Get started free" }));
+    fireEvent.click(authButtons[1]);
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",

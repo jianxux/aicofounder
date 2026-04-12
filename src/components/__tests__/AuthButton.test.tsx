@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AuthButton from "@/components/AuthButton";
 import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
+import { trackEvent } from "@/lib/analytics";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
@@ -15,6 +16,10 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: vi.fn(),
   createBrowserClient: vi.fn(),
+}));
+
+vi.mock("@/lib/analytics", () => ({
+  trackEvent: vi.fn(),
 }));
 
 type MockUser = {
@@ -118,7 +123,7 @@ describe("AuthButton", () => {
 
     render(<AuthButton />);
 
-    expect(await screen.findByRole("button", { name: "Get started free" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
   });
 
   it("starts Google OAuth with the default dashboard redirect", async () => {
@@ -126,7 +131,7 @@ describe("AuthButton", () => {
 
     render(<AuthButton />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Get started free" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
 
     expect(supabase.signInWithOAuth).toHaveBeenCalledTimes(1);
     expect(supabase.signInWithOAuth).toHaveBeenCalledWith({
@@ -154,7 +159,7 @@ describe("AuthButton", () => {
 
     render(<AuthButton redirectTo="/project/42" />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Get started free" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
 
     expect(supabase.signInWithOAuth).toHaveBeenCalledWith({
       provider: "google",
@@ -307,7 +312,7 @@ describe("AuthButton", () => {
     render(<AuthButton />);
 
     // supabase is null → useEffect sets loading=false immediately → shows sign-in
-    const btn = await screen.findByRole("button", { name: "Get started free" });
+    const btn = await screen.findByRole("button", { name: "Continue with Google" });
     fireEvent.click(btn);
 
     // No error thrown, signIn early-returns
@@ -331,7 +336,7 @@ describe("AuthButton", () => {
     render(<AuthButton />);
 
     // With null supabase, loading is set to false immediately, user stays null → sign-in button
-    const btn = await screen.findByRole("button", { name: "Get started free" });
+    const btn = await screen.findByRole("button", { name: "Continue with Google" });
     expect(btn).toBeInTheDocument();
   });
 
@@ -362,5 +367,41 @@ describe("AuthButton", () => {
     unmount();
 
     expect(supabase.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a custom label when provided", async () => {
+    setupSupabaseClient(Promise.resolve({ data: { user: null } }));
+
+    render(<AuthButton label="Sign in with Google" />);
+
+    expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+  });
+
+  it("tracks the CTA click before starting OAuth when analytics props are provided", async () => {
+    const supabase = setupSupabaseClient(Promise.resolve({ data: { user: null } }));
+
+    render(<AuthButton analyticsButton="hero_get_started_free" analyticsPage="/" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
+
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_get_started_free",
+    });
+    expect(supabase.signInWithOAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks demo-link CTA clicks when Supabase is not configured", () => {
+    vi.mocked(isSupabaseConfigured).mockReturnValue(false);
+    vi.mocked(createBrowserClient).mockReturnValue(null as any);
+
+    render(<AuthButton redirectTo="/demo" analyticsButton="hero_get_started_free" analyticsPage="/" />);
+
+    fireEvent.click(screen.getByRole("link", { name: "Explore demo" }));
+
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_get_started_free",
+    });
   });
 });
