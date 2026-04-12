@@ -95,12 +95,25 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
 
     [
-      /What do I get from the first session\?/i,
-      /Do I need a polished brief before I start\?/i,
-      /What happens after I sign in\?/i,
-      /Are my uploaded notes private\?/i,
-    ].forEach((question) => {
+      {
+        question: /What do I get from the first session\?/i,
+        answer: /A first pass at the story: a sharper positioning angle, concrete claims worth testing, and a short list of next questions or homepage moves to act on immediately\./i,
+      },
+      {
+        question: /Do I need a polished brief before I start\?/i,
+        answer: /No\. You can begin with rough notes, call transcripts, a messy draft, or one stubborn question\./i,
+      },
+      {
+        question: /What happens after I sign in\?/i,
+        answer: /You land in the workspace, answer a few onboarding prompts about your product and stage, then paste notes or upload material so the first session can produce founder-ready outputs quickly\./i,
+      },
+      {
+        question: /Are my uploaded notes private\?/i,
+        answer: /Your notes stay inside your workspace and are used to generate your tailored results\./i,
+      },
+    ].forEach(({ question, answer }) => {
       expect(screen.getByText(question)).toBeInTheDocument();
+      expect(screen.getByText(answer)).toBeInTheDocument();
     });
   });
 
@@ -110,7 +123,11 @@ describe("LandingPage", () => {
     const authButtons = await screen.findAllByRole("button", { name: "Continue with Google" });
 
     fireEvent.click(authButtons[0]);
-    fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
+    const workflowLink = screen.getByRole("link", { name: "See the founder workflow" });
+
+    expect(workflowLink).toHaveAttribute("href", "#workflow");
+
+    fireEvent.click(workflowLink);
     fireEvent.click(authButtons[1]);
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {

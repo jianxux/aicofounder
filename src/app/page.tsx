@@ -169,7 +169,7 @@ export default function LandingPage() {
                 analyticsPage="/"
                 className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold tracking-[0.01em] text-white shadow-[0_20px_55px_rgba(16,12,10,0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-900"
               />
-              <LandingLinkCta button="hero_see_workspace" variant="secondary">
+              <LandingLinkCta button="hero_see_workspace" variant="secondary" href="#workflow">
                 See the founder workflow
               </LandingLinkCta>
             </div>
@@ -292,7 +292,7 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+      <section id="workflow" className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <div className="rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm">
           <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Credibility, used with restraint</div>
           <h2 className="mt-5 text-[clamp(2.2rem,4.6vw,4rem)] font-semibold leading-[0.96] tracking-[-0.06em] text-stone-950">
