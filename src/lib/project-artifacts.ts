@@ -11,6 +11,7 @@ import {
   getProjectArtifactByType,
   normalizeProject,
 } from "@/lib/types";
+import { summarizeFramework } from "@/lib/frameworks";
 import { buildResearchMemoEvidenceSnapshot } from "@/lib/project-research";
 
 function createRevisionId(artifactId: string, revisionNumber: number) {
@@ -40,11 +41,14 @@ function hasMeaningfulValidationOutput(artifact: ValidationScorecardArtifact) {
 function buildValidationScorecardEvidenceSnapshot(
   artifact: ValidationScorecardArtifact,
 ): ValidationScorecardEvidenceSnapshot {
+  const framework = summarizeFramework(artifact.framework);
+
   return {
     artifactType: "validation-scorecard",
     summary: normalizeText(artifact.summary) || undefined,
     criteriaCount: artifact.criteria.length,
     scoredCriteriaCount: artifact.criteria.filter((criterion) => typeof criterion.score === "number").length,
+    ...(framework ? { framework } : {}),
     criteria: artifact.criteria.slice(0, 3).map((criterion) => ({
       label: criterion.label,
       score: criterion.score,
@@ -116,6 +120,7 @@ export function applyValidationScorecardChatUpdate(
     status,
     ...(summary ? { summary } : {}),
     criteria: artifact.criteria,
+    ...(artifact.framework ? { framework: artifact.framework } : {}),
   } satisfies Omit<ValidationScorecardArtifactRevision, "id" | "number">;
 
   const result = appendRevisionIfChanged(
@@ -137,6 +142,7 @@ export function applyValidationScorecardChatUpdate(
     ...result.artifact,
     ...(summary ? { summary } : {}),
     criteria: artifact.criteria,
+    ...(artifact.framework ? { framework: artifact.framework } : {}),
   };
 
   return {
@@ -180,6 +186,7 @@ export function applyCustomerResearchMemoUpdate(project: Project, research: Proj
     createdAt,
     status,
     research,
+    ...(research?.artifact?.framework ? { framework: research.artifact.framework } : {}),
   } satisfies Omit<CustomerResearchMemoArtifactRevision, "id" | "number">;
 
   const result = appendRevisionIfChanged(
@@ -191,11 +198,14 @@ export function applyCustomerResearchMemoUpdate(project: Project, research: Proj
         stringify((candidate as Omit<CustomerResearchMemoArtifactRevision, "id" | "number">).research),
   );
 
+  const { framework: _existingFramework, ...artifactWithoutFramework } = result.artifact as CustomerResearchMemoArtifact;
+  const nextFramework = research?.artifact?.framework;
   const nextArtifact: CustomerResearchMemoArtifact = {
-    ...(result.artifact as CustomerResearchMemoArtifact),
+    ...artifactWithoutFramework,
     updatedAt: createdAt,
     status,
     research,
+    ...(nextFramework ? { framework: nextFramework } : {}),
   };
 
   return {

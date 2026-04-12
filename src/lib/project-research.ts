@@ -1,4 +1,5 @@
 import { validateResearchReport, type ResearchReport as ResearchReportData } from "@/lib/research";
+import { normalizeArtifactFramework, summarizeFramework } from "@/lib/frameworks";
 import {
   isProjectResearchArtifact,
   type CustomerResearchMemoEvidenceSnapshot,
@@ -92,6 +93,11 @@ function getPartialResearchArtifact(value: unknown): Partial<ProjectResearchArti
   const sanitizedFailures = sanitizeArtifactField("failures", artifact.failures);
   if (sanitizedFailures !== undefined) {
     partial.failures = sanitizedFailures;
+  }
+
+  const sanitizedFramework = normalizeArtifactFramework(artifact.framework, "customer-research-memo");
+  if (sanitizedFramework) {
+    partial.framework = sanitizedFramework;
   }
 
   return Object.keys(partial).length > 0 ? partial : undefined;
@@ -207,11 +213,14 @@ export function resolveProjectResearchResponse(
 }
 
 export function buildResearchMemoEvidenceSnapshot(research: ProjectResearch | null): CustomerResearchMemoEvidenceSnapshot {
+  const framework = summarizeFramework(research?.artifact?.framework);
+
   return {
     artifactType: "customer-research-memo",
     researchStatus: research?.status ?? "empty",
     artifactStatus: research?.artifact?.status,
     executiveSummary: research?.report?.executiveSummary?.trim() || undefined,
+    ...(framework ? { framework } : {}),
     keyFindings: summarizeList(research?.report?.keyFindings?.map((item) => item.statement)),
     contradictions: summarizeList(research?.report?.contradictions?.map((item) => item.statement)),
     unansweredQuestions: summarizeList(research?.report?.unansweredQuestions?.map((item) => item.question)),

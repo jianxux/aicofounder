@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import BrainstormResults from "@/components/BrainstormResults";
 import ChatPanel from "@/components/ChatPanel";
 import Canvas from "@/components/Canvas";
+import FrameworkTemplatePanel from "@/components/FrameworkTemplatePanel";
 import ProjectMemoryPanel from "@/components/ProjectMemoryPanel";
 import ResearchMemoDualView from "@/components/ResearchMemoDualView";
 import UltraplanReport from "@/components/UltraplanReport";
@@ -156,6 +157,7 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
           </div>
         )}
       </div>
+      <FrameworkTemplatePanel framework={artifact.framework} heading="Framework template" />
     </section>
   );
 }

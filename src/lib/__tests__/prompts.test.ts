@@ -8,6 +8,7 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("You are an AI cofounder");
     expect(prompt).toContain("You challenge assumptions ruthlessly but constructively.");
     expect(prompt).toContain("Keep responses focused and actionable");
+    expect(prompt).toContain("Frameworks are optional.");
   });
 
   it.each([
@@ -77,6 +78,55 @@ describe("buildSystemPrompt", () => {
         },
       }),
     ).toContain("Stay grounded in revision 2 with status completed");
+  });
+
+  it("adds artifact-specific optional framework guidance", () => {
+    const validationPrompt = buildSystemPrompt("build", "Orbit", "", {
+      id: "artifact-validation-scorecard",
+      type: "validation-scorecard",
+      label: "Validation scorecard",
+      status: "completed",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: {
+        id: "revision-2",
+        number: 2,
+        createdAt: "2025-01-12T00:00:00.000Z",
+        status: "completed",
+      },
+      evidenceSnapshot: {
+        artifactType: "validation-scorecard",
+        criteriaCount: 0,
+        scoredCriteriaCount: 0,
+        criteria: [],
+      },
+    });
+    const memoPrompt = buildSystemPrompt("build", "Orbit", "", {
+      id: "artifact-customer-research-memo",
+      type: "customer-research-memo",
+      label: "Customer research memo",
+      status: "completed",
+      mode: "artifact-follow-up",
+      hasMeaningfulOutput: true,
+      revision: {
+        id: "revision-3",
+        number: 3,
+        createdAt: "2025-01-13T00:00:00.000Z",
+        status: "completed",
+      },
+      evidenceSnapshot: {
+        artifactType: "customer-research-memo",
+        researchStatus: "success",
+        keyFindings: [],
+        contradictions: [],
+        unansweredQuestions: [],
+        sourceCount: 0,
+        sectionCount: 0,
+      },
+    });
+
+    expect(validationPrompt).toContain("problem-solution fit or validation experiment planning");
+    expect(memoPrompt).toContain("SWOT or Five Forces");
   });
 
   it("includes the artifact snapshot when artifact context is provided", () => {

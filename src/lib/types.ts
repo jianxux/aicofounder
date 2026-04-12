@@ -1,5 +1,14 @@
 import { deriveProjectMemoryFromArtifacts } from "@/lib/project-memory";
+import {
+  type ArtifactFramework,
+  type FrameworkTemplateType,
+  isArtifactFramework,
+  normalizeArtifactFramework,
+  summarizeFramework,
+} from "@/lib/frameworks";
 import type { ResearchCitation, ResearchReport, ResearchRunArtifact, ResearchSource } from "@/lib/research";
+
+export type { ArtifactFramework, FrameworkTemplateType } from "@/lib/frameworks";
 
 export type Sender = "user" | "assistant";
 
@@ -163,6 +172,7 @@ export type ProjectResearchArtifact = {
   sourceInventory?: ResearchRunArtifact["sourceInventory"];
   metrics?: Partial<ResearchRunArtifact["metrics"]>;
   failures?: ResearchRunArtifact["failures"];
+  framework?: ArtifactFramework;
 };
 
 export const PROJECT_ARTIFACT_TYPES = ["validation-scorecard", "customer-research-memo"] as const;
@@ -183,15 +193,18 @@ export type ArtifactRevisionMetadata = {
   number: number;
   createdAt: string;
   status: ProjectArtifactStatus;
+  framework?: ArtifactFramework;
 };
 
 export type ValidationScorecardArtifactRevision = ArtifactRevisionMetadata & {
   summary?: string;
   criteria: ValidationScorecardCriterion[];
+  framework?: ArtifactFramework;
 };
 
 export type CustomerResearchMemoArtifactRevision = ArtifactRevisionMetadata & {
   research: ProjectResearch | null;
+  framework?: ArtifactFramework;
 };
 
 export type SharedProjectRevisionMetadata<TFamily extends string = string> = {
@@ -342,6 +355,7 @@ export type ValidationScorecardArtifact = {
 } & ProjectArtifactBase & {
   summary?: string;
   criteria: ValidationScorecardCriterion[];
+  framework?: ArtifactFramework;
 };
 
 export type CustomerResearchMemoArtifact = {
@@ -350,6 +364,7 @@ export type CustomerResearchMemoArtifact = {
 } & ProjectArtifactBase & {
   research: ProjectResearch | null;
   sharedState: ResearchMemoSharedState;
+  framework?: ArtifactFramework;
 };
 
 export type ProjectArtifact = ValidationScorecardArtifact | CustomerResearchMemoArtifact;
@@ -361,6 +376,11 @@ export type ValidationScorecardEvidenceSnapshot = {
   summary?: string;
   criteriaCount: number;
   scoredCriteriaCount: number;
+  framework?: {
+    type: FrameworkTemplateType;
+    label: string;
+    itemCount: number;
+  };
   criteria: Array<{
     label: string;
     score?: number;
@@ -373,6 +393,11 @@ export type CustomerResearchMemoEvidenceSnapshot = {
   researchStatus: ProjectResearch["status"] | "empty";
   artifactStatus?: ProjectArtifactStatus;
   executiveSummary?: string;
+  framework?: {
+    type: FrameworkTemplateType;
+    label: string;
+    itemCount: number;
+  };
   keyFindings: string[];
   contradictions: string[];
   unansweredQuestions: string[];
@@ -1439,7 +1464,8 @@ export const isProjectResearchArtifact = (value: unknown): value is ProjectResea
         (metrics.completedSections === undefined || typeof metrics.completedSections === "number") &&
         (metrics.selectedSources === undefined || typeof metrics.selectedSources === "number") &&
         (metrics.rejectedSources === undefined || typeof metrics.rejectedSources === "number"))) &&
-    (value.failures === undefined || (Array.isArray(value.failures) && value.failures.every(isResearchFailure)))
+    (value.failures === undefined || (Array.isArray(value.failures) && value.failures.every(isResearchFailure))) &&
+    (value.framework === undefined || isArtifactFramework(value.framework, "customer-research-memo"))
   );
 };
 
@@ -1504,12 +1530,14 @@ export const isValidationScorecardArtifactRevision = (value: unknown): value is 
   }
 
   const summary = "summary" in value ? value.summary : undefined;
+  const framework = "framework" in value ? value.framework : undefined;
   const criteria = value.criteria;
 
   return (
     isArtifactRevisionMetadata(value) &&
     (summary === undefined || typeof summary === "string") &&
-    criteria.every(isValidationScorecardCriterion)
+    criteria.every(isValidationScorecardCriterion) &&
+    (framework === undefined || isArtifactFramework(framework, "validation-scorecard"))
   );
 };
 
@@ -1519,8 +1547,13 @@ export const isCustomerResearchMemoArtifactRevision = (value: unknown): value is
   }
 
   const research = "research" in value ? value.research : undefined;
+  const framework = "framework" in value ? value.framework : undefined;
 
-  return isArtifactRevisionMetadata(value) && (research === null || isProjectResearch(research));
+  return (
+    isArtifactRevisionMetadata(value) &&
+    (research === null || isProjectResearch(research)) &&
+    (framework === undefined || isArtifactFramework(framework, "customer-research-memo"))
+  );
 };
 
 export const isResearchMemoViewType = (value: unknown): value is ResearchMemoViewType =>
@@ -1727,7 +1760,8 @@ export const isValidationScorecardArtifact = (value: unknown): value is Validati
         typeof value.currentRevisionNumber === "number" &&
         typeof value.currentRevisionCreatedAt === "string")) &&
     (value.summary === undefined || typeof value.summary === "string") &&
-    value.criteria.every(isValidationScorecardCriterion)
+    value.criteria.every(isValidationScorecardCriterion) &&
+    (value.framework === undefined || isArtifactFramework(value.framework, "validation-scorecard"))
   );
 };
 
@@ -1750,6 +1784,7 @@ export const isCustomerResearchMemoArtifact = (value: unknown): value is Custome
         typeof value.currentRevisionNumber === "number" &&
         typeof value.currentRevisionCreatedAt === "string")) &&
     (value.research === null || isProjectResearch(value.research)) &&
+    (value.framework === undefined || isArtifactFramework(value.framework, "customer-research-memo")) &&
     (!("sharedState" in value) ||
       isResearchMemoSharedState(value.sharedState) ||
       isLegacyResearchMemoSharedState(value.sharedState))
@@ -1861,14 +1896,42 @@ function normalizeValidationScorecardArtifact(
 ): ValidationScorecardArtifact {
   const artifactRecord = asArtifactRecord(existingArtifact, "validation-scorecard");
   const artifact = isValidationScorecardArtifact(artifactRecord) ? artifactRecord : undefined;
-  const revisionHistory = Array.isArray(artifactRecord?.revisionHistory)
-    ? artifactRecord.revisionHistory.filter(isValidationScorecardArtifactRevision)
-    : [];
   const summary = artifact?.summary ?? (typeof artifactRecord?.summary === "string" ? artifactRecord.summary : undefined);
   const criteria = artifact?.criteria ?? (Array.isArray(artifactRecord?.criteria)
     ? artifactRecord.criteria.filter(isValidationScorecardCriterion)
     : []);
   const updatedAt = typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt;
+  const normalizeValidationRevision = (value: unknown): ValidationScorecardArtifactRevision | null => {
+    if (!isRecord(value)) {
+      return null;
+    }
+
+    const revisionCriteriaValue = value.criteria;
+    const revisionSummaryValue = value.summary;
+    const revisionFrameworkValue = value.framework;
+
+    if (!Array.isArray(revisionCriteriaValue) || !isArtifactRevisionMetadata(value)) {
+      return null;
+    }
+
+    const revisionCriteria = revisionCriteriaValue.filter(isValidationScorecardCriterion);
+    return {
+      id: value.id,
+      number: value.number,
+      createdAt: value.createdAt,
+      status: value.status,
+      ...(typeof revisionSummaryValue === "string" ? { summary: revisionSummaryValue } : {}),
+      criteria: revisionCriteria,
+      ...(normalizeArtifactFramework(revisionFrameworkValue, "validation-scorecard")
+        ? { framework: normalizeArtifactFramework(revisionFrameworkValue, "validation-scorecard") }
+        : {}),
+    };
+  };
+  const revisionHistory = Array.isArray(artifactRecord?.revisionHistory)
+    ? artifactRecord.revisionHistory
+        .map(normalizeValidationRevision)
+        .filter((entry): entry is ValidationScorecardArtifactRevision => entry !== null)
+    : [];
   const status =
     artifact?.status ??
     (isProjectArtifactStatus(artifactRecord?.status) ? artifactRecord.status : undefined) ??
@@ -1888,6 +1951,9 @@ function normalizeValidationScorecardArtifact(
     status,
     ...(summary ? { summary } : {}),
     criteria,
+    ...(normalizeArtifactFramework(artifactRecord?.framework, "validation-scorecard")
+      ? { framework: normalizeArtifactFramework(artifactRecord?.framework, "validation-scorecard") }
+      : {}),
   };
   const normalizedRevisionHistory = revisionHistory.length > 0 ? revisionHistory : [initialRevision];
   const currentRevision =
@@ -1895,6 +1961,9 @@ function normalizeValidationScorecardArtifact(
     normalizedRevisionHistory.find((entry) => entry.id === (typeof artifactRecord?.currentRevisionId === "string" ? artifactRecord.currentRevisionId : undefined)) ??
     normalizedRevisionHistory[normalizedRevisionHistory.length - 1] ??
     initialRevision;
+  const framework =
+    currentRevision.framework ??
+    normalizeArtifactFramework(artifactRecord?.framework, "validation-scorecard");
 
   return {
     id: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_VALIDATION_SCORECARD_ARTIFACT_ID,
@@ -1910,6 +1979,7 @@ function normalizeValidationScorecardArtifact(
     },
     ...(summary ? { summary } : {}),
     criteria,
+    ...(framework ? { framework } : {}),
     revisionHistory: normalizedRevisionHistory,
   };
 }
@@ -1934,9 +2004,39 @@ function normalizeCustomerResearchMemoArtifact(
       : memoResearch?.report
         ? "completed"
         : "draft");
+  const normalizeMemoRevision = (value: unknown): CustomerResearchMemoArtifactRevision | null => {
+    if (!isRecord(value)) {
+      return null;
+    }
+
+    const researchValue = value.research;
+    const revisionFrameworkValue = value.framework;
+
+    if (!isArtifactRevisionMetadata(value)) {
+      return null;
+    }
+
+    if (researchValue !== null && !isProjectResearch(researchValue)) {
+      return null;
+    }
+
+    return {
+      id: value.id,
+      number: value.number,
+      createdAt: value.createdAt,
+      status: value.status,
+      research: researchValue ?? null,
+      ...(normalizeArtifactFramework(revisionFrameworkValue, "customer-research-memo")
+        ? { framework: normalizeArtifactFramework(revisionFrameworkValue, "customer-research-memo") }
+        : {}),
+    };
+  };
   const revisionHistory = Array.isArray(artifactRecord?.revisionHistory)
-    ? artifactRecord.revisionHistory.filter(isCustomerResearchMemoArtifactRevision)
+    ? artifactRecord.revisionHistory
+        .map(normalizeMemoRevision)
+        .filter((entry): entry is CustomerResearchMemoArtifactRevision => entry !== null)
     : [];
+  const researchFramework = normalizeArtifactFramework(memoResearch?.artifact?.framework, "customer-research-memo");
   const initialRevision: CustomerResearchMemoArtifactRevision = {
     id: createStableRecordId(
       "artifact-revision",
@@ -1952,6 +2052,7 @@ function normalizeCustomerResearchMemoArtifact(
           : fallbackUpdatedAt),
     status: derivedStatus,
     research: memoResearch,
+    ...(researchFramework ? { framework: researchFramework } : {}),
   };
   const normalizedRevisionHistory = revisionHistory.length > 0 ? revisionHistory : [initialRevision];
   const currentRevision =
@@ -1960,6 +2061,10 @@ function normalizeCustomerResearchMemoArtifact(
     normalizedRevisionHistory[normalizedRevisionHistory.length - 1] ??
     initialRevision;
   const updatedAt = memoResearch?.updatedAt ?? (typeof artifactRecord?.updatedAt === "string" ? artifactRecord.updatedAt : fallbackUpdatedAt);
+  const framework =
+    currentRevision.framework ??
+    researchFramework ??
+    normalizeArtifactFramework(artifactRecord?.framework, "customer-research-memo");
   const sharedState = deriveResearchMemoSharedState({
     artifactId: typeof artifactRecord?.id === "string" ? artifactRecord.id : DEFAULT_CUSTOMER_RESEARCH_MEMO_ARTIFACT_ID,
     revision: {
@@ -1992,6 +2097,7 @@ function normalizeCustomerResearchMemoArtifact(
     },
     research: memoResearch,
     sharedState,
+    ...(framework ? { framework } : {}),
     revisionHistory: normalizedRevisionHistory,
   };
 }

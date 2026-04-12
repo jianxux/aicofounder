@@ -8,6 +8,9 @@ const BASE_PROMPT_SECTIONS = [
   "You suggest concrete next steps, not vague advice.",
   "You celebrate genuine progress but never sugarcoat problems.",
   "Keep responses focused and actionable (2-4 paragraphs max unless asked for detail).",
+  "Frameworks are optional. Use one only when it materially improves readability for the active artifact.",
+  "Avoid framework theater: do not add filler rows, unsupported claims, or ceremonial sections.",
+  "If you use a framework, keep every point grounded in the available artifact evidence, cited research, and explicit user context.",
 ];
 
 const PHASE_PROMPTS: Record<string, string[]> = {
@@ -68,11 +71,17 @@ export function buildSystemPrompt(
   }
 
   if (artifactContext) {
+    const frameworkGuidance =
+      artifactContext.type === "customer-research-memo"
+        ? "For customer research memos, prefer SWOT or Five Forces only when the memo evidence clearly supports that structure. Otherwise stay with the default memo format."
+        : "For validation scorecards, prefer problem-solution fit or validation experiment planning only when the current evidence and next checks fit that structure. Otherwise stay with the default scorecard format.";
+
     promptSections.push(
       artifactContext.mode === "artifact-follow-up"
         ? `The active artifact follow-up target is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Stay grounded in revision ${artifactContext.revision.number} with status ${artifactContext.revision.status}, and answer questions about this existing artifact instead of starting a generic generation flow.`
         : `The active artifact is ${artifactContext.label} (${artifactContext.type}, id ${artifactContext.id}). Treat this response as the current artifact being created, not a separate output.`,
     );
+    promptSections.push(frameworkGuidance);
     promptSections.push(`Artifact snapshot: ${JSON.stringify(artifactContext.evidenceSnapshot)}`);
   }
 

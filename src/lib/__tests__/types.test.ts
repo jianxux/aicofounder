@@ -947,4 +947,124 @@ describe("lib/types guards", () => {
     });
     expect(types.getActiveProjectArtifact({ artifacts: [], activeArtifactId: "missing" })).toBeNull();
   });
+
+  it("normalizes supported frameworks on artifacts and revisions", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-06T00:00:00.000Z",
+          summary: "Signals are mixed.",
+          criteria: [],
+          framework: {
+            type: "problem-solution-fit",
+            customerSegments: [{ id: "c1", title: "RevOps" }],
+            problems: [{ id: "p1", title: "Manual churn triage" }],
+            existingAlternatives: [],
+            solutionFitSignals: [],
+            adoptionRisks: [],
+          },
+          revisionHistory: [
+            {
+              id: "validation-revision-1",
+              number: 1,
+              createdAt: "2025-01-06T00:00:00.000Z",
+              status: "completed",
+              summary: "Signals are mixed.",
+              criteria: [],
+              framework: {
+                type: "problem-solution-fit",
+                customerSegments: [{ id: "c1", title: "RevOps" }],
+                problems: [{ id: "p1", title: "Manual churn triage" }],
+                existingAlternatives: [],
+                solutionFitSignals: [],
+                adoptionRisks: [],
+              },
+            },
+          ],
+        },
+        {
+          id: "artifact-customer-research-memo",
+          type: "customer-research-memo",
+          title: "Customer research memo",
+          updatedAt: "2025-01-06T00:00:00.000Z",
+          research: {
+            ...researchReport,
+            artifact: {
+              ...researchReport.artifact,
+              framework: {
+                type: "swot",
+                strengths: [{ id: "s1", title: "High urgency" }],
+                weaknesses: [],
+                opportunities: [],
+                threats: [],
+              },
+            },
+          },
+        },
+      ],
+    } as types.Project);
+
+    expect(types.getProjectArtifactByType(normalized, "validation-scorecard")).toMatchObject({
+      framework: {
+        type: "problem-solution-fit",
+        customerSegments: [{ id: "c1", title: "RevOps" }],
+      },
+    });
+    expect(types.getProjectArtifactByType(normalized, "customer-research-memo")).toMatchObject({
+      framework: {
+        type: "swot",
+        strengths: [{ id: "s1", title: "High urgency" }],
+      },
+    });
+  });
+
+  it("ignores malformed or wrong-context frameworks without dropping the artifact revision", () => {
+    const normalized = types.normalizeProject({
+      ...project,
+      artifacts: [
+        {
+          id: "artifact-validation-scorecard",
+          type: "validation-scorecard",
+          title: "Validation scorecard",
+          updatedAt: "2025-01-07T00:00:00.000Z",
+          summary: "Signals are mixed.",
+          criteria: [],
+          framework: {
+            type: "swot",
+            strengths: [{ id: "s1", title: "Wrong context" }],
+            weaknesses: [],
+            opportunities: [],
+            threats: [],
+          },
+          revisionHistory: [
+            {
+              id: "validation-revision-1",
+              number: 1,
+              createdAt: "2025-01-07T00:00:00.000Z",
+              status: "completed",
+              summary: "Signals are mixed.",
+              criteria: [],
+              framework: {
+                type: "problem-solution-fit",
+                customerSegments: [{ id: "c1", title: "" }],
+                problems: [],
+                existingAlternatives: [],
+                solutionFitSignals: [],
+                adoptionRisks: [],
+              },
+            },
+          ],
+        },
+      ],
+    } as types.Project);
+
+    const artifact = types.getProjectArtifactByType(normalized, "validation-scorecard");
+    expect(artifact?.revisionHistory).toHaveLength(1);
+    expect(artifact?.framework).toBeUndefined();
+    expect(artifact?.revisionHistory[0]?.framework).toBeUndefined();
+  });
 });

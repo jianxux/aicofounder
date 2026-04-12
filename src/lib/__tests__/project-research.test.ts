@@ -682,6 +682,13 @@ describe("buildResearchMemoEvidenceSnapshot", () => {
       updatedAt: "2025-01-09T00:00:00.000Z",
       artifact: {
         status: "partial",
+        framework: {
+          type: "swot",
+          strengths: [{ id: "s1", title: "High urgency" }],
+          weaknesses: [],
+          opportunities: [],
+          threats: [],
+        },
       },
       report: {
         ...report,
@@ -714,6 +721,11 @@ describe("buildResearchMemoEvidenceSnapshot", () => {
       researchStatus: "success",
       artifactStatus: "partial",
       executiveSummary: "Stored summary",
+      framework: {
+        type: "swot",
+        label: "SWOT",
+        itemCount: 1,
+      },
       keyFindings: ["Teams lose time on manual synthesis."],
       contradictions: ["Teams want automation but distrust black-box output."],
       unansweredQuestions: ["Who signs the budget?"],
@@ -734,5 +746,48 @@ describe("buildResearchMemoEvidenceSnapshot", () => {
       sourceCount: 0,
       sectionCount: 0,
     });
+  });
+
+  it("merges a valid framework from the latest artifact payload", () => {
+    const result = resolveProjectResearchResponse(
+      null,
+      {
+        ...report,
+        artifact: {
+          status: "completed",
+          framework: {
+            type: "five-forces",
+            forces: [
+              {
+                id: "force-1",
+                force: "buyer-power",
+                label: "Buyer power",
+                intensity: "high",
+                summary: "Customers can compare many adjacent tools.",
+              },
+            ],
+          },
+        },
+      },
+      true,
+    );
+
+    expect(result.artifact).toEqual(
+      expect.objectContaining({
+        framework: {
+          type: "five-forces",
+          forces: [
+            {
+              id: "force-1",
+              force: "buyer-power",
+              label: "Buyer power",
+              intensity: "high",
+              summary: "Customers can compare many adjacent tools.",
+              evidence: undefined,
+            },
+          ],
+        },
+      }),
+    );
   });
 });

@@ -1,3 +1,5 @@
+import { normalizeArtifactFramework, type ArtifactFramework } from "@/lib/frameworks";
+
 export type ResearchRelevance = "high" | "medium" | "low";
 export type ResearchRunStatus = "completed" | "partial" | "failed";
 export type ResearchStage = "plan" | "gather" | "report";
@@ -183,6 +185,7 @@ export type ResearchRunArtifact = {
   generatedAt: string;
   plan: ResearchPlan;
   report: ResearchReport;
+  framework?: ArtifactFramework;
   selectedSources: ResearchCitation[];
   rejectedSources: ResearchRejectedSource[];
   sourceInventory: ResearchSourceInventory;
@@ -629,7 +632,9 @@ function dedupeStringList(values: string[]): string[] {
 type StructuredSummary = Pick<
   ResearchReport,
   "executiveSummary" | "keyFindings" | "caveats" | "contradictions" | "unansweredQuestions"
->;
+> & {
+  framework?: ArtifactFramework;
+};
 
 type NormalizedStructuredSummary = StructuredSummary & {
   normalizationIssues: string[];
@@ -844,11 +849,15 @@ export function buildSynthesisPrompt(sections: ResearchSection[], researchQuesti
     `Research question: ${normalizedQuestion}.`,
     "Use only the findings and citations provided below.",
     "Return valid JSON only with this exact shape:",
-    '{ "executiveSummary": string, "keyFindings": [{ "id": string, "statement": string, "citationIds": string[], "sectionIds"?: string[], "strength": "strong" | "moderate" | "weak" }], "caveats": [{ "id": string, "statement": string, "citationIds"?: string[], "sectionIds"?: string[] }], "contradictions": [{ "id": string, "statement": string, "citationIds": string[], "sectionIds"?: string[] }], "unansweredQuestions": [{ "id": string, "question": string, "citationIds"?: string[], "sectionIds"?: string[] }] }.',
+    '{ "executiveSummary": string, "keyFindings": [{ "id": string, "statement": string, "citationIds": string[], "sectionIds"?: string[], "strength": "strong" | "moderate" | "weak" }], "caveats": [{ "id": string, "statement": string, "citationIds"?: string[], "sectionIds"?: string[] }], "contradictions": [{ "id": string, "statement": string, "citationIds": string[], "sectionIds"?: string[] }], "unansweredQuestions": [{ "id": string, "question": string, "citationIds"?: string[], "sectionIds"?: string[] }], "framework"?: { ... } }.',
     "Each key finding must cite one or more citation IDs from the input. If there is not enough evidence, do not invent support; put the issue in caveats or unansweredQuestions instead.",
     "Executive summary should be plain text in 2 to 4 short paragraphs.",
     "List contradictions only when the evidence genuinely conflicts. If none, return an empty array.",
     "Be explicit about weak evidence, dated evidence, missing publication dates, and partial runs when relevant.",
+    "Frameworks are optional. Choose at most one framework only when it makes the memo easier to scan.",
+    'For customer research memos, only use "swot" or "five-forces".',
+    "Do not force a framework when the evidence does not naturally support it.",
+    "Every framework item must be grounded in the same section findings and citations already reflected in the memo.",
     sectionContext,
   ].join("\n\n");
 }
@@ -874,6 +883,7 @@ function parseStructuredSummary(text: string): StructuredSummary | null {
       unansweredQuestions: Array.isArray(candidate.unansweredQuestions)
         ? candidate.unansweredQuestions.filter((item) => isValidUnansweredQuestion(item))
         : [],
+      framework: normalizeArtifactFramework(candidate.framework, "customer-research-memo"),
     };
 
     return structured.executiveSummary ? structured : null;
@@ -946,6 +956,7 @@ function fallbackStructuredSummary(
     caveats: dedupeById(caveats),
     contradictions: [],
     unansweredQuestions: dedupeById(unansweredQuestions),
+    framework: undefined,
   };
 }
 
@@ -1105,6 +1116,7 @@ function normalizeStructuredSummary(summary: StructuredSummary, sections: Resear
     caveats: sortById(dedupeById(caveats)),
     contradictions,
     unansweredQuestions: dedupeQuestionsByValue(dedupeById(unansweredQuestions)),
+    framework: normalizeArtifactFramework(summary.framework, "customer-research-memo"),
     normalizationIssues,
   };
 }
@@ -1524,7 +1536,8 @@ export async function runResearch(
       status: "failed",
       generatedAt,
       plan: fallbackPlan,
-      report,
+    report,
+      framework: undefined,
       selectedSources: [],
       rejectedSources: [],
       sourceInventory: { selected: [], rejected: [] },
@@ -1602,6 +1615,7 @@ export async function runResearch(
       generatedAt,
       plan,
       report,
+      framework: undefined,
       selectedSources,
       rejectedSources,
       sourceInventory: { selected: [], rejected: [] },
@@ -1684,6 +1698,7 @@ export async function runResearch(
     generatedAt,
     plan,
     report,
+    ...(normalizedSummary.framework ? { framework: normalizedSummary.framework } : {}),
     selectedSources,
     rejectedSources,
     sourceInventory,

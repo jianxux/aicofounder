@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import FrameworkTemplatePanel from "@/components/FrameworkTemplatePanel";
 import type { ResearchCitation, ResearchReport as ResearchReportData, ResearchSource } from "@/lib/research";
 import type { ProjectResearchArtifact } from "@/lib/types";
 
@@ -810,6 +811,8 @@ export default function ResearchReport({
                 </div>
               </div>
             </section>
+
+            <FrameworkTemplatePanel framework={artifact?.framework} heading="Framework template" />
 
             {hasArtifactDetails ? (
               <section className="grid gap-4 lg:grid-cols-2">

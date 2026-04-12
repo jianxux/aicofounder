@@ -302,6 +302,14 @@ describe("project-artifacts", () => {
             { id: "criterion-1", label: "Problem urgency", score: 4, notes: "Interviewees escalate weekly." },
             { id: "criterion-2", label: "Budget owner", notes: "Still unclear." },
           ],
+          framework: {
+            type: "problem-solution-fit",
+            customerSegments: [{ id: "segment-1", title: "RevOps leaders" }],
+            problems: [{ id: "problem-1", title: "Manual churn triage" }],
+            existingAlternatives: [],
+            solutionFitSignals: [],
+            adoptionRisks: [],
+          },
         },
         {
           id: "artifact-customer-research-memo",
@@ -330,6 +338,11 @@ describe("project-artifacts", () => {
         summary: "Pain is sharp for operators.",
         criteriaCount: 2,
         scoredCriteriaCount: 1,
+        framework: {
+          type: "problem-solution-fit",
+          label: "Problem-solution fit",
+          itemCount: 2,
+        },
         criteria: [
           { label: "Problem urgency", score: 4, notes: "Interviewees escalate weekly." },
           { label: "Budget owner", score: undefined, notes: "Still unclear." },
