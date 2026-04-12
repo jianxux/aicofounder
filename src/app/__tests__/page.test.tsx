@@ -85,6 +85,16 @@ describe("LandingPage", () => {
     });
   });
 
+  it("renders an inspectable sample founder artifact preview with concrete output", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Sample first deliverable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Positioning brief v1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
+    expect(screen.getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
+    expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
