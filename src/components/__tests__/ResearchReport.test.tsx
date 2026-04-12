@@ -107,6 +107,22 @@ const artifact = {
   plan: {
     steps: [{ id: "market", title: "Market demand", angle: "Demand signals", query: "q", rationale: "r" }],
   },
+  framework: {
+    type: "swot" as const,
+    strengths: [
+      {
+        id: "strength-1",
+        title: "Demand is already visible",
+        evidence: [
+          { type: "citation" as const, citationId: "citation-1", label: "citation-1" },
+          { type: "source" as const, sourceId: "selected-industry-report", label: "selected-industry-report" },
+        ],
+      },
+    ],
+    weaknesses: [],
+    opportunities: [],
+    threats: [],
+  },
 };
 
 describe("ResearchReport", () => {
@@ -259,6 +275,12 @@ describe("ResearchReport", () => {
     expect(screen.getByText("1 rejected")).toBeInTheDocument();
     expect(screen.getByText(/Last updated/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh customer research memo" })).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByRole("link", { name: "citation-1 · Industry report" })
+        .some((link) => link.getAttribute("href") === "#citation-citation-1"),
+    ).toBe(true);
+    expect(screen.getAllByRole("link", { name: "S1" })[0]).toHaveAttribute("href", "#source-selected-industry-report");
 
     fireEvent.click(screen.getByRole("button", { name: /Market demand/i }));
 

@@ -9,11 +9,27 @@ export type FrameworkTemplateType = (typeof FRAMEWORK_TEMPLATE_TYPES)[number];
 export type FrameworkArtifactType = "validation-scorecard" | "customer-research-memo";
 export type FrameworkIntensity = "low" | "medium" | "high";
 
+export type FrameworkEvidence =
+  | {
+      type: "citation";
+      citationId: string;
+      label: string;
+    }
+  | {
+      type: "source";
+      sourceId: string;
+      label: string;
+    }
+  | {
+      type: "note";
+      label: string;
+    };
+
 export type FrameworkPoint = {
   id: string;
   title: string;
   detail?: string;
-  evidence?: string[];
+  evidence?: FrameworkEvidence[];
 };
 
 export type SwotFramework = {
@@ -37,7 +53,7 @@ export type FiveForcesEntry = {
   label: string;
   intensity?: FrameworkIntensity;
   summary?: string;
-  evidence?: string[];
+  evidence?: FrameworkEvidence[];
 };
 
 export type FiveForcesFramework = {
@@ -63,6 +79,7 @@ export type ValidationExperiment = {
   signal?: string;
   effort?: string;
   timeframe?: string;
+  evidence?: FrameworkEvidence[];
   risks?: string[];
 };
 
@@ -106,6 +123,75 @@ function normalizeStringArray(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeFrameworkEvidenceEntry(value: unknown): FrameworkEvidence | null {
+  if (typeof value === "string") {
+    const label = normalizeText(value);
+
+    return label ? { type: "note", label } : null;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const citationId = normalizeText(value.citationId ?? (value.type === "citation" ? value.id : undefined));
+
+  if (citationId) {
+    return {
+      type: "citation",
+      citationId,
+      label: normalizeText(value.label) ?? citationId,
+    };
+  }
+
+  const sourceId = normalizeText(value.sourceId ?? (value.type === "source" ? value.id : undefined));
+
+  if (sourceId) {
+    return {
+      type: "source",
+      sourceId,
+      label: normalizeText(value.label) ?? sourceId,
+    };
+  }
+
+  const label = normalizeText(value.note ?? value.text ?? value.label ?? value.value);
+
+  return label ? { type: "note", label } : null;
+}
+
+function normalizeFrameworkEvidenceList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const seen = new Set<string>();
+  const normalized: FrameworkEvidence[] = [];
+
+  value.forEach((entry) => {
+    const evidence = normalizeFrameworkEvidenceEntry(entry);
+
+    if (!evidence) {
+      return;
+    }
+
+    const key =
+      evidence.type === "citation"
+        ? `citation:${evidence.citationId}`
+        : evidence.type === "source"
+          ? `source:${evidence.sourceId}`
+          : `note:${evidence.label.toLowerCase()}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    normalized.push(evidence);
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function normalizeFrameworkPoint(value: unknown): FrameworkPoint | null {
   if (!isRecord(value) || typeof value.id !== "string") {
     return null;
@@ -121,7 +207,7 @@ function normalizeFrameworkPoint(value: unknown): FrameworkPoint | null {
     id: value.id,
     title,
     detail: normalizeText(value.detail),
-    evidence: normalizeStringArray(value.evidence),
+    evidence: normalizeFrameworkEvidenceList(value.evidence),
   };
 }
 
@@ -160,7 +246,7 @@ function normalizeFiveForcesEntry(value: unknown): FiveForcesEntry | null {
   const force = value.force as FiveForcesForceKey;
   const label = normalizeText(value.label);
   const summary = normalizeText(value.summary);
-  const evidence = normalizeStringArray(value.evidence);
+  const evidence = normalizeFrameworkEvidenceList(value.evidence);
 
   if (!label && !summary && !evidence?.length) {
     return null;
@@ -239,6 +325,7 @@ function normalizeValidationExperiment(value: unknown): ValidationExperiment | n
     signal: normalizeText(value.signal),
     effort: normalizeText(value.effort),
     timeframe: normalizeText(value.timeframe),
+    evidence: normalizeFrameworkEvidenceList(value.evidence),
     risks: normalizeStringArray(value.risks),
   };
 }

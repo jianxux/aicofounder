@@ -34,7 +34,7 @@ describe("FrameworkTemplatePanel", () => {
               label: "Buyer power",
               intensity: "high",
               summary: "Teams can compare many adjacent tools before buying.",
-              evidence: ["6 direct competitors in shortlist"],
+              evidence: [{ type: "note", label: "6 direct competitors in shortlist" }],
             },
           ],
         }}
@@ -161,7 +161,7 @@ describe("FrameworkTemplatePanel", () => {
         heading="Structured output"
         framework={{
           type: "problem-solution-fit",
-          customerSegments: [{ id: "c1", title: "RevOps leaders", evidence: ["12 interviews"] }],
+          customerSegments: [{ id: "c1", title: "RevOps leaders", evidence: [{ type: "note", label: "12 interviews" }] }],
           problems: [],
           existingAlternatives: [],
           solutionFitSignals: [],
@@ -198,5 +198,61 @@ describe("FrameworkTemplatePanel", () => {
 
     expect(screen.getByText("Landing page smoke test")).toBeInTheDocument();
     expect(screen.queryByText("Signal to watch")).not.toBeInTheDocument();
+  });
+
+  it("renders linked evidence chips for known citations and sources, with fallback text for unknown refs", () => {
+    render(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "swot",
+          strengths: [
+            {
+              id: "s1",
+              title: "Clear willingness to pay",
+              evidence: [
+                { type: "citation", citationId: "citation-1", label: "citation-1" },
+                { type: "source", sourceId: "source-1", label: "source-1" },
+                { type: "citation", citationId: "missing-citation", label: "Missing citation label" },
+              ],
+            },
+          ],
+          weaknesses: [],
+          opportunities: [],
+          threats: [],
+        }}
+        citationsById={new Map([["citation-1", { source: "Interview memo" }]])}
+        sourceIndexById={new Map([["source-1", 1]])}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "citation-1 · Interview memo" })).toHaveAttribute("href", "#citation-citation-1");
+    expect(screen.getByRole("link", { name: "S1" })).toHaveAttribute("href", "#source-source-1");
+    expect(screen.getByText("Missing citation label")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Missing citation label" })).not.toBeInTheDocument();
+  });
+
+  it("renders validation experiment evidence links independently from risk tags", () => {
+    render(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "validation-experiment-planning",
+          experiments: [
+            {
+              id: "e1",
+              name: "Prototype walkthrough",
+              hypothesis: "Prospects will advance to procurement review.",
+              method: "Run 4 guided demos.",
+              successMetric: "2 follow-up procurement meetings.",
+              evidence: [{ type: "source", sourceId: "source-2", label: "source-2" }],
+              risks: ["Small sample"],
+            },
+          ],
+        }}
+        sourceIndexById={new Map([["source-2", 2]])}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "S2" })).toHaveAttribute("href", "#source-source-2");
+    expect(screen.getByText("Small sample")).toBeInTheDocument();
   });
 });

@@ -812,7 +812,12 @@ export default function ResearchReport({
               </div>
             </section>
 
-            <FrameworkTemplatePanel framework={artifact?.framework} heading="Framework template" />
+            <FrameworkTemplatePanel
+              framework={artifact?.framework}
+              heading="Framework template"
+              citationsById={citationsById}
+              sourceIndexById={sourceIndexById}
+            />
 
             {hasArtifactDetails ? (
               <section className="grid gap-4 lg:grid-cols-2">

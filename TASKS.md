@@ -84,5 +84,5 @@ Tasks for the hourly build cron. Pick the next unchecked item, build it with dua
 - [x] P1: Promote reusable project facts from artifacts into explicit memory fields such as ICP, constraints, hypotheses, experiments, and validated findings
 - [x] P1: Expose saved project memory in the UI with artifact references so users can inspect what the system is carrying forward between runs
 - [x] P2: Add optional framework-based output templates for SWOT, Five Forces, problem-solution fit, and validation experiment planning where they improve readability
-- [ ] P2: Tie framework sections to citations/evidence so they remain inspectable instead of becoming unsupported strategy filler
+- [x] P2: Tie framework sections to citations/evidence so they remain inspectable instead of becoming unsupported strategy filler
 - [ ] P2: Extend the canvas model so generated mind maps and diagrams link back to source artifacts or project facts and remain editable as planning objects

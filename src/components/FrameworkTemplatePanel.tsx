@@ -4,6 +4,7 @@ import {
   frameworkHasRenderableContent,
   getFrameworkTemplateLabel,
   type ArtifactFramework,
+  type FrameworkEvidence,
   type FrameworkPoint,
   type FrameworkIntensity,
 } from "@/lib/frameworks";
@@ -11,6 +12,8 @@ import {
 type FrameworkTemplatePanelProps = {
   framework?: ArtifactFramework | null;
   heading?: string;
+  citationsById?: Map<string, { source: string }>;
+  sourceIndexById?: Map<string, number>;
 };
 
 function getIntensityClasses(intensity: FrameworkIntensity | undefined) {
@@ -28,9 +31,13 @@ function getIntensityClasses(intensity: FrameworkIntensity | undefined) {
 function PointList({
   items,
   emptyLabel,
+  citationsById,
+  sourceIndexById,
 }: {
-  items: Array<{ id: string; title: string; detail?: string; evidence?: string[] }>;
+  items: Array<{ id: string; title: string; detail?: string; evidence?: FrameworkEvidence[] }>;
   emptyLabel: string;
+  citationsById?: Map<string, { source: string }>;
+  sourceIndexById?: Map<string, number>;
 }) {
   if (items.length === 0) {
     return <p className="text-sm leading-6 text-stone-500">{emptyLabel}</p>;
@@ -43,13 +50,7 @@ function PointList({
           <p className="text-sm font-medium text-stone-800">{item.title}</p>
           {item.detail ? <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p> : null}
           {item.evidence?.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {item.evidence.map((entry) => (
-                <span key={`${item.id}-${entry}`} className="rounded-full bg-stone-100 px-2 py-1 text-[11px] font-medium text-stone-600">
-                  {entry}
-                </span>
-              ))}
-            </div>
+            <EvidenceChips evidence={item.evidence} itemId={item.id} citationsById={citationsById} sourceIndexById={sourceIndexById} />
           ) : null}
         </div>
       ))}
@@ -57,7 +58,99 @@ function PointList({
   );
 }
 
-export default function FrameworkTemplatePanel({ framework, heading = "Framework template" }: FrameworkTemplatePanelProps) {
+function getCitationAnchor(citationId: string) {
+  return `citation-${citationId}`;
+}
+
+function getSourceAnchor(sourceId: string) {
+  return `source-${sourceId}`;
+}
+
+function getEvidenceLabel(
+  entry: FrameworkEvidence,
+  citationsById?: Map<string, { source: string }>,
+  sourceIndexById?: Map<string, number>,
+) {
+  if (entry.type === "citation") {
+    const citation = citationsById?.get(entry.citationId);
+
+    if (entry.label !== entry.citationId) {
+      return entry.label;
+    }
+
+    return citation ? `${entry.citationId} · ${citation.source}` : entry.label;
+  }
+
+  if (entry.type === "source") {
+    if (entry.label !== entry.sourceId) {
+      return entry.label;
+    }
+
+    const sourceIndex = sourceIndexById?.get(entry.sourceId);
+    return sourceIndex ? `S${sourceIndex}` : entry.label;
+  }
+
+  return entry.label;
+}
+
+function EvidenceChips({
+  evidence,
+  itemId,
+  citationsById,
+  sourceIndexById,
+}: {
+  evidence: FrameworkEvidence[];
+  itemId: string;
+  citationsById?: Map<string, { source: string }>;
+  sourceIndexById?: Map<string, number>;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {evidence.map((entry) => {
+        const label = getEvidenceLabel(entry, citationsById, sourceIndexById);
+        const commonProps = {
+          className: "rounded-full bg-stone-100 px-2 py-1 text-[11px] font-medium text-stone-600",
+        };
+
+        if (entry.type === "citation" && citationsById?.has(entry.citationId)) {
+          return (
+            <a key={`${itemId}-citation-${entry.citationId}`} href={`#${getCitationAnchor(entry.citationId)}`} {...commonProps}>
+              {label}
+            </a>
+          );
+        }
+
+        if (entry.type === "source" && sourceIndexById?.has(entry.sourceId)) {
+          return (
+            <a key={`${itemId}-source-${entry.sourceId}`} href={`#${getSourceAnchor(entry.sourceId)}`} {...commonProps}>
+              {label}
+            </a>
+          );
+        }
+
+        const fallbackKey =
+          entry.type === "citation"
+            ? entry.citationId
+            : entry.type === "source"
+              ? entry.sourceId
+              : entry.label;
+
+        return (
+          <span key={`${itemId}-${entry.type}-${fallbackKey}`} {...commonProps}>
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function FrameworkTemplatePanel({
+  framework,
+  heading = "Framework template",
+  citationsById,
+  sourceIndexById,
+}: FrameworkTemplatePanelProps) {
   if (!frameworkHasRenderableContent(framework)) {
     return null;
   }
@@ -77,25 +170,45 @@ export default function FrameworkTemplatePanel({ framework, heading = "Framework
           <div className="rounded-3xl bg-emerald-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">Strengths</div>
             <div className="mt-3">
-              <PointList items={framework.strengths} emptyLabel="No strengths captured." />
+              <PointList
+                items={framework.strengths}
+                emptyLabel="No strengths captured."
+                citationsById={citationsById}
+                sourceIndexById={sourceIndexById}
+              />
             </div>
           </div>
           <div className="rounded-3xl bg-amber-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">Weaknesses</div>
             <div className="mt-3">
-              <PointList items={framework.weaknesses} emptyLabel="No weaknesses captured." />
+              <PointList
+                items={framework.weaknesses}
+                emptyLabel="No weaknesses captured."
+                citationsById={citationsById}
+                sourceIndexById={sourceIndexById}
+              />
             </div>
           </div>
           <div className="rounded-3xl bg-sky-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-800">Opportunities</div>
             <div className="mt-3">
-              <PointList items={framework.opportunities} emptyLabel="No opportunities captured." />
+              <PointList
+                items={framework.opportunities}
+                emptyLabel="No opportunities captured."
+                citationsById={citationsById}
+                sourceIndexById={sourceIndexById}
+              />
             </div>
           </div>
           <div className="rounded-3xl bg-rose-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-800">Threats</div>
             <div className="mt-3">
-              <PointList items={framework.threats} emptyLabel="No threats captured." />
+              <PointList
+                items={framework.threats}
+                emptyLabel="No threats captured."
+                citationsById={citationsById}
+                sourceIndexById={sourceIndexById}
+              />
             </div>
           </div>
         </div>
@@ -115,13 +228,12 @@ export default function FrameworkTemplatePanel({ framework, heading = "Framework
               </div>
               {entry.summary ? <p className="mt-2 text-sm leading-6 text-stone-600">{entry.summary}</p> : null}
               {entry.evidence?.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {entry.evidence.map((item) => (
-                    <span key={`${entry.id}-${item}`} className="rounded-full bg-white px-2 py-1 text-[11px] font-medium text-stone-600">
-                      {item}
-                    </span>
-                  ))}
-                </div>
+                <EvidenceChips
+                  evidence={entry.evidence}
+                  itemId={entry.id}
+                  citationsById={citationsById}
+                  sourceIndexById={sourceIndexById}
+                />
               ) : null}
             </article>
           ))}
@@ -140,7 +252,12 @@ export default function FrameworkTemplatePanel({ framework, heading = "Framework
             <div key={label} className="rounded-3xl bg-[#fcfaf6] p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">{label}</div>
               <div className="mt-3">
-                <PointList items={items} emptyLabel={`No ${label.toLowerCase()} captured.`} />
+                <PointList
+                  items={items}
+                  emptyLabel={`No ${label.toLowerCase()} captured.`}
+                  citationsById={citationsById}
+                  sourceIndexById={sourceIndexById}
+                />
               </div>
             </div>
           ))}
@@ -186,6 +303,14 @@ export default function FrameworkTemplatePanel({ framework, heading = "Framework
                   </div>
                 ) : null}
               </div>
+              {experiment.evidence?.length ? (
+                <EvidenceChips
+                  evidence={experiment.evidence}
+                  itemId={experiment.id}
+                  citationsById={citationsById}
+                  sourceIndexById={sourceIndexById}
+                />
+              ) : null}
               {experiment.risks?.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {experiment.risks.map((risk) => (

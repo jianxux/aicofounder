@@ -12,7 +12,19 @@ describe("framework helpers", () => {
     const framework = normalizeArtifactFramework(
       {
         type: "swot",
-        strengths: [{ id: "s1", title: "Sharp pain", detail: "Weekly escalation" }],
+        strengths: [
+          {
+            id: "s1",
+            title: "Sharp pain",
+            detail: "Weekly escalation",
+            evidence: [
+              "  Weekly escalation notes  ",
+              { citationId: "citation-1" },
+              { citationId: "citation-1", label: "Duplicate citation" },
+              { sourceId: "source-1", label: "Source inventory" },
+            ],
+          },
+        ],
         weaknesses: [{ id: "w1", title: "Missing budget owner" }],
         opportunities: [{ id: "o1", title: "Expand into support" }],
         threats: [{ id: "t1", title: "" }, { id: "t2", title: "Incumbent bundle" }],
@@ -22,7 +34,18 @@ describe("framework helpers", () => {
 
     expect(framework).toEqual({
       type: "swot",
-      strengths: [{ id: "s1", title: "Sharp pain", detail: "Weekly escalation", evidence: undefined }],
+      strengths: [
+        {
+          id: "s1",
+          title: "Sharp pain",
+          detail: "Weekly escalation",
+          evidence: [
+            { type: "note", label: "Weekly escalation notes" },
+            { type: "citation", citationId: "citation-1", label: "citation-1" },
+            { type: "source", sourceId: "source-1", label: "Source inventory" },
+          ],
+        },
+      ],
       weaknesses: [{ id: "w1", title: "Missing budget owner", detail: undefined, evidence: undefined }],
       opportunities: [{ id: "o1", title: "Expand into support", detail: undefined, evidence: undefined }],
       threats: [{ id: "t2", title: "Incumbent bundle", detail: undefined, evidence: undefined }],
@@ -90,7 +113,7 @@ describe("framework helpers", () => {
             label: "   ",
             summary: " Suppliers are concentrated. ",
             intensity: "extreme",
-            evidence: ["  Long contracts  ", "", "Limited alternatives"],
+            evidence: ["  Long contracts  ", "", "Limited alternatives", { type: "source", id: "source-2" }],
           },
           {
             id: "f2",
@@ -111,7 +134,11 @@ describe("framework helpers", () => {
           label: "supplier power",
           intensity: undefined,
           summary: "Suppliers are concentrated.",
-          evidence: ["Long contracts", "Limited alternatives"],
+          evidence: [
+            { type: "note", label: "Long contracts" },
+            { type: "note", label: "Limited alternatives" },
+            { type: "source", sourceId: "source-2", label: "source-2" },
+          ],
         },
       ],
     });
@@ -162,5 +189,50 @@ describe("framework helpers", () => {
     expect(frameworkHasRenderableContent(undefined)).toBe(false);
     expect(summarizeFramework(undefined)).toBeUndefined();
     expect(isArtifactFramework({ type: "validation-experiment-planning", experiments: [] })).toBe(false);
+  });
+
+  it("normalizes validation experiment evidence with citation, source, and note fallbacks", () => {
+    const framework = normalizeArtifactFramework(
+      {
+        type: "validation-experiment-planning",
+        experiments: [
+          {
+            id: "e1",
+            name: "Interview sprint",
+            hypothesis: "Budget owners will commit to a pilot.",
+            method: "Run 6 structured calls.",
+            successMetric: "2 pilot commitments",
+            evidence: [
+              { type: "citation", id: "citation-2", label: "Call transcript" },
+              { sourceId: "source-4" },
+              { text: "Founder notes" },
+            ],
+          },
+        ],
+      },
+      "validation-scorecard",
+    );
+
+    expect(framework).toEqual({
+      type: "validation-experiment-planning",
+      experiments: [
+        {
+          id: "e1",
+          name: "Interview sprint",
+          hypothesis: "Budget owners will commit to a pilot.",
+          method: "Run 6 structured calls.",
+          successMetric: "2 pilot commitments",
+          signal: undefined,
+          effort: undefined,
+          timeframe: undefined,
+          evidence: [
+            { type: "citation", citationId: "citation-2", label: "Call transcript" },
+            { type: "source", sourceId: "source-4", label: "source-4" },
+            { type: "note", label: "Founder notes" },
+          ],
+          risks: undefined,
+        },
+      ],
+    });
   });
 });
