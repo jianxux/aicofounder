@@ -19,6 +19,8 @@ type OnboardingModalProps = {
   initialIntake?: Partial<OnboardingIntake>;
 };
 
+type OnboardingStep = 1 | 2 | 3;
+
 const TOTAL_STEPS = 3;
 const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
   {
@@ -61,7 +63,7 @@ const FOCUSABLE_SELECTOR = [
 ].join(", ");
 
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
   const [url, setUrl] = useState("");
   const [targetUser, setTargetUser] = useState("");
@@ -71,6 +73,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const skipButtonRef = useRef<HTMLButtonElement | null>(null);
+  const stepOneHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const primaryIdeaInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const stepThreeHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
@@ -116,6 +121,24 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
 
     focusTarget?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const focusTargetByStep = {
+      1: stepOneHeadingRef.current,
+      2: primaryIdeaInputRef.current,
+      3: stepThreeHeadingRef.current,
+    } as const;
+
+    const focusTarget =
+      focusTargetByStep[step] ??
+      (dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ?? dialogRef.current);
+
+    focusTarget?.focus();
+  }, [open, step]);
 
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab" || !dialogRef.current) {
@@ -200,6 +223,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Step 1</p>
             <h2
               id={titleIdForStep(1)}
+              ref={stepOneHeadingRef}
+              tabIndex={-1}
               className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]"
             >
               Welcome to AI Cofounder
@@ -324,6 +349,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">What are you thinking about building?</span>
                 <textarea
+                  ref={primaryIdeaInputRef}
                   value={primaryIdea}
                   onChange={(event) => {
                     clearSelectedStarter();
@@ -407,6 +433,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Step 3</p>
             <h2
               id={titleIdForStep(3)}
+              ref={stepThreeHeadingRef}
+              tabIndex={-1}
               className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]"
             >
               Ready to Launch

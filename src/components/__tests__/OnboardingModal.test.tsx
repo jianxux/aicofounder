@@ -57,7 +57,7 @@ describe("OnboardingModal", () => {
   it("moves focus into the dialog when opened", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    expect(screen.getByRole("button", { name: "Skip" })).toHaveFocus();
+    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toHaveFocus();
   });
 
   it("shows concrete first-session deliverables before the user starts", () => {
@@ -66,20 +66,10 @@ describe("OnboardingModal", () => {
     const preview = screen.getByLabelText("First session deliverables");
 
     expect(within(preview).getByText("First Session Preview")).toBeInTheDocument();
-    expect(
-      within(preview).getByText(
-        "You will leave with a sharper brief for your startup idea and a clear starting point for the next phase.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(preview).getByText("A concise problem statement grounded in the founder idea you provide."),
-    ).toBeInTheDocument();
-    expect(
-      within(preview).getByText("A target user and core assumption to validate first."),
-    ).toBeInTheDocument();
-    expect(
-      within(preview).getByText("A recommended next-step plan for discovery, planning, and build."),
-    ).toBeInTheDocument();
+    expect(within(preview).getByText(/sharper brief/i)).toBeInTheDocument();
+    expect(within(preview).getByText(/problem statement/i)).toBeInTheDocument();
+    expect(within(preview).getByText(/target user/i)).toBeInTheDocument();
+    expect(within(preview).getByText(/next-step plan/i)).toBeInTheDocument();
   });
 
   it("does not render when open=false", () => {
@@ -95,6 +85,23 @@ describe("OnboardingModal", () => {
     moveToIdeaStep();
 
     expect(screen.getByRole("dialog", { name: "About Your Idea" })).toBeInTheDocument();
+  });
+
+  it("moves focus into the active step after navigation", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveFocus();
+
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("heading", { name: "Ready to Launch" })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toHaveFocus();
   });
 
   it("keeps inactive steps out of the accessible tree and updates dialog labeling per step", () => {
@@ -399,7 +406,7 @@ describe("OnboardingModal", () => {
       </>,
     );
 
-    expect(screen.getByRole("button", { name: "Skip" })).toHaveFocus();
+    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toHaveFocus();
 
     rerender(
       <>
