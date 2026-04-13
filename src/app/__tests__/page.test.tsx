@@ -155,6 +155,40 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders the compact workflow-principles section after the sample artifact area", () => {
+    render(<LandingPage />);
+
+    const sampleDeliverable = screen.getByText(/Sample first deliverable/i);
+    const workflowPrinciplesHeading = screen.getByRole("heading", { name: "Why this workflow feels concrete" });
+    const productStoryHeading = screen.getByRole("heading", {
+      name: "From vague instinct to a product story with teeth.",
+    });
+
+    expect(workflowPrinciplesHeading).toBeInTheDocument();
+    expect(
+      sampleDeliverable.compareDocumentPosition(workflowPrinciplesHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      workflowPrinciplesHeading.compareDocumentPosition(productStoryHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    [
+      "Start with one founder question",
+      "Use real inputs as evidence",
+      "Leave with an artifact and next move",
+    ].forEach((value) => {
+      expect(screen.getByText(value)).toBeInTheDocument();
+    });
+
+    [
+      /Bring one concrete founder question into the session/i,
+      /Pull from interviews, homepage drafts, notes, and live proof gaps/i,
+      /Leave with a named brief, sharper claim, and the next action to take/i,
+    ].forEach((value) => {
+      expect(screen.getByText(value)).toBeInTheDocument();
+    });
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 

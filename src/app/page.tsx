@@ -103,6 +103,21 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const workflowPrinciples = [
+  {
+    title: "Start with one founder question",
+    body: "Bring one concrete founder question into the session.",
+  },
+  {
+    title: "Use real inputs as evidence",
+    body: "Pull from interviews, homepage drafts, notes, and live proof gaps.",
+  },
+  {
+    title: "Leave with an artifact and next move",
+    body: "Leave with a named brief, sharper claim, and the next action to take.",
+  },
+] as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -532,6 +547,29 @@ export default function LandingPage() {
               <span>{item}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-6 lg:px-8">
+        <div className="rounded-[2rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(250,247,242,0.96)_100%)] p-6 shadow-[0_20px_60px_rgba(28,25,23,0.05)] lg:p-7">
+          <div className="max-w-2xl">
+            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Workflow principles</div>
+            <h2 className="mt-3 text-[clamp(1.9rem,3.8vw,3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              Why this workflow feels concrete
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-stone-600">
+              Each session stays grounded in a focused question, visible inputs, and a usable output.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-3">
+            {workflowPrinciples.map((principle) => (
+              <div key={principle.title} className="rounded-[1.5rem] border border-stone-200 bg-white px-5 py-5 shadow-[0_16px_40px_rgba(28,25,23,0.05)]">
+                <h3 className="text-lg font-semibold tracking-[-0.03em] text-stone-950">{principle.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-stone-600">{principle.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
