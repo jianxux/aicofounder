@@ -61,6 +61,29 @@ const founderVoices = [
   },
 ];
 
+const faqItems = [
+  {
+    question: "What do I get from the first session?",
+    answer:
+      "A first pass at the story: a sharper positioning angle, concrete claims worth testing, and a short list of next questions or homepage moves to act on immediately.",
+  },
+  {
+    question: "Do I need a polished brief before I start?",
+    answer:
+      "No. You can begin with rough notes, call transcripts, a messy draft, or one stubborn question. The first session is designed to turn partial thinking into a usable brief.",
+  },
+  {
+    question: "What happens after I sign in?",
+    answer:
+      "You land in the workspace, answer a few onboarding prompts about your product and stage, and start shaping the first session from there with the context you already have.",
+  },
+  {
+    question: "Are my uploaded notes private?",
+    answer:
+      "The product is meant to feel like a private workspace for your founder material and session outputs, not a public feed or shared gallery.",
+  },
+];
+
 function LandingLinkCta({
   button,
   children,
@@ -146,7 +169,7 @@ export default function LandingPage() {
                 analyticsPage="/"
                 className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold tracking-[0.01em] text-white shadow-[0_20px_55px_rgba(16,12,10,0.2)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-900"
               />
-              <LandingLinkCta button="hero_see_workspace" variant="secondary">
+              <LandingLinkCta button="hero_see_workspace" variant="secondary" href="#workflow">
                 See the founder workflow
               </LandingLinkCta>
             </div>
@@ -269,7 +292,7 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+      <section id="workflow" className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
         <div className="rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm">
           <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Credibility, used with restraint</div>
           <h2 className="mt-5 text-[clamp(2.2rem,4.6vw,4rem)] font-semibold leading-[0.96] tracking-[-0.06em] text-stone-950">
@@ -319,6 +342,29 @@ export default function LandingPage() {
                 </blockquote>
                 <figcaption className={`mt-5 text-sm font-medium ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>{voice.role}</figcaption>
               </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="px-6 py-10 lg:px-8 lg:py-12">
+        <div className="mx-auto w-full max-w-4xl rounded-[2.25rem] border border-stone-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.74)_0%,rgba(248,239,228,0.94)_100%)] p-7 shadow-[0_24px_90px_rgba(66,46,17,0.08)] sm:p-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Objections, handled clearly</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              Founder questions, answered before you sign in
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600 sm:text-base">
+              A narrow workflow should be easy to evaluate. These are the practical questions most founders ask before opening the workspace.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {faqItems.map((item) => (
+              <article key={item.question} className="rounded-[1.5rem] border border-stone-200/80 bg-white/88 p-5 shadow-[0_16px_40px_rgba(48,33,14,0.06)]">
+                <h3 className="text-base font-semibold tracking-[-0.02em] text-stone-950">{item.question}</h3>
+                <p className="mt-3 text-sm leading-7 text-stone-600">{item.answer}</p>
+              </article>
             ))}
           </div>
         </div>
