@@ -27,9 +27,11 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
-  const titleId = useId();
-  const descriptionId = useId();
+  const headingIdBase = useId();
+  const descriptionIdBase = useId();
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
+  const activeHeadingId = `${headingIdBase}-step-${step}`;
+  const activeDescriptionId = `${descriptionIdBase}-step-${step}`;
 
   useEffect(() => {
     if (open) {
@@ -60,8 +62,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
+        aria-labelledby={activeHeadingId}
+        aria-describedby={activeDescriptionId}
         className="w-full max-w-2xl rounded-[32px] border border-stone-200/80 bg-[#faf7f2] p-6 shadow-2xl sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
@@ -85,15 +87,16 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 : "pointer-events-none absolute inset-0 -translate-x-4 opacity-0"
             }`}
             aria-hidden={step !== 1}
+            hidden={step !== 1}
           >
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Step 1</p>
             <h2
-              id={titleId}
+              id={`${headingIdBase}-step-1`}
               className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]"
             >
               Welcome to AI Cofounder
             </h2>
-            <p id={descriptionId} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
+            <p id={`${descriptionIdBase}-step-1`} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
               Turn a raw idea into a structured company-building plan. Your AI cofounder will help
               you clarify the problem, shape the roadmap, and move through each phase.
             </p>
@@ -115,12 +118,16 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 : "pointer-events-none absolute inset-0 translate-x-4 opacity-0"
             }`}
             aria-hidden={step !== 2}
+            hidden={step !== 2}
           >
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Step 2</p>
-            <h2 className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]">
+            <h2
+              id={`${headingIdBase}-step-2`}
+              className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]"
+            >
               About Your Idea
             </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">
+            <p id={`${descriptionIdBase}-step-2`} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
               Start with one clear idea. Add a URL, target user, or the main uncertainty only if
               they help sharpen the brief.
             </p>
@@ -195,12 +202,16 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 : "pointer-events-none absolute inset-0 translate-x-4 opacity-0"
             }`}
             aria-hidden={step !== 3}
+            hidden={step !== 3}
           >
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Step 3</p>
-            <h2 className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]">
+            <h2
+              id={`${headingIdBase}-step-3`}
+              className="mt-4 text-4xl text-stone-950 [font-family:Georgia,'Times_New_Roman',serif]"
+            >
               Ready to Launch
             </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-stone-600">
+            <p id={`${descriptionIdBase}-step-3`} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
               Here’s what you’re starting with. Once launched, your AI cofounder will guide you
               through the discovery, planning, build, and launch phases.
             </p>

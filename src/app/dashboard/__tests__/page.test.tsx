@@ -116,7 +116,12 @@ const createProject = (overrides: Partial<Project> = {}): Project => ({
   ...overrides,
 });
 
-const renderPage = () => render(<DashboardPage />);
+async function renderPage() {
+  render(<DashboardPage />);
+  await waitFor(() => {
+    expect(getProjects).toHaveBeenCalledTimes(1);
+  });
+}
 
 describe("DashboardPage", () => {
   let locationHref = "http://localhost/dashboard";
@@ -147,10 +152,10 @@ describe("DashboardPage", () => {
     });
   });
 
-  it("renders page header with AI Cofounder branding and Your projects subtext", () => {
+  it("renders page header with AI Cofounder branding and Your projects subtext", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
+    await renderPage();
 
     expect(screen.getByText("AI Cofounder")).toBeInTheDocument();
     expect(screen.getByText("Your projects")).toBeInTheDocument();
@@ -160,10 +165,10 @@ describe("DashboardPage", () => {
     );
   });
 
-  it("renders workspace heading Your Projects and description paragraph", () => {
+  it("renders workspace heading Your Projects and description paragraph", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
+    await renderPage();
 
     expect(screen.getByRole("heading", { name: "Your Projects" })).toBeInTheDocument();
     expect(
@@ -173,18 +178,18 @@ describe("DashboardPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the header New Project button", () => {
+  it("renders the header New Project button", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
+    await renderPage();
 
     expect(screen.getByRole("button", { name: "New Project" })).toBeInTheDocument();
   });
 
-  it("renders the + create-new card with New Project heading and description", () => {
+  it("renders the + create-new card with New Project heading and description", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
+    await renderPage();
 
     const cardHeading = screen.getByRole("heading", { name: "New Project" });
     const card = cardHeading.closest("button");
@@ -202,11 +207,7 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
-
-    await waitFor(() => {
-      expect(getProjects).toHaveBeenCalledTimes(1);
-    });
+    await renderPage();
 
     expect(screen.getByRole("heading", { name: "New Project" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /AI Research Copilot/i })).not.toBeInTheDocument();
@@ -216,7 +217,7 @@ describe("DashboardPage", () => {
     const project = createProject();
     vi.mocked(getProjects).mockResolvedValue([project]);
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByText("Build")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AI Research Copilot" })).toBeInTheDocument();
@@ -229,7 +230,7 @@ describe("DashboardPage", () => {
     const project = createProject({ id: "project-42", name: "Signal Tracker" });
     vi.mocked(getProjects).mockResolvedValue([project]);
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByRole("link", { name: /Signal Tracker/i })).toHaveAttribute(
       "href",
@@ -241,7 +242,7 @@ describe("DashboardPage", () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
     vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-header" }));
 
-    renderPage();
+    await renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "New Project" }));
 
@@ -256,7 +257,7 @@ describe("DashboardPage", () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
     vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-card" }));
 
-    renderPage();
+    await renderPage();
 
     const createCard = screen.getByRole("heading", { name: "New Project" }).closest("button");
     fireEvent.click(createCard!);
@@ -289,17 +290,17 @@ describe("DashboardPage", () => {
 
     vi.mocked(getProjects).mockResolvedValue(projects);
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Founder CRM/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Launch Assistant/i })).toBeInTheDocument();
   });
 
-  it("passes redirectTo=/dashboard to AuthButton", () => {
+  it("passes redirectTo=/dashboard to AuthButton", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
 
-    renderPage();
+    await renderPage();
 
     expect(screen.getByTestId("auth-button")).toHaveAttribute("data-redirect-to", "/dashboard");
   });
@@ -313,7 +314,7 @@ describe("DashboardPage", () => {
 
     vi.mocked(getProjects).mockResolvedValue([project]);
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByText("Updated Jan 15, 2025")).toBeInTheDocument();
   });
@@ -321,7 +322,7 @@ describe("DashboardPage", () => {
   it("shows onboarding when there are no projects and it has not been dismissed", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
@@ -332,7 +333,7 @@ describe("DashboardPage", () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
     window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
 
-    renderPage();
+    await renderPage();
 
     expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
@@ -344,7 +345,7 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
 
-    renderPage();
+    await renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Skip" }));
 
@@ -361,7 +362,7 @@ describe("DashboardPage", () => {
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
     window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
 
-    renderPage();
+    await renderPage();
 
     await startOnboarding();
     const intake = completeIntake();
@@ -406,7 +407,7 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
 
-    renderPage();
+    await renderPage();
 
     await startOnboarding();
     completeIntake({
@@ -445,7 +446,7 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
 
-    renderPage();
+    await renderPage();
 
     await startOnboarding();
     completeIntake({

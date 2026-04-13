@@ -17,6 +17,35 @@ vi.mock("@/components/Navbar", () => ({
   default: () => <div data-testid="navbar" />,
 }));
 
+vi.mock("@/components/AuthButton", () => ({
+  default: ({
+    label = "Continue with Google",
+    onClick,
+    analyticsButton,
+    analyticsPage,
+  }: {
+    label?: string;
+    onClick?: () => void;
+    analyticsButton?: string;
+    analyticsPage?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        if (analyticsButton) {
+          void trackEvent("cta_click", {
+            page: analyticsPage ?? window.location.pathname,
+            button: analyticsButton,
+          });
+        }
+        onClick?.();
+      }}
+    >
+      {label}
+    </button>
+  ),
+}));
+
 vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));

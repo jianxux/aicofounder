@@ -48,7 +48,13 @@ describe("OnboardingModal", () => {
   it("renders step 1 by default when open=true", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAccessibleName("Welcome to AI Cofounder");
+    expect(dialog).toHaveAccessibleDescription(
+      "Turn a raw idea into a structured company-building plan. Your AI cofounder will help you clarify the problem, shape the roadmap, and move through each phase.",
+    );
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Get Started" })).toBeInTheDocument();
   });
@@ -65,7 +71,22 @@ describe("OnboardingModal", () => {
 
     moveToIdeaStep();
 
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("About Your Idea");
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "Start with one clear idea. Add a URL, target user, or the main uncertainty only if they help sharpen the brief.",
+    );
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+  });
+
+  it("hides inactive step content from keyboard users after advancing", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder", hidden: true }).closest("section")).toHaveAttribute(
+      "hidden",
+    );
+    expect(screen.queryByRole("button", { name: "Get Started" })).not.toBeInTheDocument();
   });
 
   it("step 2 has the primary idea prompt and optional fields", () => {
@@ -104,6 +125,10 @@ describe("OnboardingModal", () => {
 
     const summary = screen.getByText("Intake Summary").closest("section");
 
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Ready to Launch");
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+      "Here’s what you’re starting with. Once launched, your AI cofounder will guide you through the discovery, planning, build, and launch phases.",
+    );
     expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
     expect(summary).toBeInTheDocument();
     expect(within(summary!).getByText(intake.primaryIdea)).toBeInTheDocument();
