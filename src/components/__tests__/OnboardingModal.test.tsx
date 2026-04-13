@@ -133,11 +133,27 @@ describe("OnboardingModal", () => {
     expect(stepTwoSection).toHaveAttribute("hidden");
   });
 
-  it("step 2 has the primary idea prompt and optional fields", () => {
+  it("step 2 has the primary idea prompt, brief guidance, and optional fields", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
 
+    const briefGuidance = screen.getByRole("region", { name: "What makes a strong brief" });
+
+    expect(briefGuidance).toBeInTheDocument();
+    expect(within(briefGuidance).getByText("Brief guidance")).toBeInTheDocument();
+    expect(within(briefGuidance).getByText(/buyer:/i)).toBeInTheDocument();
+    expect(within(briefGuidance).getByText(/painful moment:/i)).toBeInTheDocument();
+    expect(within(briefGuidance).getByText(/current workaround:/i)).toBeInTheDocument();
+    expect(within(briefGuidance).getByText(/proof or uncertainty:/i)).toBeInTheDocument();
+    expect(within(briefGuidance).getByText("Example snippets")).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining("brief-guidance-description"),
+    );
+    expect(
+      within(briefGuidance).getByText(/For independent clinic managers, follow-up work falls through the cracks/i),
+    ).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();

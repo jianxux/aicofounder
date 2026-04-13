@@ -22,6 +22,29 @@ type OnboardingModalProps = {
 type OnboardingStep = 1 | 2 | 3;
 
 const TOTAL_STEPS = 3;
+const STRONG_BRIEF_INGREDIENTS = [
+  {
+    title: "Buyer",
+    description: "Name the specific person or team you want to help first.",
+  },
+  {
+    title: "Painful moment",
+    description: "Describe when the problem shows up and why it is frustrating or costly.",
+  },
+  {
+    title: "Current workaround",
+    description: "Mention what they use today, even if it is a spreadsheet, email, or manual process.",
+  },
+  {
+    title: "Proof or uncertainty",
+    description: "Share what you already know or the main thing you still need to learn.",
+  },
+] as const;
+const BRIEF_SNIPPETS = [
+  "For independent clinic managers, follow-up work falls through the cracks after no-shows, so staff juggle phone calls and spreadsheets.",
+  "Shopify operators reorder inventory from gut feel today, and I am unsure whether better forecasts alone are enough to change behavior.",
+  "Recruiting teams patch together email, docs, and ATS notes to prep interviews, which makes handoffs slow and inconsistent.",
+] as const;
 const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
   {
     title: "Customer research copilot",
@@ -80,6 +103,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
+  const briefGuidanceDescriptionId = `${dialogId}-brief-guidance-description`;
 
   const clearSelectedStarter = () => {
     setSelectedStarterIndex(null);
@@ -300,6 +324,42 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
 
             <div className="mt-8 space-y-5">
               <section
+                aria-label="What makes a strong brief"
+                className="rounded-[28px] border border-stone-200/90 bg-stone-50/80 p-4 sm:p-5"
+              >
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Brief guidance
+                </div>
+                <p id={briefGuidanceDescriptionId} className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+                  A strong founder brief gives just enough context to frame the problem before we
+                  help you sharpen it.
+                </p>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {STRONG_BRIEF_INGREDIENTS.map((ingredient) => (
+                    <li key={ingredient.title} className="rounded-[20px] bg-white px-4 py-3 text-sm leading-6 text-stone-700">
+                      <span className="font-semibold text-stone-900">{ingredient.title}:</span>{" "}
+                      {ingredient.description}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-5 border-t border-stone-200 pt-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                    Example snippets
+                  </div>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-stone-700">
+                    {BRIEF_SNIPPETS.map((snippet) => (
+                      <li key={snippet} className="flex gap-2">
+                        <span aria-hidden="true" className="text-stone-400">
+                          •
+                        </span>
+                        <span>{snippet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+
+              <section
                 aria-label="Starter briefs"
                 className="rounded-[28px] border border-stone-200/90 bg-white/80 p-4 sm:p-5"
               >
@@ -351,6 +411,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <span className="text-sm font-medium text-stone-700">What are you thinking about building?</span>
                 <textarea
                   ref={primaryIdeaInputRef}
+                  aria-describedby={briefGuidanceDescriptionId}
                   value={primaryIdea}
                   onChange={(event) => {
                     clearSelectedStarter();
