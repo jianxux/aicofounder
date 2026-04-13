@@ -10,6 +10,7 @@ import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
+const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -49,6 +50,7 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
 
   useEffect(() => {
     void trackEvent("dashboard_view", {
@@ -56,9 +58,20 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
+      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+      const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+
+      setPrefilledOnboardingIntake(
+        shouldShowDraftHandoff
+          ? {
+              primaryIdea: landingPromptDraft,
+            }
+          : {},
+      );
       setProjects(loadedProjects);
       setShowOnboarding(
-        loadedProjects.length === 0 && window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true",
+        loadedProjects.length === 0 &&
+          (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
       );
     });
   }, []);
@@ -75,6 +88,8 @@ export default function DashboardPage() {
 
   const handleSkipOnboarding = () => {
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
+    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
   };
 
@@ -102,6 +117,8 @@ export default function DashboardPage() {
       project_id: project.id,
       source: "onboarding",
     });
+    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
   };
@@ -110,6 +127,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#faf7f2]">
       <OnboardingModal
         open={showOnboarding}
+        initialIntake={prefilledOnboardingIntake}
         onComplete={(intake) => void handleCompleteOnboarding(intake)}
         onSkip={handleSkipOnboarding}
       />

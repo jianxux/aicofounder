@@ -327,8 +327,22 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
   });
 
+  it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
   it("skips onboarding by setting localStorage and closing the modal", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
+    window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
 
     renderPage();
 
@@ -336,6 +350,7 @@ describe("DashboardPage", () => {
 
     await waitFor(() => {
       expect(window.localStorage.getItem("onboarding-dismissed")).toBe("true");
+      expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
@@ -344,6 +359,7 @@ describe("DashboardPage", () => {
     const createdProject = createProject({ id: "guided-project", name: "Untitled Project" });
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
+    window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
 
     renderPage();
 
@@ -362,6 +378,7 @@ describe("DashboardPage", () => {
         }),
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
+      expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
     });
 
     expect(trackEvent).toHaveBeenCalledWith(
