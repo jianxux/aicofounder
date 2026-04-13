@@ -217,4 +217,24 @@ describe("OnboardingModal", () => {
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
     expect(screen.queryByDisplayValue("An AI copilot for founder research.")).not.toBeInTheDocument();
   });
+
+  it("prefills the intake and opens on the idea step when initialIntake is provided", () => {
+    render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Carry this prompt into onboarding.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
 });

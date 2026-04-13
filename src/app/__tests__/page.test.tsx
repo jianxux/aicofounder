@@ -45,6 +45,7 @@ beforeEach(() => {
       signOut: vi.fn(),
     },
   } as any);
+  window.sessionStorage.clear();
 });
 
 describe("LandingPage", () => {
@@ -57,32 +58,65 @@ describe("LandingPage", () => {
     });
   });
 
-  it("renders a calmer hero with an interactive-looking founder prompt workspace", () => {
+  it("renders a centered banner hero with a large founder prompt box", () => {
     render(<LandingPage />);
 
-    expect(screen.getByRole("heading", { name: /Find the clearest angle for/i })).toBeInTheDocument();
-    expect(screen.getByText(/Start with the question you cannot shake/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pressure-test the ICP/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
+    expect(screen.getByText(/Start with the founder question you cannot shake/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("I want to")).toBeInTheDocument();
+    expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
-  it("renders proof metrics, workflow moments, and curated founder voices", () => {
+  it("opens a login prompt modal when a visitor submits a hero prompt", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
+    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
+    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("closes the login prompt modal on Escape", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("renders prompt-first proof, workflow moments, and trust framing without testimonials", () => {
     render(<LandingPage />);
 
     [
-      "12k+",
-      "500+",
-      "18 hrs",
-      "Interrogate the idea",
-      "Pull signal into focus",
-      "Leave with launch-ready clarity",
-      "Pre-seed founder",
-      "Second-time operator",
-      "Founder after repositioning",
+      "Prompt-first",
+      "Structured",
+      "Project-based",
+      "Interrogate the market",
+      "Shape the point of view",
+      "Leave with a plan",
+      "Prompt handoff into onboarding",
+      "Research and messaging stay connected",
+      "Trust comes from visible structure",
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
+
+    expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
   });
 
   it("tracks all primary CTA clicks", async () => {
