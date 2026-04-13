@@ -19,6 +19,37 @@ type OnboardingModalProps = {
 };
 
 const TOTAL_STEPS = 3;
+const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
+  {
+    title: "Customer research copilot",
+    summary: "Turn interview notes and market links into next-step validation plans.",
+    primaryIdea:
+      "An AI research copilot that turns scattered founder notes, interview transcripts, and saved links into a clear validation brief with prioritized next steps.",
+    url: "",
+    targetUser: "Pre-seed founders validating a new B2B SaaS idea",
+    mainUncertainty: "Will founders trust an AI-generated brief enough to use it before talking to more customers?",
+  },
+  {
+    title: "Ops assistant for clinics",
+    summary: "Reduce admin churn for small care teams handling scheduling and follow-up.",
+    primaryIdea:
+      "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+    url: "",
+    targetUser: "Practice managers at independent primary care clinics",
+    mainUncertainty:
+      "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+  },
+  {
+    title: "Retail demand planner",
+    summary: "Help small brands reorder inventory with less guesswork.",
+    primaryIdea:
+      "A lightweight planning tool that helps Shopify brands forecast demand, time reorders, and spot risky stockouts before bestsellers go out of stock.",
+    url: "",
+    targetUser: "Operators at small e-commerce brands doing $1M-$10M in annual revenue",
+    mainUncertainty:
+      "Would operators switch from spreadsheets for better forecasting alone, or only if the tool also recommends concrete reorder actions?",
+  },
+];
 
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState(1);
@@ -26,10 +57,15 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [url, setUrl] = useState("");
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
+  const [selectedStarterIndex, setSelectedStarterIndex] = useState<number | null>(null);
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
   const titleId = useId();
   const descriptionId = useId();
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
+
+  const clearSelectedStarter = () => {
+    setSelectedStarterIndex(null);
+  };
 
   useEffect(() => {
     if (open) {
@@ -48,6 +84,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       setUrl("");
       setTargetUser("");
       setMainUncertainty("");
+      setSelectedStarterIndex(null);
     }
   }, [initialIntake, open]);
 
@@ -126,11 +163,62 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             </p>
 
             <div className="mt-8 space-y-5">
+              <section
+                aria-label="Starter briefs"
+                className="rounded-[28px] border border-stone-200/90 bg-white/80 p-4 sm:p-5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Starter briefs
+                    </div>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+                      Not sure where to start? Pick an example and edit it to match your idea.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {STARTER_BRIEFS.map((starter, index) => {
+                    const isSelected = selectedStarterIndex === index;
+
+                    return (
+                    <button
+                      key={starter.title}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => {
+                        setSelectedStarterIndex(index);
+                        setPrimaryIdea(starter.primaryIdea);
+                        setUrl(starter.url);
+                        setTargetUser(starter.targetUser);
+                        setMainUncertainty(starter.mainUncertainty);
+                      }}
+                      className={`rounded-[24px] border p-4 text-left transition focus-visible:outline-none ${
+                        isSelected
+                          ? "border-stone-900 bg-stone-950 text-white shadow-[0_0_0_3px_rgba(28,25,23,0.12)]"
+                          : "border-stone-200 bg-[#fcfbf8] hover:border-stone-400 hover:bg-white focus-visible:border-stone-500"
+                      }`}
+                    >
+                      <div className={`text-sm font-semibold ${isSelected ? "text-white" : "text-stone-900"}`}>
+                        {starter.title}
+                      </div>
+                      <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-stone-100" : "text-stone-600"}`}>
+                        {starter.summary}
+                      </p>
+                    </button>
+                    );
+                  })}
+                </div>
+              </section>
+
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">What are you thinking about building?</span>
                 <textarea
                   value={primaryIdea}
-                  onChange={(event) => setPrimaryIdea(event.target.value)}
+                  onChange={(event) => {
+                    clearSelectedStarter();
+                    setPrimaryIdea(event.target.value);
+                  }}
                   placeholder="An AI copilot that helps founders turn scattered research, URLs, and notes into a concrete validation plan."
                   rows={5}
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
@@ -141,7 +229,10 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <span className="text-sm font-medium text-stone-700">Relevant URL (optional)</span>
                 <input
                   value={url}
-                  onChange={(event) => setUrl(event.target.value)}
+                  onChange={(event) => {
+                    clearSelectedStarter();
+                    setUrl(event.target.value);
+                  }}
                   placeholder="https://example.com"
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
@@ -151,7 +242,10 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <span className="text-sm font-medium text-stone-700">Target user (optional)</span>
                 <input
                   value={targetUser}
-                  onChange={(event) => setTargetUser(event.target.value)}
+                  onChange={(event) => {
+                    clearSelectedStarter();
+                    setTargetUser(event.target.value);
+                  }}
                   placeholder="Seed-stage B2B SaaS founders"
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
@@ -161,7 +255,10 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <span className="text-sm font-medium text-stone-700">Main uncertainty (optional)</span>
                 <textarea
                   value={mainUncertainty}
-                  onChange={(event) => setMainUncertainty(event.target.value)}
+                  onChange={(event) => {
+                    clearSelectedStarter();
+                    setMainUncertainty(event.target.value);
+                  }}
                   placeholder="I’m not sure whether founders want one workspace for synthesis or separate tools for each step."
                   rows={3}
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
