@@ -124,6 +124,14 @@ describe("LandingPage", () => {
     render(<LandingPage />);
 
     [
+      "Bring this into session one",
+      "Show the evidence you already have. Leave with outputs you can use.",
+      "Homepage draft",
+      "Competitor list",
+      "Interview notes",
+      "Pricing page",
+      "Sharper homepage angle and the evidence gaps blocking belief.",
+      "Competitive narrative and positioning edges to test next.",
       "Prompt-first",
       "Structured",
       "Project-based",
@@ -141,6 +149,10 @@ describe("LandingPage", () => {
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
+
+    expect(screen.getAllByText("You bring")).toHaveLength(4);
+    expect(screen.getAllByText("AI Cofounder does")).toHaveLength(4);
+    expect(screen.getAllByText("You leave with")).toHaveLength(4);
 
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
   });

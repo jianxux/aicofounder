@@ -96,6 +96,33 @@ const sampleArtifactRows = [
   },
 ];
 
+const firstSessionEvidenceMap = [
+  {
+    input: "Homepage draft",
+    detail: "Rough hero copy, pricing language, or an about page that still sounds generic.",
+    process: "Extract the claim, buyer promise, and missing proof behind the draft.",
+    output: "Sharper homepage angle and the evidence gaps blocking belief.",
+  },
+  {
+    input: "Competitor list",
+    detail: "Three to five alternatives, workarounds, or adjacent products the buyer already compares.",
+    process: "Map category overlap, repeated promises, and whitespace worth owning.",
+    output: "Competitive narrative and positioning edges to test next.",
+  },
+  {
+    input: "Interview notes",
+    detail: "Call transcripts, founder notes, or raw pain-point fragments from customer conversations.",
+    process: "Pull the recurring language, urgency, and objections into one working brief.",
+    output: "ICP notes, demand signal, and proof targets for the next session.",
+  },
+  {
+    input: "Pricing page",
+    detail: "Your pricing draft or the pages buyers already use to anchor value.",
+    process: "Pressure-test value framing against buyer stakes and current alternatives.",
+    output: "Pricing story, value wedge, and objections to address in-market.",
+  },
+];
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -454,6 +481,40 @@ export default function LandingPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-6 max-w-5xl">
+            <div className="rounded-[2rem] border border-stone-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(252,250,246,0.96)_100%)] p-5 text-left shadow-[0_22px_70px_rgba(28,25,23,0.07)] backdrop-blur-sm sm:p-6">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl">
+                  <div className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Bring this into session one</div>
+                  <h2 className="mt-3 text-[clamp(1.55rem,2.9vw,2.35rem)] font-semibold tracking-[-0.05em] text-stone-950">
+                    Show the evidence you already have. Leave with outputs you can use.
+                  </h2>
+                </div>
+                <p className="max-w-xl text-sm leading-7 text-stone-600">
+                  AI Cofounder works best when the first session starts with real founder artifacts, then turns them into a visible research and messaging workflow.
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {firstSessionEvidenceMap.map((item) => (
+                  <article key={item.input} className="rounded-[1.6rem] border border-stone-200 bg-white/90 p-4 shadow-[0_12px_30px_rgba(52,39,21,0.04)]">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">You bring</div>
+                    <h3 className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">{item.input}</h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
+                    <div className="mt-4 rounded-[1.2rem] border border-amber-200/80 bg-amber-50/70 px-3 py-3">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">AI Cofounder does</div>
+                      <p className="mt-2 text-sm leading-6 text-stone-700">{item.process}</p>
+                    </div>
+                    <div className="mt-4 rounded-[1.2rem] border border-stone-950 bg-stone-950 px-3 py-3 text-stone-50">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-400">You leave with</div>
+                      <p className="mt-2 text-sm leading-6 text-stone-200">{item.output}</p>
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
           </div>
