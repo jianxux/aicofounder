@@ -237,35 +237,25 @@ describe("DashboardPage", () => {
     );
   });
 
-  it("clicking the header New Project button creates a project and redirects to its page", async () => {
+  it("clicking the header New Project button opens onboarding", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
-    vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-header" }));
 
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "New Project" }));
 
-    await waitFor(() => {
-      expect(createProjectMock).toHaveBeenCalledTimes(1);
-      expect(setHref).toHaveBeenCalledWith("/project/new-project-header");
-      expect(window.location.href).toBe("/project/new-project-header");
-    });
+    expect(await screen.findByRole("dialog", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
   });
 
-  it("clicking the + card creates a project and redirects to its page", async () => {
+  it("clicking the + card opens onboarding", async () => {
     window.localStorage.setItem("onboarding-dismissed", "true");
-    vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "new-project-card" }));
 
     renderPage();
 
     const createCard = screen.getByRole("heading", { name: "New Project" }).closest("button");
     fireEvent.click(createCard!);
 
-    await waitFor(() => {
-      expect(createProjectMock).toHaveBeenCalledTimes(1);
-      expect(setHref).toHaveBeenCalledWith("/project/new-project-card");
-      expect(window.location.href).toBe("/project/new-project-card");
-    });
+    expect(await screen.findByRole("dialog", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
   });
 
   it("renders multiple project cards in the project grid", async () => {

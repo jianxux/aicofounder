@@ -185,17 +185,18 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/30 px-4 py-8 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleIdForStep(step)}
-        aria-describedby={descriptionIdForStep(step)}
-        tabIndex={-1}
-        onKeyDown={handleDialogKeyDown}
-        className="w-full max-w-2xl rounded-[32px] border border-stone-200/80 bg-[#faf7f2] p-6 shadow-2xl sm:p-8"
-      >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/30 px-4 py-8 backdrop-blur-sm">
+      <div className="flex min-h-full items-start justify-center">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleIdForStep(step)}
+          aria-describedby={descriptionIdForStep(step)}
+          tabIndex={-1}
+          onKeyDown={handleDialogKeyDown}
+          className="my-auto w-full max-w-2xl max-h-[calc(100vh-4rem)] overflow-y-auto rounded-[32px] border border-stone-200/80 bg-[#faf7f2] p-6 shadow-2xl sm:p-8"
+        >
         <div className="flex items-start justify-between gap-4">
           <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
             Getting Started
@@ -536,5 +537,6 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
         </div>
       </div>
     </div>
+  </div>
   );
 }
