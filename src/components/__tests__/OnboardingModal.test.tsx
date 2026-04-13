@@ -73,10 +73,80 @@ describe("OnboardingModal", () => {
 
     moveToIdeaStep();
 
+    expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retail demand planner/i })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toBeInTheDocument();
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
+  });
+
+  it("prefills the intake fields when a starter brief is selected", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+    const retailStarter = screen.getByRole("button", { name: /Retail demand planner/i });
+
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(retailStarter).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(clinicStarter);
+
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue(
+      "Practice managers at independent primary care clinics",
+    );
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+    );
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
+    expect(retailStarter).toHaveAttribute("aria-pressed", "false");
+    expect(clinicStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
+  });
+
+  it("switches the selected state between starter brief cards and keeps starter URLs blank", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+    const retailStarter = screen.getByRole("button", { name: /Retail demand planner/i });
+
+    fireEvent.click(clinicStarter);
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+
+    fireEvent.click(retailStarter);
+
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(retailStarter).toHaveAttribute("aria-pressed", "true");
+    expect(retailStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "A lightweight planning tool that helps Shopify brands forecast demand, time reorders, and spot risky stockouts before bestsellers go out of stock.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+  });
+
+  it("clears the selected starter state after a manual intake edit", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+
+    fireEvent.click(clinicStarter);
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
+    expect(clinicStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "A workflow assistant for independent clinics with custom routing." },
+    });
+
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(clinicStarter).not.toHaveClass("border-stone-900", "bg-stone-950", "text-white");
   });
 
   it("can type in the intake fields", () => {
@@ -216,5 +286,25 @@ describe("OnboardingModal", () => {
 
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
     expect(screen.queryByDisplayValue("An AI copilot for founder research.")).not.toBeInTheDocument();
+  });
+
+  it("prefills the intake and opens on the idea step when initialIntake is provided", () => {
+    render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Carry this prompt into onboarding.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
   });
 });
