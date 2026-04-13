@@ -62,6 +62,27 @@ const featureColumns = [
   },
 ];
 
+const firstSessionTimeline = [
+  {
+    minute: "0-5 min",
+    title: "Drop in the messy draft",
+    body: "Paste the pitch, homepage, or raw customer notes that still feel too broad.",
+    output: "A working brief with the founder goal, buyer, and open questions.",
+  },
+  {
+    minute: "6-14 min",
+    title: "Pressure-test the claim",
+    body: "The session compares your promise against customer language and competing alternatives.",
+    output: "A sharper positioning angle and the proof gaps blocking it.",
+  },
+  {
+    minute: "15-25 min",
+    title: "Leave with founder-ready outputs",
+    body: "Turn the strongest signal into the next assets you can actually use after the call.",
+    output: "Homepage headline direction, ICP notes, and the next 3 validation tasks.",
+  },
+];
+
 const sampleArtifactRows = [
   {
     label: "Core buyer",
@@ -472,6 +493,47 @@ export default function LandingPage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(248,243,234,0.96)_100%)] p-8 shadow-[0_26px_90px_rgba(28,25,23,0.06)] lg:p-10">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">First session timeline</div>
+              <h2 className="mt-4 text-[clamp(2rem,4vw,3.3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                What happens in your first session
+              </h2>
+            </div>
+            <p className="max-w-md text-sm leading-7 text-stone-600">
+              Time-to-value stays concrete: one working session should turn rough founder inputs into decisions you can reuse the same day.
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-4">
+            {firstSessionTimeline.map((item, index) => (
+              <div
+                key={item.minute}
+                className={`rounded-[1.8rem] border p-6 shadow-[0_18px_50px_rgba(55,37,12,0.06)] ${
+                  index === 1 ? "border-stone-900/85 bg-stone-950 text-stone-100" : "border-stone-200/80 bg-white/86 text-stone-900"
+                }`}
+              >
+                <div className={`text-xs font-semibold uppercase tracking-[0.22em] ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>{item.minute}</div>
+                <h3 className="mt-3 text-[1.2rem] font-semibold tracking-[-0.03em]">{item.title}</h3>
+                <p className={`mt-3 text-sm leading-7 ${index === 1 ? "text-stone-200" : "text-stone-600"}`}>{item.body}</p>
+                <div
+                  className={`mt-5 rounded-[1.2rem] border px-4 py-4 ${
+                    index === 1 ? "border-white/15 bg-white/8 text-stone-100" : "border-stone-200 bg-[#fcfaf7] text-stone-800"
+                  }`}
+                >
+                  <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>
+                    Founder output
+                  </div>
+                  <p className={`mt-2 text-sm leading-6 ${index === 1 ? "text-stone-100" : "text-stone-700"}`}>{item.output}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

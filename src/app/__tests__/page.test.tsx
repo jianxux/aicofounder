@@ -99,7 +99,7 @@ describe("LandingPage", () => {
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
   });
 
-  it("renders prompt-first proof, workflow moments, and trust framing without testimonials", () => {
+  it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
     render(<LandingPage />);
 
     [
@@ -112,6 +112,11 @@ describe("LandingPage", () => {
       "Prompt handoff into onboarding",
       "Research and messaging stay connected",
       "Trust comes from visible structure",
+      "First session timeline",
+      "0-5 min",
+      "6-14 min",
+      "15-25 min",
+      "Homepage headline direction, ICP notes, and the next 3 validation tasks.",
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
