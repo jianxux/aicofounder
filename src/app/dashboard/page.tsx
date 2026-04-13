@@ -76,14 +76,10 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const handleCreateProject = async () => {
-    const project = await createProject();
-    void trackEvent("project_created", {
-      page: "/dashboard",
-      project_id: project.id,
-      source: "dashboard",
-    });
-    window.location.href = `/project/${project.id}`;
+  const handleOpenOnboarding = () => {
+    window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
+    setPrefilledOnboardingIntake({});
+    setShowOnboarding(true);
   };
 
   const handleSkipOnboarding = () => {
@@ -154,7 +150,7 @@ export default function DashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => void handleCreateProject()}
+            onClick={handleOpenOnboarding}
             className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
           >
             New Project
@@ -164,7 +160,7 @@ export default function DashboardPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
             type="button"
-            onClick={() => void handleCreateProject()}
+            onClick={handleOpenOnboarding}
             className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-dashed border-stone-300 bg-white/70 p-7 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-stone-500 hover:bg-white"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-950 text-2xl text-white transition group-hover:bg-stone-800">
