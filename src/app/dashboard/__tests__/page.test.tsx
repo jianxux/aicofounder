@@ -225,6 +225,81 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Updated Mar 10, 2024")).toBeInTheDocument();
   });
 
+  it("renders a compact progress summary and next action cue for incomplete project cards", async () => {
+    const project = createProject();
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText(/1 of 2 tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/50% complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/next action/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/prototype the workflow/i)).toBeInTheDocument();
+  });
+
+  it("renders a completed state without a next action prompt when all tasks are done", async () => {
+    const project = createProject({
+      id: "project-complete",
+      name: "Completed Project",
+      phases: [
+        {
+          id: "discovery",
+          title: "Discovery",
+          tasks: [{ id: "task-1", label: "Interview target users", done: true }],
+        },
+        {
+          id: "build",
+          title: "Build",
+          tasks: [{ id: "task-2", label: "Prototype the workflow", done: true }],
+        },
+      ],
+    });
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText(/2 of 2 tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/100% complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/all tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).queryByText(/next action/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/prototype the workflow/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a coherent zero-task state without a next action or completed prompt", async () => {
+    const project = createProject({
+      id: "project-zero-tasks",
+      name: "Zero Task Project",
+      phases: [
+        {
+          id: "discovery",
+          title: "Discovery",
+          tasks: [],
+        },
+      ],
+    });
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText("No tasks yet")).toBeInTheDocument();
+    expect(within(card!).queryByText(/next action/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/all tasks complete/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/0 of 0 tasks complete/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/0% complete/i)).not.toBeInTheDocument();
+  });
+
   it("renders project cards as links to the project detail page", async () => {
     const project = createProject({ id: "project-42", name: "Signal Tracker" });
     vi.mocked(getProjects).mockResolvedValue([project]);
