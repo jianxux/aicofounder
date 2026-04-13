@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -12,7 +12,23 @@ const proofMetrics = [
   { value: "Project-based", label: "keep research, messaging, and next steps attached to the same workspace" },
 ];
 
-const promptIdeas = ["Brainstorm ideas", "Pressure-test the ICP", "Find weak assumptions", "Draft the launch story"];
+const founderScenarios = [
+  {
+    label: "Validate a niche",
+    prompt: "Figure out whether independent insurance brokers would pay for an AI assistant that summarizes carrier updates and recommends next actions.",
+    outcomeHint: "Leave with an ICP read, buyer pains, and the sharpest wedge to test first.",
+  },
+  {
+    label: "Fix weak positioning",
+    prompt: "Pressure-test the positioning for a finance ops tool that helps multi-location dental practices stop losing money to insurance underpayments.",
+    outcomeHint: "Get a clearer homepage angle, stronger value prop, and the claims that need evidence.",
+  },
+  {
+    label: "Plan a launch story",
+    prompt: "Help me craft the go-to-market story for an AI copilot that turns customer support tickets into product feedback and weekly roadmap briefs.",
+    outcomeHint: "Walk away with a launch narrative, proof points to gather, and early messaging to test.",
+  },
+] as const;
 
 const trustNotes = [
   {
@@ -188,6 +204,7 @@ function LoginPromptModal({
 export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const heroPromptRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -221,6 +238,13 @@ export default function LandingPage() {
       event.preventDefault();
       handleHeroSubmit();
     }
+  };
+
+  const isScenarioSelected = (scenarioPrompt: string) => heroPrompt === scenarioPrompt;
+
+  const handleScenarioSelect = (scenarioPrompt: string) => {
+    setHeroPrompt(scenarioPrompt);
+    heroPromptRef.current?.focus();
   };
 
   return (
@@ -271,16 +295,20 @@ export default function LandingPage() {
                   </label>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
+                      ref={heroPromptRef}
                       id="hero-prompt"
                       value={heroPrompt}
                       onChange={(event) => setHeroPrompt(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
                       rows={4}
                       placeholder="Pressure-test an AI product idea before I build the wrong thing."
+                      aria-describedby="hero-prompt-instructions hero-prompt-starting-points-description"
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
+                      <span id="hero-prompt-instructions" className="text-sm text-stone-500">
+                        Press Enter to continue, or click Send to open the login prompt.
+                      </span>
                       <button
                         type="submit"
                         disabled={!heroPrompt.trim()}
@@ -290,18 +318,46 @@ export default function LandingPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {promptIdeas.map((prompt) => (
-                      <button
-                        key={prompt}
-                        type="button"
-                        onClick={() => setHeroPrompt(prompt)}
-                        className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-50"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
+                  <fieldset className="mt-5 text-left">
+                    <legend className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Need a stronger starting point?</legend>
+                    <p id="hero-prompt-starting-points-description" className="mt-2 text-sm leading-6 text-stone-500">
+                      Pick a founder scenario to prefill the prompt, then tailor it to your market.
+                    </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      {founderScenarios.map((scenario) => {
+                        const selected = isScenarioSelected(scenario.prompt);
+
+                        return (
+                        <button
+                          key={scenario.label}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => handleScenarioSelect(scenario.prompt)}
+                          className={`rounded-[1.4rem] border px-4 py-4 text-left transition ${
+                            selected
+                              ? "border-stone-950 bg-stone-950 text-white shadow-[0_18px_45px_rgba(28,25,23,0.14)]"
+                              : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+                          }`}
+                        >
+                          <div
+                            className={`text-sm font-semibold tracking-[-0.02em] ${
+                              selected ? "text-white" : "text-stone-950"
+                            }`}
+                          >
+                            {scenario.label}
+                          </div>
+                          <p
+                            className={`mt-2 text-sm leading-6 ${
+                              selected ? "text-stone-200" : "text-stone-500"
+                            }`}
+                          >
+                            {scenario.outcomeHint}
+                          </p>
+                        </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
                 </form>
 
                 <div className="mt-6 grid gap-4 text-left lg:grid-cols-[1.05fr_0.95fr]">
