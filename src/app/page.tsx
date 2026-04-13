@@ -12,8 +12,6 @@ const proofMetrics = [
   { value: "Project-based", label: "keep research, messaging, and next steps attached to the same workspace" },
 ];
 
-const promptIdeas = ["Brainstorm ideas", "Pressure-test the ICP", "Find weak assumptions", "Draft the launch story"];
-
 const trustNotes = [
   {
     title: "Prompt handoff into onboarding",
@@ -104,6 +102,57 @@ const trustStrip = [
   "Designed for product clarity",
   "Privacy mode available",
 ];
+
+const focusPresets = [
+  {
+    id: "demand-validation",
+    label: "Demand validation",
+    title: "Check if the demand is real before you commit.",
+    description: "Start with customer pain, competing workarounds, and the proof gaps that would change your mind.",
+    helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
+    placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
+    promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
+    insightTitle: "Example insight: demand signal",
+    insightBody: "The strongest demand signals show up when the buyer already pays a hidden tax to work around the problem.",
+    insightPoints: [
+      "If the workaround is spreadsheets plus manual follow-up, quantify the wasted time before promising automation.",
+      "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
+    ],
+    sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
+  },
+  {
+    id: "positioning",
+    label: "Positioning",
+    title: "Sharpen the angle buyers will actually repeat.",
+    description: "Start with the claim, the buyer language it depends on, and where your story sounds generic today.",
+    helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
+    placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
+    promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
+    insightTitle: "Example insight: positioning",
+    insightBody: "The strongest angle usually comes from sharper customer language, not a longer feature list.",
+    insightPoints: [
+      "Founders who win here explain the problem more clearly, not just the product.",
+      "Your next move is tightening the positioning claim before shipping the homepage.",
+    ],
+    sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
+  },
+  {
+    id: "next-step-planning",
+    label: "Next-step planning",
+    title: "Turn fuzzy research into the next founder moves.",
+    description: "Start with what you already know, what still feels uncertain, and the decisions you need to make this week.",
+    helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
+    placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
+    promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
+    insightTitle: "Example insight: next steps",
+    insightBody: "Momentum improves when each next step closes a specific uncertainty instead of producing more abstract output.",
+    insightPoints: [
+      "Sequence the work so each conversation or experiment earns the right to make the next decision.",
+      "Name the metric or learning target before you draft the task list.",
+    ],
+    sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
+  },
+] as const;
 
 function LandingLinkCta({
   button,
@@ -224,6 +273,9 @@ function LoginPromptModal({
 export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+
+  const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -300,11 +352,48 @@ export default function LandingPage() {
                 <div className="mt-4 text-[clamp(1.35rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-stone-950">
                   Start with the founder question you cannot shake.
                 </div>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">{activePreset.description}</p>
+
+                <fieldset className="mx-auto mt-6 max-w-3xl text-left">
+                  <legend className="sr-only">Choose your first focus</legend>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {focusPresets.map((preset) => {
+                      const isActive = preset.id === activePreset.id;
+
+                      return (
+                        <label key={preset.id} className="block cursor-pointer">
+                          <input
+                            type="radio"
+                            name="landing-focus-preset"
+                            value={preset.id}
+                            checked={isActive}
+                            onChange={() => setActivePresetId(preset.id)}
+                            className="sr-only"
+                          />
+                          <div
+                            className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                              isActive
+                                ? "border-stone-950 bg-stone-950 text-stone-50 shadow-[0_18px_45px_rgba(28,25,23,0.12)]"
+                                : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
+                            }`}
+                          >
+                            <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${isActive ? "text-stone-300" : "text-stone-500"}`}>
+                              Choose your first focus
+                            </div>
+                            <div className="mt-2 text-base font-semibold tracking-[-0.03em]">{preset.label}</div>
+                            <p className={`mt-2 text-sm leading-6 ${isActive ? "text-stone-200" : "text-stone-600"}`}>{preset.title}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
 
                 <form onSubmit={handleHeroSubmit} className="mx-auto mt-6 max-w-3xl rounded-[1.9rem] border border-stone-200 bg-white p-4 shadow-[0_18px_45px_rgba(28,25,23,0.06)] sm:p-5">
                   <label htmlFor="hero-prompt" className="block text-left text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
                     I want to
                   </label>
+                  <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
@@ -312,7 +401,7 @@ export default function LandingPage() {
                       onChange={(event) => setHeroPrompt(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
                       rows={4}
-                      placeholder="Pressure-test an AI product idea before I build the wrong thing."
+                      placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -327,7 +416,7 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {promptIdeas.map((prompt) => (
+                    {activePreset.promptIdeas.map((prompt) => (
                       <button
                         key={prompt}
                         type="button"
@@ -342,18 +431,21 @@ export default function LandingPage() {
 
                 <div className="mt-6 grid gap-4 text-left lg:grid-cols-[1.05fr_0.95fr]">
                   <div className="rounded-[1.6rem] border border-stone-200 bg-stone-950 p-5 text-stone-50">
-                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-400">Example insight</div>
-                    <p className="mt-3 text-lg leading-8 text-stone-100">The strongest angle usually comes from sharper customer language, not a longer feature list.</p>
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-400">{activePreset.insightTitle}</div>
+                    <p className="mt-3 text-lg leading-8 text-stone-100">{activePreset.insightBody}</p>
                     <div className="mt-6 grid gap-3 text-sm text-stone-300">
-                      <div className="rounded-2xl bg-white/5 px-4 py-3">Founders who win here explain the problem more clearly, not just the product.</div>
-                      <div className="rounded-2xl bg-white/5 px-4 py-3">Your next move is tightening the positioning claim before shipping the homepage.</div>
+                      {activePreset.insightPoints.map((point) => (
+                        <div key={point} className="rounded-2xl bg-white/5 px-4 py-3">
+                          {point}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <div className="rounded-[1.6rem] border border-stone-200 bg-white p-5">
                     <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Session outputs</div>
                     <div className="mt-4 space-y-3">
-                      {["Positioning report", "Market research memo", "Homepage angle to test"].map((item) => (
+                      {activePreset.sessionOutputs.map((item) => (
                         <div key={item} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3 text-sm text-stone-700">
                           <span>{item}</span>
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Ready</span>

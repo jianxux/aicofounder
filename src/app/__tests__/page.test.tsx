@@ -63,10 +63,31 @@ describe("LandingPage", () => {
 
     expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
     expect(screen.getByText(/Start with the founder question you cannot shake/i)).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /Choose your first focus/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Demand validation/i })).toBeChecked();
+    expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
+    expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+  });
+
+  it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Keep my draft intact." },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: /Next-step planning/i }));
+
+    expect(screen.getByRole("radio", { name: /Next-step planning/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Demand validation/i })).not.toBeChecked();
+    expect(screen.getByDisplayValue("Keep my draft intact.")).toBeInTheDocument();
+    expect(screen.getByText(/Use this when you have signal scattered across notes/i)).toBeInTheDocument();
+    expect(screen.getByText("Prioritize the next 3 moves")).toBeInTheDocument();
+    expect(screen.getByText("Next-step plan")).toBeInTheDocument();
+    expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
