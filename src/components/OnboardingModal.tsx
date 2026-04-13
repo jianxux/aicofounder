@@ -12,17 +12,25 @@ export type OnboardingIntake = {
   mainUncertainty: string;
 };
 
+export type OnboardingStarterBrief = OnboardingIntake & {
+  title: string;
+  summary: string;
+};
+
 type OnboardingModalProps = {
   open: boolean;
   onComplete: (intake: OnboardingIntake) => void;
+  onClose: () => void;
   onSkip: () => void;
   initialIntake?: Partial<OnboardingIntake>;
+  isSubmitting?: boolean;
+  submissionError?: string | null;
 };
 
 type OnboardingStep = 1 | 2 | 3;
 
 const TOTAL_STEPS = 3;
-const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
+export const STARTER_BRIEFS: OnboardingStarterBrief[] = [
   {
     title: "Customer research copilot",
     summary: "Turn interview notes and market links into next-step validation plans.",
@@ -62,7 +70,38 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
-export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
+function findMatchingStarterIndex(initialIntake?: Partial<OnboardingIntake>) {
+  if (!initialIntake) {
+    return null;
+  }
+
+  const normalizedIntake = {
+    primaryIdea: initialIntake.primaryIdea?.trim() ?? "",
+    url: initialIntake.url?.trim() ?? "",
+    targetUser: initialIntake.targetUser?.trim() ?? "",
+    mainUncertainty: initialIntake.mainUncertainty?.trim() ?? "",
+  };
+
+  const matchedIndex = STARTER_BRIEFS.findIndex(
+    (starter) =>
+      starter.primaryIdea.trim() === normalizedIntake.primaryIdea &&
+      starter.url.trim() === normalizedIntake.url &&
+      starter.targetUser.trim() === normalizedIntake.targetUser &&
+      starter.mainUncertainty.trim() === normalizedIntake.mainUncertainty,
+  );
+
+  return matchedIndex >= 0 ? matchedIndex : null;
+}
+
+export default function OnboardingModal({
+  open,
+  onComplete,
+  onClose,
+  onSkip,
+  initialIntake,
+  isSubmitting = false,
+  submissionError = null,
+}: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
   const [url, setUrl] = useState("");
@@ -93,6 +132,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       setUrl(initialIntake?.url?.trim() ?? "");
       setTargetUser(initialIntake?.targetUser?.trim() ?? "");
       setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      setSelectedStarterIndex(findMatchingStarterIndex(initialIntake));
       return;
     }
 
@@ -100,12 +140,6 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       previouslyFocusedElementRef.current.focus();
     }
     previouslyFocusedElementRef.current = null;
-    setStep(1);
-    setPrimaryIdea("");
-    setUrl("");
-    setTargetUser("");
-    setMainUncertainty("");
-    setSelectedStarterIndex(null);
   }, [initialIntake, open]);
 
   useEffect(() => {
@@ -141,6 +175,12 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   }, [open, step]);
 
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
     if (event.key !== "Tab" || !dialogRef.current) {
       return;
     }
@@ -197,21 +237,31 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
           onKeyDown={handleDialogKeyDown}
           className="my-auto w-full max-w-2xl max-h-[calc(100vh-4rem)] overflow-y-auto rounded-[32px] border border-stone-200/80 bg-[#faf7f2] p-6 shadow-2xl sm:p-8"
         >
-        <div className="flex items-start justify-between gap-4">
-          <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-            Getting Started
+          <div className="flex items-start justify-between gap-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              Getting Started
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-500 transition hover:border-stone-300 hover:text-stone-800"
+                aria-label="Close onboarding"
+              >
+                Close
+              </button>
+              <button
+                ref={skipButtonRef}
+                type="button"
+                onClick={onSkip}
+                className="text-sm font-medium text-stone-500 transition hover:text-stone-800"
+              >
+                Skip
+              </button>
+            </div>
           </div>
-          <button
-            ref={skipButtonRef}
-            type="button"
-            onClick={onSkip}
-            className="text-sm font-medium text-stone-500 transition hover:text-stone-800"
-          >
-            Skip
-          </button>
-        </div>
 
-        <div className="relative mt-6 min-h-[340px] overflow-hidden">
+          <div className="relative mt-6 min-h-[340px] overflow-hidden">
           <section
             className={`transition-all duration-300 ${
               step === 1
@@ -353,8 +403,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                   ref={primaryIdeaInputRef}
                   value={primaryIdea}
                   onChange={(event) => {
+                    const nextPrimaryIdea = event.target.value;
                     clearSelectedStarter();
-                    setPrimaryIdea(event.target.value);
+                    setPrimaryIdea(nextPrimaryIdea);
                   }}
                   placeholder="An AI copilot that helps founders turn scattered research, URLs, and notes into a concrete validation plan."
                   rows={5}
@@ -367,8 +418,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <input
                   value={url}
                   onChange={(event) => {
+                    const nextUrl = event.target.value;
                     clearSelectedStarter();
-                    setUrl(event.target.value);
+                    setUrl(nextUrl);
                   }}
                   placeholder="https://example.com"
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
@@ -380,8 +432,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <input
                   value={targetUser}
                   onChange={(event) => {
+                    const nextTargetUser = event.target.value;
                     clearSelectedStarter();
-                    setTargetUser(event.target.value);
+                    setTargetUser(nextTargetUser);
                   }}
                   placeholder="Seed-stage B2B SaaS founders"
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
@@ -393,8 +446,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 <textarea
                   value={mainUncertainty}
                   onChange={(event) => {
+                    const nextMainUncertainty = event.target.value;
                     clearSelectedStarter();
-                    setMainUncertainty(event.target.value);
+                    setMainUncertainty(nextMainUncertainty);
                   }}
                   placeholder="I’m not sure whether founders want one workspace for synthesis or separate tools for each step."
                   rows={3}
@@ -497,24 +551,33 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               <button
                 type="button"
                 onClick={() => setStep(2)}
+                disabled={isSubmitting}
                 className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
               >
                 Back
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onComplete({
-                    primaryIdea: primaryIdea.trim(),
-                    url: url.trim(),
-                    targetUser: targetUser.trim(),
-                    mainUncertainty: mainUncertainty.trim(),
-                  })
-                }
-                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
-              >
-                Launch Project
-              </button>
+              <div className="flex flex-col items-end gap-3">
+                {submissionError ? (
+                  <p role="alert" className="max-w-sm text-right text-sm text-red-700">
+                    {submissionError}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() =>
+                    onComplete({
+                      primaryIdea: primaryIdea.trim(),
+                      url: url.trim(),
+                      targetUser: targetUser.trim(),
+                      mainUncertainty: mainUncertainty.trim(),
+                    })
+                  }
+                  className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+                >
+                  {isSubmitting ? "Launching..." : "Launch Project"}
+                </button>
+              </div>
             </div>
           </section>
         </div>
