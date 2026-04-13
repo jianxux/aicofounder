@@ -62,6 +62,21 @@ const featureColumns = [
   },
 ];
 
+const sampleArtifactRows = [
+  {
+    label: "Core buyer",
+    value: "Ops leads at 50 to 200 person home-service companies drowning in manual dispatch follow-up.",
+  },
+  {
+    label: "Claim to test",
+    value: "Stop losing booked jobs to slow, inconsistent customer follow-up.",
+  },
+  {
+    label: "Proof to gather next",
+    value: "Measure callback speed, missed estimate rate, and no-response drop-off across ten recent leads.",
+  },
+];
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -353,6 +368,48 @@ export default function LandingPage() {
           </div>
         </section>
       </div>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
+          <div className="max-w-md">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample first deliverable</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-stone-950">
+              Inspect the artifact before you trust the workflow.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              The first output is not a vague pep talk. It reads like a working founder brief with a testable claim, evidence gaps, and homepage language you
+              can react to immediately.
+            </p>
+          </div>
+
+          <div className="rounded-[1.9rem] border border-stone-200/80 bg-[#fcfaf7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 rounded-[1.5rem] border border-stone-200 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(52,39,21,0.06)]">
+              <div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Previewed founder artifact</div>
+                <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">Positioning brief v1</div>
+              </div>
+              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">Generated from interviews + homepage draft</div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {sampleArtifactRows.map((row) => (
+                <div key={row.label} className="rounded-[1.25rem] border border-stone-200/80 bg-white px-4 py-4">
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{row.label}</div>
+                  <p className="mt-2 text-sm leading-7 text-stone-700">{row.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-[1.4rem] border border-stone-950 bg-stone-950 px-4 py-4 text-stone-50 shadow-[0_20px_55px_rgba(20,16,12,0.18)]">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-400">Homepage opening to test</div>
+              <p className="mt-2 text-sm leading-7 text-stone-200">
+                AI Cofounder helps service operators follow up with every lead fast enough to save the jobs that usually disappear between estimate and
+                callback.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section id="trust" className="mx-auto w-full max-w-7xl scroll-mt-24 px-6 py-4 lg:px-8">
         <div className="grid gap-3 rounded-[2rem] border border-stone-200 bg-white/75 p-4 text-sm text-stone-500 shadow-[0_20px_60px_rgba(28,25,23,0.05)] sm:grid-cols-2 lg:grid-cols-4 lg:p-5">
