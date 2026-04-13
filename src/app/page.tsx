@@ -75,12 +75,12 @@ const faqItems = [
   {
     question: "What happens after I sign in?",
     answer:
-      "You land in the workspace, answer a few onboarding prompts about your product and stage, then paste notes or upload material so the first session can produce founder-ready outputs quickly.",
+      "You land in the workspace, answer a few onboarding prompts about your product and stage, and start shaping the first session from there with the context you already have.",
   },
   {
     question: "Are my uploaded notes private?",
     answer:
-      "Your notes stay inside your workspace and are used to generate your tailored results. Treat the product like a private working area for founder material, not a public feed or shared gallery.",
+      "The product is meant to feel like a private workspace for your founder material and session outputs, not a public feed or shared gallery.",
   },
 ];
 

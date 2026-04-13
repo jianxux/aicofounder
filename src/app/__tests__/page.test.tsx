@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -63,7 +63,7 @@ describe("LandingPage", () => {
     expect(screen.getByRole("heading", { name: /Find the clearest angle for/i })).toBeInTheDocument();
     expect(screen.getByText(/Start with the question you cannot shake/i)).toBeInTheDocument();
     expect(screen.getByText(/Pressure-test the ICP/i)).toBeInTheDocument();
-    expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
+    expect(screen.getByText("Session outputs", { selector: "div" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
@@ -88,32 +88,40 @@ describe("LandingPage", () => {
   it("renders a founder FAQ section with four concise pre-sign-in questions", () => {
     render(<LandingPage />);
 
-    expect(
-      screen.getByRole("heading", {
-        name: /Founder questions, answered before you sign in/i,
-      }),
-    ).toBeInTheDocument();
+    const faqHeading = screen.getByRole("heading", {
+      name: /Founder questions, answered before you sign in/i,
+    });
+
+    expect(faqHeading).toBeInTheDocument();
+
+    const faqCards = screen.getAllByRole("article");
+    expect(faqCards).toHaveLength(4);
 
     [
       {
-        question: /What do I get from the first session\?/i,
-        answer: /A first pass at the story: a sharper positioning angle, concrete claims worth testing, and a short list of next questions or homepage moves to act on immediately\./i,
+        question: "What do I get from the first session?",
+        fragments: ["A first pass at the story", "homepage moves"],
       },
       {
-        question: /Do I need a polished brief before I start\?/i,
-        answer: /No\. You can begin with rough notes, call transcripts, a messy draft, or one stubborn question\./i,
+        question: "Do I need a polished brief before I start?",
+        fragments: ["rough notes", "usable brief"],
       },
       {
-        question: /What happens after I sign in\?/i,
-        answer: /You land in the workspace, answer a few onboarding prompts about your product and stage, then paste notes or upload material so the first session can produce founder-ready outputs quickly\./i,
+        question: "What happens after I sign in?",
+        fragments: ["answer a few onboarding prompts", "the context you already have"],
       },
       {
-        question: /Are my uploaded notes private\?/i,
-        answer: /Your notes stay inside your workspace and are used to generate your tailored results\./i,
+        question: "Are my uploaded notes private?",
+        fragments: ["feel like a private workspace", "not a public feed or shared gallery"],
       },
-    ].forEach(({ question, answer }) => {
-      expect(screen.getByText(question)).toBeInTheDocument();
-      expect(screen.getByText(answer)).toBeInTheDocument();
+    ].forEach(({ question, fragments }) => {
+      const card = faqCards.find((faqCard) => within(faqCard).queryByRole("heading", { name: question }));
+
+      expect(card).toBeDefined();
+
+      fragments.forEach((fragment) => {
+        expect(within(card as HTMLElement).getByText(new RegExp(fragment, "i"))).toBeInTheDocument();
+      });
     });
   });
 
