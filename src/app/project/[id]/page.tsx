@@ -22,6 +22,7 @@ import { generateProjectDiagram } from "@/lib/diagram-generation";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { resolveProjectResearchResponse, type ResearchApiFailure, type ResearchApiSuccess } from "@/lib/project-research";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
+import type { ResearchReport } from "@/lib/research";
 import { fetchProjectById } from "@/lib/supabase-projects";
 import { UltraplanResult } from "@/lib/ultraplan";
 import {
@@ -89,7 +90,7 @@ function isArtifactPopulated(artifact: ProjectArtifact | null) {
     return Boolean(artifact.summary?.trim()) || artifact.criteria.length > 0;
   }
 
-  return Boolean(artifact.research?.report || artifact.research?.artifact);
+  return hasUsableResearchReport(artifact.research?.report) || hasUsableResearchReport(artifact.research?.artifact?.report);
 }
 
 function getResearchPanelStatus(research: Project["research"], isResearchLoading: boolean) {
@@ -110,6 +111,167 @@ function getResearchPanelStatus(research: Project["research"], isResearchLoading
 
 function getCustomerResearchMemoArtifactId(project: Project) {
   return getProjectArtifactByType(project, "customer-research-memo")?.id ?? "artifact-customer-research-memo";
+}
+
+function formatCompactCount(completed: number, total: number) {
+  if (total <= 0) {
+    return "No tasks";
+  }
+
+  return `${completed}/${total} done`;
+}
+
+function getSafeReferenceUrl(rawValue: string) {
+  const value = rawValue.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return "";
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return "";
+  }
+}
+
+function hasUsableResearchReport(report: ResearchReport | Partial<ResearchReport> | undefined) {
+  if (!report) {
+    return false;
+  }
+
+  return Boolean(
+    report.executiveSummary?.trim() ||
+      report.sections?.length ||
+      report.keyFindings?.length ||
+      report.contradictions?.length ||
+      report.unansweredQuestions?.length ||
+      report.sources?.length,
+  );
+}
+
+function parseDescriptionMetadata(description: string) {
+  const metadata = {
+    targetUser: "",
+    mainUncertainty: "",
+    referenceUrl: "",
+  };
+  const narrativeLines: string[] = [];
+
+  for (const rawLine of description.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    const targetUserMatch = line.match(/^target user\s*:\s*(.+)$/i);
+    if (targetUserMatch) {
+      metadata.targetUser = targetUserMatch[1].trim();
+      continue;
+    }
+
+    const uncertaintyMatch = line.match(/^main uncertainty\s*:\s*(.+)$/i);
+    if (uncertaintyMatch) {
+      metadata.mainUncertainty = uncertaintyMatch[1].trim();
+      continue;
+    }
+
+    const referenceUrlMatch = line.match(/^reference url\s*:\s*(.+)$/i);
+    if (referenceUrlMatch) {
+      metadata.referenceUrl = referenceUrlMatch[1].trim();
+      continue;
+    }
+
+    narrativeLines.push(line);
+  }
+
+  return { ...metadata, narrativeLines };
+}
+
+function deriveConciseBrief(project: Pick<Project, "name" | "description">) {
+  const { narrativeLines } = parseDescriptionMetadata(project.description ?? "");
+  const narrative = narrativeLines.join(" ").replace(/\s+/g, " ").trim();
+
+  if (narrative) {
+    return narrative.length <= 140 ? narrative : `${narrative.slice(0, 137).trimEnd()}...`;
+  }
+
+  if (project.name.trim()) {
+    return `${project.name.trim()} project workspace`;
+  }
+
+  return "Project workspace";
+}
+
+function getArtifactStateNextMove(activeArtifact: ProjectArtifact | null, hasOutput: boolean) {
+  if (!activeArtifact) {
+    return "Choose the artifact to update next.";
+  }
+
+  if (activeArtifact.type === "customer-research-memo") {
+    if (!hasOutput) {
+      return "Run research to generate the first customer research memo.";
+    }
+
+    if (activeArtifact.research?.status === "error") {
+      return "Repair the customer research memo by rerunning research or tightening the brief in chat.";
+    }
+
+    return "Review the memo and tighten the strongest finding, contradiction, or evidence gap.";
+  }
+
+  if (!hasOutput) {
+    return "Start the validation scorecard with the strongest signal and the biggest open risk.";
+  }
+
+  return "Refine the validation scorecard by challenging weak evidence and updating the next check.";
+}
+
+function getArtifactStateFocus(activeArtifact: ProjectArtifact | null, hasOutput: boolean) {
+  if (!activeArtifact) {
+    return "Choose artifact";
+  }
+
+  if (activeArtifact.type === "customer-research-memo") {
+    return hasOutput ? "Refine customer research memo" : "Create customer research memo";
+  }
+
+  return hasOutput ? "Refine validation scorecard" : "Create validation scorecard";
+}
+
+function deriveProjectSnapshot(
+  project: Pick<Project, "name" | "description">,
+  activePhase: Phase | null,
+  activeArtifact: ProjectArtifact | null,
+  activeArtifactHasOutput: boolean,
+) {
+  const metadata = parseDescriptionMetadata(project.description ?? "");
+  const brief = deriveConciseBrief(project);
+  const totalTasks = activePhase?.tasks.length ?? 0;
+  const completedTasks = activePhase?.tasks.filter((task) => task.done).length ?? 0;
+  const firstIncompleteTask = activePhase?.tasks.find((task) => !task.done) ?? null;
+  const currentPhase = activePhase?.title ?? "Getting started";
+  const currentFocus = firstIncompleteTask?.label ?? getArtifactStateFocus(activeArtifact, activeArtifactHasOutput);
+  const progress = formatCompactCount(completedTasks, totalTasks);
+  const nextMove = firstIncompleteTask
+    ? `Complete task: ${firstIncompleteTask.label}.`
+    : getArtifactStateNextMove(activeArtifact, activeArtifactHasOutput);
+
+  return {
+    brief,
+    metadata,
+    currentPhase,
+    currentFocus,
+    progress,
+    nextMove,
+  };
 }
 
 function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardArtifact }) {
@@ -213,6 +375,92 @@ function ArtifactWorkspaceHeader({
               {getArtifactLabel(artifact)}
             </button>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProjectSnapshotPanel({
+  brief,
+  targetUser,
+  mainUncertainty,
+  referenceUrl,
+  currentPhase,
+  currentFocus,
+  progress,
+  nextMove,
+}: {
+  brief: string;
+  targetUser: string;
+  mainUncertainty: string;
+  referenceUrl: string;
+  currentPhase: string;
+  currentFocus: string;
+  progress: string;
+  nextMove: string;
+}) {
+  const safeReferenceUrl = getSafeReferenceUrl(referenceUrl);
+
+  return (
+    <section
+      aria-label="Project snapshot"
+      className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5"
+    >
+      <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Project snapshot</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{brief}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+              {currentPhase}
+            </span>
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+              {progress}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3 xl:col-span-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Recommended next move</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{nextMove}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Current focus</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{currentFocus}</p>
+          </div>
+          {targetUser ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Target user</div>
+              <p className="mt-2 text-sm leading-6 text-stone-700">{targetUser}</p>
+            </div>
+          ) : null}
+          {mainUncertainty ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Main uncertainty</div>
+              <p className="mt-2 text-sm leading-6 text-stone-700">{mainUncertainty}</p>
+            </div>
+          ) : null}
+          {referenceUrl ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3 md:col-span-2 xl:col-span-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Reference URL</div>
+              {safeReferenceUrl ? (
+                <a
+                  href={safeReferenceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 block text-sm leading-6 text-stone-700 underline decoration-stone-300 underline-offset-4"
+                >
+                  {referenceUrl}
+                </a>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-stone-700">{referenceUrl}</p>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -357,6 +605,13 @@ export default function ProjectWorkspacePage() {
   const activeResearchMemo = activeArtifact?.type === "customer-research-memo" ? activeArtifact : null;
   const activeArtifactHasOutput = useMemo(() => isArtifactPopulated(activeArtifact), [activeArtifact]);
   const activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create";
+  const projectSnapshot = useMemo(
+    () =>
+      project
+        ? deriveProjectSnapshot(project, activePhase, activeArtifact, activeArtifactHasOutput)
+        : null,
+    [activeArtifact, activeArtifactHasOutput, activePhase, project],
+  );
 
   const handleNameChange = (name: string) => {
     if (!project) {
@@ -868,8 +1123,6 @@ export default function ProjectWorkspacePage() {
   };
 
   const handleSetActivePhase = (phaseId: string) => {
-    setActivePhaseId(phaseId);
-
     /* v8 ignore next -- defensive guard during transient load states */
     if (!project) {
       return;
@@ -880,6 +1133,8 @@ export default function ProjectWorkspacePage() {
     if (!currentPhase) {
       return;
     }
+
+    setActivePhaseId(phaseId);
 
     persistProject({
       ...project,
@@ -995,6 +1250,19 @@ export default function ProjectWorkspacePage() {
             </button>
           </div>
         </div>
+
+        {projectSnapshot ? (
+          <ProjectSnapshotPanel
+            brief={projectSnapshot.brief}
+            targetUser={projectSnapshot.metadata.targetUser}
+            mainUncertainty={projectSnapshot.metadata.mainUncertainty}
+            referenceUrl={projectSnapshot.metadata.referenceUrl}
+            currentPhase={projectSnapshot.currentPhase}
+            currentFocus={projectSnapshot.currentFocus}
+            progress={projectSnapshot.progress}
+            nextMove={projectSnapshot.nextMove}
+          />
+        ) : null}
 
         <ArtifactWorkspaceHeader
           artifacts={project.artifacts ?? []}
