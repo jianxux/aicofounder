@@ -90,6 +90,36 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
+  it("shows helper copy that explains prompt suggestions are additive", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Add a suggestion to your draft without replacing what you already wrote\./i)).toBeInTheDocument();
+  });
+
+  it("appends a prompt suggestion to the existing draft instead of replacing it", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI dispatch workflow for local service teams." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+
+    expect(promptField).toHaveValue("Validate an AI dispatch workflow for local service teams.\nMap the painful workflow");
+  });
+
+  it("does not duplicate the same prompt suggestion when clicked twice", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+
+    expect(promptField).toHaveValue("Map the painful workflow");
+  });
+
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
@@ -103,6 +133,58 @@ describe("LandingPage", () => {
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("does not open the login prompt or persist a whitespace-only draft", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "   \n  " },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Send" }).closest("form")!);
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(trackEvent).not.toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("does not submit the prompt on Shift+Enter", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.keyDown(promptField, { key: "Enter", shiftKey: true });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(trackEvent).not.toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("does not submit the prompt on Enter while IME composition is active", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.keyDown(promptField, { key: "Enter", isComposing: true, keyCode: 229 });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(trackEvent).not.toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",
     });
