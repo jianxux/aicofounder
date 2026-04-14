@@ -22,10 +22,15 @@ type OnboardingModalProps = {
 type OnboardingStep = 1 | 2 | 3;
 
 const TOTAL_STEPS = 3;
-const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
+const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string; expectedOutputs: string[] }> = [
   {
     title: "Customer research copilot",
     summary: "Turn interview notes and market links into next-step validation plans.",
+    expectedOutputs: [
+      "A founder-ready validation brief with the sharpest problem to test first.",
+      "A shortlist of interview themes and follow-up questions worth pursuing.",
+      "A concrete next-step plan for research, synthesis, and early product scoping.",
+    ],
     primaryIdea:
       "An AI research copilot that turns scattered founder notes, interview transcripts, and saved links into a clear validation brief with prioritized next steps.",
     url: "",
@@ -35,6 +40,11 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
   {
     title: "Ops assistant for clinics",
     summary: "Reduce admin churn for small care teams handling scheduling and follow-up.",
+    expectedOutputs: [
+      "A workflow brief showing where scheduling and no-show recovery can be automated.",
+      "A target user snapshot for the clinic team that feels the pain most acutely.",
+      "A first-pass wedge and success metric to validate with real operators.",
+    ],
     primaryIdea:
       "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
     url: "",
@@ -45,6 +55,11 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
   {
     title: "Retail demand planner",
     summary: "Help small brands reorder inventory with less guesswork.",
+    expectedOutputs: [
+      "A demand-planning brief centered on the highest-value inventory decision.",
+      "A clearer view of which operator persona owns forecasting and reorders today.",
+      "An action-oriented hypothesis for forecasting, reorder timing, and stockout prevention.",
+    ],
     primaryIdea:
       "A lightweight planning tool that helps Shopify brands forecast demand, time reorders, and spot risky stockouts before bestsellers go out of stock.",
     url: "",
@@ -62,6 +77,47 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+function normalizeIntakeValue(value?: string) {
+  return value?.trim() ?? "";
+}
+
+function normalizeIntake(intake?: Partial<OnboardingIntake>) {
+  return {
+    primaryIdea: normalizeIntakeValue(intake?.primaryIdea),
+    url: normalizeIntakeValue(intake?.url),
+    targetUser: normalizeIntakeValue(intake?.targetUser),
+    mainUncertainty: normalizeIntakeValue(intake?.mainUncertainty),
+  };
+}
+
+function intakeValuesMatch(a: OnboardingIntake, b: OnboardingIntake) {
+  return (
+    a.primaryIdea === b.primaryIdea &&
+    a.url === b.url &&
+    a.targetUser === b.targetUser &&
+    a.mainUncertainty === b.mainUncertainty
+  );
+}
+
+function findMatchingStarterIndex(intake?: Partial<OnboardingIntake>) {
+  if (!intake) {
+    return null;
+  }
+
+  const normalizedIntake = normalizeIntake(intake);
+
+  const matchIndex = STARTER_BRIEFS.findIndex((starter) => {
+    return (
+      starter.primaryIdea === normalizedIntake.primaryIdea &&
+      starter.url === normalizedIntake.url &&
+      starter.targetUser === normalizedIntake.targetUser &&
+      starter.mainUncertainty === normalizedIntake.mainUncertainty
+    );
+  });
+
+  return matchIndex >= 0 ? matchIndex : null;
+}
+
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
@@ -77,6 +133,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const primaryIdeaInputRef = useRef<HTMLTextAreaElement | null>(null);
   const stepThreeHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const starterOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const previousNormalizedInitialIntakeRef = useRef<OnboardingIntake>(normalizeIntake());
+  const previousOpenRef = useRef(false);
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
@@ -85,27 +144,47 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     setSelectedStarterIndex(null);
   };
 
+  const applyStarterSelection = (index: number) => {
+    const starter = STARTER_BRIEFS[index];
+    setSelectedStarterIndex(index);
+    setPrimaryIdea(starter.primaryIdea);
+    setUrl(starter.url);
+    setTargetUser(starter.targetUser);
+    setMainUncertainty(starter.mainUncertainty);
+  };
+
   useEffect(() => {
+    const normalizedInitialIntake = normalizeIntake(initialIntake);
+    const initialIntakeChanged = !intakeValuesMatch(
+      previousNormalizedInitialIntakeRef.current,
+      normalizedInitialIntake,
+    );
+    const wasOpen = previousOpenRef.current;
+
     if (open) {
-      const nextPrimaryIdea = initialIntake?.primaryIdea?.trim() ?? "";
-      setStep(nextPrimaryIdea ? 2 : 1);
-      setPrimaryIdea(nextPrimaryIdea);
-      setUrl(initialIntake?.url?.trim() ?? "");
-      setTargetUser(initialIntake?.targetUser?.trim() ?? "");
-      setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
-      return;
+      if (!wasOpen || initialIntakeChanged) {
+        setStep(normalizedInitialIntake.primaryIdea ? 2 : 1);
+        setPrimaryIdea(normalizedInitialIntake.primaryIdea);
+        setUrl(normalizedInitialIntake.url);
+        setTargetUser(normalizedInitialIntake.targetUser);
+        setMainUncertainty(normalizedInitialIntake.mainUncertainty);
+        setSelectedStarterIndex(findMatchingStarterIndex(normalizedInitialIntake));
+      }
+    } else {
+      if (previouslyFocusedElementRef.current && previouslyFocusedElementRef.current.isConnected) {
+        previouslyFocusedElementRef.current.focus();
+      }
+      previouslyFocusedElementRef.current = null;
+      setStep(1);
+      setPrimaryIdea("");
+      setUrl("");
+      setTargetUser("");
+      setMainUncertainty("");
+      setSelectedStarterIndex(null);
     }
 
-    if (previouslyFocusedElementRef.current && previouslyFocusedElementRef.current.isConnected) {
-      previouslyFocusedElementRef.current.focus();
-    }
-    previouslyFocusedElementRef.current = null;
-    setStep(1);
-    setPrimaryIdea("");
-    setUrl("");
-    setTargetUser("");
-    setMainUncertainty("");
-    setSelectedStarterIndex(null);
+    previousNormalizedInitialIntakeRef.current = normalizedInitialIntake;
+    previousOpenRef.current = open;
   }, [initialIntake, open]);
 
   useEffect(() => {
@@ -178,6 +257,34 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       event.preventDefault();
       firstElement.focus();
     }
+  };
+
+  const handleStarterKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const lastIndex = STARTER_BRIEFS.length - 1;
+    let nextIndex: number | null = null;
+
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        nextIndex = index === lastIndex ? 0 : index + 1;
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        nextIndex = index === 0 ? lastIndex : index - 1;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = lastIndex;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    applyStarterSelection(nextIndex);
+    starterOptionRefs.current[nextIndex]?.focus();
   };
 
   if (!open) {
@@ -313,34 +420,66 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div role="radiogroup" aria-label="Starter briefs" className="mt-4 grid gap-3 sm:grid-cols-3">
                   {STARTER_BRIEFS.map((starter, index) => {
                     const isSelected = selectedStarterIndex === index;
+                    const starterTitleId = `${dialogId}-starter-title-${index}`;
+                    const starterDescriptionId = `${dialogId}-starter-description-${index}`;
 
                     return (
                     <button
                       key={starter.title}
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        setSelectedStarterIndex(index);
-                        setPrimaryIdea(starter.primaryIdea);
-                        setUrl(starter.url);
-                        setTargetUser(starter.targetUser);
-                        setMainUncertainty(starter.mainUncertainty);
+                      ref={(element) => {
+                        starterOptionRefs.current[index] = element;
                       }}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-labelledby={starterTitleId}
+                      aria-describedby={starterDescriptionId}
+                      tabIndex={selectedStarterIndex === null ? (index === 0 ? 0 : -1) : isSelected ? 0 : -1}
+                      onClick={() => applyStarterSelection(index)}
+                      onKeyDown={(event) => handleStarterKeyDown(event, index)}
                       className={`rounded-[24px] border p-4 text-left transition focus-visible:outline-none ${
                         isSelected
                           ? "border-stone-900 bg-stone-950 text-white shadow-[0_0_0_3px_rgba(28,25,23,0.12)]"
                           : "border-stone-200 bg-[#fcfbf8] hover:border-stone-400 hover:bg-white focus-visible:border-stone-500"
                       }`}
                     >
-                      <div className={`text-sm font-semibold ${isSelected ? "text-white" : "text-stone-900"}`}>
+                      <div
+                        id={starterTitleId}
+                        className={`text-sm font-semibold ${isSelected ? "text-white" : "text-stone-900"}`}
+                      >
                         {starter.title}
                       </div>
-                      <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-stone-100" : "text-stone-600"}`}>
-                        {starter.summary}
-                      </p>
+                      <div id={starterDescriptionId}>
+                        <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-stone-100" : "text-stone-600"}`}>
+                          {starter.summary}
+                        </p>
+                        <div className="mt-4">
+                        <div
+                          className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                            isSelected ? "text-stone-300" : "text-stone-500"
+                          }`}
+                        >
+                          You&apos;ll leave with
+                        </div>
+                        <ul
+                          className={`mt-2 space-y-1.5 text-xs leading-5 ${
+                            isSelected ? "text-stone-100" : "text-stone-600"
+                          }`}
+                        >
+                          {starter.expectedOutputs.map((output) => (
+                            <li key={output} className="flex items-start gap-2">
+                              <span aria-hidden="true" className={isSelected ? "text-stone-300" : "text-stone-400"}>
+                                •
+                              </span>
+                              <span>{output}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        </div>
+                      </div>
                     </button>
                     );
                   })}
