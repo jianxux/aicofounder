@@ -284,6 +284,23 @@ export default function LandingPage() {
     });
   }, []);
 
+  const appendPromptIdea = (promptIdea: string) => {
+    setHeroPrompt((currentPrompt) => {
+      const trimmedPrompt = currentPrompt.trim();
+
+      if (!trimmedPrompt) {
+        return promptIdea;
+      }
+
+      const existingLines = trimmedPrompt.split("\n").map((line) => line.trim());
+      if (existingLines.includes(promptIdea)) {
+        return currentPrompt;
+      }
+
+      return `${currentPrompt.trimEnd()}\n${promptIdea}`;
+    });
+  };
+
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
@@ -305,7 +322,11 @@ export default function LandingPage() {
   };
 
   const handleHeroKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      return;
+    }
+
+    if (event.key === "Enter") {
       event.preventDefault();
       handleHeroSubmit();
     }
@@ -416,11 +437,12 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <p className="w-full text-center text-xs text-stone-500">Add a suggestion to your draft without replacing what you already wrote.</p>
                     {activePreset.promptIdeas.map((prompt) => (
                       <button
                         key={prompt}
                         type="button"
-                        onClick={() => setHeroPrompt(prompt)}
+                        onClick={() => appendPromptIdea(prompt)}
                         className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-50"
                       >
                         {prompt}
