@@ -103,6 +103,11 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const heroSessionChecklist = {
+  bring: ["A rough idea or messy draft", "An optional URL, notes, or customer calls", "The biggest uncertainty you need to resolve first"],
+  leaveWith: ["A sharper founder brief", "Concrete proof gaps and what to test next", "An output you can reuse in the workspace"],
+} as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -111,7 +116,11 @@ const focusPresets = [
     description: "Start with customer pain, competing workarounds, and the proof gaps that would change your mind.",
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
     placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
-    promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
+    promptIdeas: [
+      "I have a rough AI dispatch assistant idea. Pressure-test whether the pain is urgent enough to earn budget.",
+      "I pasted customer notes and a homepage draft. Show me the weakest demand assumptions before I build.",
+      "Map the current workaround for this problem and tell me what proof would make the demand feel real.",
+    ],
     insightTitle: "Example insight: demand signal",
     insightBody: "The strongest demand signals show up when the buyer already pays a hidden tax to work around the problem.",
     insightPoints: [
@@ -127,7 +136,11 @@ const focusPresets = [
     description: "Start with the claim, the buyer language it depends on, and where your story sounds generic today.",
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
     placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
-    promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
+    promptIdeas: [
+      "Rewrite my homepage claim so a seed-stage founder sounds specific instead of generic AI automation.",
+      "I have a rough URL and product notes. Find the positioning language buyers would actually repeat.",
+      "Pressure-test this ICP and draft a sharper homepage angle I can put in front of users this week.",
+    ],
     insightTitle: "Example insight: positioning",
     insightBody: "The strongest angle usually comes from sharper customer language, not a longer feature list.",
     insightPoints: [
@@ -143,7 +156,11 @@ const focusPresets = [
     description: "Start with what you already know, what still feels uncertain, and the decisions you need to make this week.",
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
     placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
-    promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
+    promptIdeas: [
+      "Turn these scattered founder notes into the next 3 moves that close the biggest uncertainty.",
+      "Use my interview notes and rough idea to plan a validation sprint for this week.",
+      "I have too many possible tests. Tell me what to do first and what evidence each step should produce.",
+    ],
     insightTitle: "Example insight: next steps",
     insightBody: "Momentum improves when each next step closes a specific uncertainty instead of producing more abstract output.",
     insightPoints: [
@@ -260,6 +277,9 @@ function LoginPromptModal({
             analyticsButton="hero_prompt_login"
             analyticsPage="/"
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
+            authenticatedHref="/dashboard"
+            authenticatedLabel="Continue to workspace"
+            authenticatedClassName="inline-flex items-center justify-center rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
           <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
             Explore demo first
@@ -394,6 +414,30 @@ export default function LandingPage() {
                     I want to
                   </label>
                   <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
+                  <div className="mt-4 grid gap-3 rounded-[1.5rem] border border-stone-200 bg-[#fcfaf7] p-4 text-left sm:grid-cols-2">
+                    <div>
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Bring into the first session</div>
+                      <div className="mt-3 space-y-2">
+                        {heroSessionChecklist.bring.map((item) => (
+                          <div key={item} className="flex items-start gap-2 text-sm leading-6 text-stone-700">
+                            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Leave with</div>
+                      <div className="mt-3 space-y-2">
+                        {heroSessionChecklist.leaveWith.map((item) => (
+                          <div key={item} className="flex items-start gap-2 text-sm leading-6 text-stone-700">
+                            <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
@@ -475,7 +519,7 @@ export default function LandingPage() {
               analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
-            <LandingLinkCta button="hero_see_workspace" variant="secondary">
+            <LandingLinkCta button="hero_see_workspace" variant="secondary" href="#workflow">
               See the founder workflow
             </LandingLinkCta>
           </div>

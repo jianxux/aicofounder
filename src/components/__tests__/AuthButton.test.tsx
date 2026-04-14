@@ -209,6 +209,23 @@ describe("AuthButton", () => {
     expect(supabase.signOut).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a direct workspace link for signed-in users when explicitly configured", async () => {
+    setupSupabaseClient(
+      Promise.resolve({
+        data: {
+          user: createUser({
+            user_metadata: { full_name: "John Doe" },
+          }),
+        },
+      }),
+    );
+
+    render(<AuthButton authenticatedHref="/dashboard" authenticatedLabel="Continue to workspace" />);
+
+    expect(await screen.findByRole("link", { name: "Continue to workspace" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  });
+
   it("renders initials from full_name when no avatar is available", async () => {
     setupSupabaseClient(
       Promise.resolve({

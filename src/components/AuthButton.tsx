@@ -12,6 +12,9 @@ type AuthButtonProps = {
   className?: string;
   analyticsButton?: string;
   analyticsPage?: string;
+  authenticatedHref?: string;
+  authenticatedLabel?: string;
+  authenticatedClassName?: string;
 };
 
 function getInitials(user: User) {
@@ -34,6 +37,9 @@ export default function AuthButton({
   className,
   analyticsButton,
   analyticsPage,
+  authenticatedHref,
+  authenticatedLabel,
+  authenticatedClassName,
 }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,13 +184,26 @@ export default function AuthButton({
         <div className="text-sm font-semibold text-stone-900">{fullName}</div>
         <div className="text-xs text-stone-500">{user.email}</div>
       </div>
-      <button
-        type="button"
-        onClick={signOut}
-        className="rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
-      >
-        Sign out
-      </button>
+      <div className="flex items-center gap-2">
+        {authenticatedHref && authenticatedLabel ? (
+          <Link
+            href={authenticatedHref}
+            className={
+              authenticatedClassName ??
+              "rounded-full bg-stone-950 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-stone-800"
+            }
+          >
+            {authenticatedLabel}
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          onClick={signOut}
+          className="rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }

@@ -68,6 +68,10 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bring into the first session/i)).toBeInTheDocument();
+    expect(screen.getByText(/A rough idea or messy draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Leave with$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Concrete proof gaps and what to test next/i)).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
@@ -85,9 +89,23 @@ describe("LandingPage", () => {
     expect(screen.getByRole("radio", { name: /Demand validation/i })).not.toBeChecked();
     expect(screen.getByDisplayValue("Keep my draft intact.")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you have signal scattered across notes/i)).toBeInTheDocument();
-    expect(screen.getByText("Prioritize the next 3 moves")).toBeInTheDocument();
+    expect(screen.getByText(/Turn these scattered founder notes into the next 3 moves/i)).toBeInTheDocument();
     expect(screen.getByText("Next-step plan")).toBeInTheDocument();
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
+  });
+
+  it("populates the hero textarea when a founder-ready example prompt is clicked", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /I have a rough AI dispatch assistant idea\. Pressure-test whether the pain is urgent enough to earn budget\./i,
+      }),
+    );
+
+    expect(screen.getByLabelText("I want to")).toHaveValue(
+      "I have a rough AI dispatch assistant idea. Pressure-test whether the pain is urgent enough to earn budget.",
+    );
   });
 
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
@@ -118,6 +136,40 @@ describe("LandingPage", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("gives authenticated users a direct workspace link in the login prompt modal", async () => {
+    vi.mocked(createBrowserClient).mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: "user-1",
+              email: "founder@example.com",
+              user_metadata: { full_name: "Founder" },
+            },
+          },
+        }),
+        onAuthStateChange: vi.fn().mockReturnValue({
+          data: {
+            subscription: {
+              unsubscribe: vi.fn(),
+            },
+          },
+        }),
+        signInWithOAuth,
+        signOut: vi.fn(),
+      },
+    } as any);
+
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByRole("link", { name: "Continue to workspace" })).toHaveAttribute("href", "/dashboard");
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
@@ -159,10 +211,13 @@ describe("LandingPage", () => {
     render(<LandingPage />);
 
     const authButtons = await screen.findAllByRole("button", { name: "Continue with Google" });
+    const workflowLink = screen.getByRole("link", { name: "See the founder workflow" });
 
     fireEvent.click(authButtons[0]);
-    fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
+    fireEvent.click(workflowLink);
     fireEvent.click(authButtons[1]);
+
+    expect(workflowLink).toHaveAttribute("href", "#workflow");
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
