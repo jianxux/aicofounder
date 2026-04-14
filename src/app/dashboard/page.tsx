@@ -254,6 +254,29 @@ export default function DashboardPage() {
                   Your first session turns one founder idea into a sharper project brief with a target user, core
                   assumption, and recommended next steps for discovery.
                 </p>
+                <section className="mt-6 rounded-[24px] border border-stone-200 bg-white/70 p-5">
+                  <h3 className="text-sm font-semibold text-stone-900">Your first workspace includes</h3>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-stone-700">
+                    <li className="flex gap-3">
+                      <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                        ✓
+                      </span>
+                      <span>A founder brief tailored to your idea</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                        ✓
+                      </span>
+                      <span>Starter notes and AI context to build on</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                        ✓
+                      </span>
+                      <span>A phased plan with the next questions to answer</span>
+                    </li>
+                  </ul>
+                </section>
                 <button
                   type="button"
                   onClick={() => handleOpenOnboarding()}
@@ -272,6 +295,20 @@ export default function DashboardPage() {
                   >
                     <div className="text-sm font-semibold text-stone-900">{starter.title}</div>
                     <p className="mt-2 text-sm leading-6 text-stone-600">{starter.summary}</p>
+                    <dl className="mt-4 space-y-3">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Best for
+                        </dt>
+                        <dd className="mt-1 text-sm leading-6 text-stone-700">{starter.targetUser}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          First question
+                        </dt>
+                        <dd className="mt-1 text-sm leading-6 text-stone-700">{starter.mainUncertainty}</dd>
+                      </div>
+                    </dl>
                     <div className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                       Use this starter
                     </div>

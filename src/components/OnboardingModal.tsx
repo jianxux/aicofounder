@@ -391,6 +391,32 @@ export default function OnboardingModal({
                       <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-stone-100" : "text-stone-600"}`}>
                         {starter.summary}
                       </p>
+                      <dl className="mt-4 space-y-3">
+                        <div>
+                          <dt
+                            className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+                              isSelected ? "text-stone-200" : "text-stone-500"
+                            }`}
+                          >
+                            Best for
+                          </dt>
+                          <dd className={`mt-1 text-sm leading-6 ${isSelected ? "text-stone-50" : "text-stone-700"}`}>
+                            {starter.targetUser}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt
+                            className={`text-xs font-semibold uppercase tracking-[0.18em] ${
+                              isSelected ? "text-stone-200" : "text-stone-500"
+                            }`}
+                          >
+                            First question
+                          </dt>
+                          <dd className={`mt-1 text-sm leading-6 ${isSelected ? "text-stone-50" : "text-stone-700"}`}>
+                            {starter.mainUncertainty}
+                          </dd>
+                        </div>
+                      </dl>
                     </button>
                     );
                   })}

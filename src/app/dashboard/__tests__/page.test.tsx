@@ -275,15 +275,33 @@ describe("DashboardPage", () => {
     await renderPage();
 
     expect(screen.getByRole("heading", { name: "Start with a brief, not a blank page" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your first workspace includes" })).toBeInTheDocument();
+    expect(screen.getByText("A founder brief tailored to your idea")).toBeInTheDocument();
+    expect(screen.getByText("Starter notes and AI context to build on")).toBeInTheDocument();
+    expect(screen.getByText("A phased plan with the next questions to answer")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start your first project" })).toBeInTheDocument();
+
+    const starterCards = [
+      "Customer research copilot",
+      "Ops assistant for clinics",
+      "Retail demand planner",
+    ].map((title) => screen.getByRole("button", { name: new RegExp(title, "i") }));
+
+    for (const card of starterCards) {
+      expect(within(card).getByText("Best for")).toBeInTheDocument();
+      expect(within(card).getByText("First question")).toBeInTheDocument();
+    }
+
+    const customerResearchCard = screen.getByRole("button", { name: /Customer research copilot/i });
     expect(
-      screen.getByText(
-        "Your first session turns one founder idea into a sharper project brief with a target user, core assumption, and recommended next steps for discovery.",
+      within(customerResearchCard).getByText("Pre-seed founders validating a new B2B SaaS idea"),
+    ).toBeInTheDocument();
+    expect(
+      within(customerResearchCard).getByText(
+        "Will founders trust an AI-generated brief enough to use it before talking to more customers?",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Start your first project" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Retail demand planner/i })).toBeInTheDocument();
+
     expect(screen.getAllByRole("heading", { name: "New Project" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /AI Research Copilot/i })).not.toBeInTheDocument();
   });
