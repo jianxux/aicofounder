@@ -13,6 +13,17 @@ const mockCreateProjectRecord = vi.fn();
 const mockUseRealtimeProject = vi.fn();
 const mockTrackEvent = vi.fn();
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
@@ -777,7 +788,7 @@ describe("ProjectWorkspacePage", () => {
 
     render(<ProjectWorkspacePage />);
 
-    const input = await screen.findByDisplayValue("Launchpad");
+    const input = await screen.findByRole("textbox", { name: "Project name" });
     fireEvent.change(input, { target: { value: "Renamed project" } });
     fireEvent.click(screen.getByRole("button", { name: "Back to dashboard" }));
 
@@ -790,6 +801,148 @@ describe("ProjectWorkspacePage", () => {
     });
 
     expect(push).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("shows saving feedback in the workspace header and returns to saved after persistence completes", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    const deferredSave = createDeferred<void>();
+    mockSaveProject.mockReturnValueOnce(deferredSave.promise);
+
+    render(<ProjectWorkspacePage />);
+
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "Renamed project" } });
+
+    expect(screen.getByDisplayValue("Renamed project")).toBeInTheDocument();
+    expect(screen.getByText("Saving...")).toBeInTheDocument();
+
+    deferredSave.resolve(undefined);
+
+    await waitFor(() => {
+      expect(screen.getByText("Saved")).toBeInTheDocument();
+    });
+  });
+
+  it("surfaces sync failures and retries the latest optimistic snapshot", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    const failedSave = createDeferred<void>();
+    mockSaveProject.mockReturnValueOnce(failedSave.promise).mockResolvedValueOnce(undefined);
+
+    render(<ProjectWorkspacePage />);
+
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Retry me" } });
+
+    expect(screen.getByDisplayValue("Retry me")).toBeInTheDocument();
+    expect(screen.getByText("Saving...")).toBeInTheDocument();
+
+    failedSave.reject(new Error("sync failed"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Sync failed")).toBeInTheDocument();
+    });
+
+    const firstSavedProject = mockSaveProject.mock.calls[0]?.[0] as Project | undefined;
+    expect(firstSavedProject?.name).toBe("Retry me");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledTimes(2);
+    });
+
+    const retriedProject = mockSaveProject.mock.calls[1]?.[0] as Project | undefined;
+    expect(retriedProject).toEqual(expect.objectContaining({ name: "Retry me" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Saved")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps the latest save result when overlapping saves complete out of order", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    const firstSave = createDeferred<void>();
+    const secondSave = createDeferred<void>();
+    mockSaveProject.mockReturnValueOnce(firstSave.promise).mockReturnValueOnce(secondSave.promise);
+
+    render(<ProjectWorkspacePage />);
+
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "First rename" } });
+    fireEvent.change(input, { target: { value: "Second rename" } });
+
+    expect(screen.getByText("Saving...")).toBeInTheDocument();
+
+    secondSave.resolve(undefined);
+
+    await waitFor(() => {
+      expect(screen.getByText("Saved")).toBeInTheDocument();
+    });
+
+    firstSave.reject(new Error("stale failure"));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+
+    const latestSavedProject = mockSaveProject.mock.calls[1]?.[0] as Project | undefined;
+    expect(latestSavedProject).toEqual(expect.objectContaining({ name: "Second rename" }));
+  });
+
+  it("replays a buffered realtime refresh only after a failed save is retried successfully", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+    mockFetchProjectById.mockResolvedValue(
+      makeProject({
+        name: "Realtime project",
+      }),
+    );
+    const failedSave = createDeferred<void>();
+    const retriedSave = createDeferred<void>();
+    mockSaveProject.mockReturnValueOnce(failedSave.promise).mockReturnValueOnce(retriedSave.promise);
+
+    render(<ProjectWorkspacePage />);
+
+    const input = await screen.findByRole("textbox", { name: "Project name" });
+    fireEvent.change(input, { target: { value: "Local rename" } });
+
+    const realtimeCallback = mockUseRealtimeProject.mock.calls[0]?.[1] as (() => void) | undefined;
+    realtimeCallback?.();
+
+    expect(mockFetchProjectById).not.toHaveBeenCalled();
+
+    failedSave.reject(new Error("sync failed"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Sync failed")).toBeInTheDocument();
+    });
+
+    expect(mockFetchProjectById).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Local rename")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => {
+      expect(mockSaveProject).toHaveBeenCalledTimes(2);
+    });
+
+    expect(mockFetchProjectById).not.toHaveBeenCalled();
+
+    retriedSave.resolve(undefined);
+
+    await waitFor(() => {
+      expect(mockFetchProjectById).toHaveBeenCalledWith("project-1");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Realtime project")).toBeInTheDocument();
+      expect(screen.getByText("Saved")).toBeInTheDocument();
+    });
   });
 
   it("streams chat responses into the persisted project state", async () => {
