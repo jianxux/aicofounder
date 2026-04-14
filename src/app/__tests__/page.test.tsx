@@ -155,6 +155,38 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("points exploratory CTAs to the in-page workflow and proof sections", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByRole("link", { name: "See the founder workflow" })).toHaveAttribute("href", "#workflow");
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(screen.getByRole("link", { name: "Explore demo first" })).toHaveAttribute("href", "#proof");
+  });
+
+  it("closes the login prompt modal, clears the prompt draft, and still tracks analytics when the exploratory CTA is clicked", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+
+    fireEvent.click(screen.getByRole("link", { name: "Explore demo first" }));
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_explore_demo",
+    });
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
