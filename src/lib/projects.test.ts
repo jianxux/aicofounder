@@ -1,5 +1,6 @@
 import { createDefaultProjectDiagram, isProject, normalizeProject, type Project } from "@/lib/types";
 import {
+  applyOnboardingStarterContent,
   createAndStoreProject,
   createProjectRecord,
   getProjectById,
@@ -146,6 +147,69 @@ describe("lib/projects", () => {
       const project = createProjectRecord();
 
       expect(project.id).toBe("123456789-8");
+    });
+
+    it("tailors starter content when onboarding intake is provided", () => {
+      const project = createProjectRecord({
+        primaryIdea: "An AI copilot for founder research that turns scattered notes into a concrete validation plan.",
+        targetUser: "Seed-stage founders",
+        mainUncertainty: "Whether they want one workspace.",
+        url: "https://example.com",
+      });
+
+      expect(project.notes).toMatchObject([
+        {
+          title: "Idea brief",
+          content: "An AI copilot for founder research that turns scattered notes into a concrete validation plan.",
+        },
+        {
+          title: "First validation focus",
+          content:
+            "Target user: Seed-stage founders\nMain uncertainty: Whether they want one workspace.\nReference URL: https://example.com",
+        },
+      ]);
+      expect(project.messages[0]).toMatchObject({
+        sender: "assistant",
+        content:
+          "I’m starting with An AI copilot for founder research that turns scattered notes into a concrete validation plan. I’ll frame the first pass around Seed-stage founders. The first question to pressure-test is Whether they want one workspace. I’ll use https://example.com as initial context.",
+      });
+      expect(project.phases[0]?.tasks.map((task) => task.label)).toEqual([
+        "Capture the core idea: An AI copilot for founder research that turns scattered notes into a concrete validation plan.",
+        "Define why Seed-stage founders would care first",
+      ]);
+      expect(project.phases[1]?.tasks.map((task) => task.label)).toEqual([
+        "Pressure-test: Whether they want one workspace.",
+        "Extract useful signals from https://example.com",
+      ]);
+    });
+  });
+
+  describe("applyOnboardingStarterContent", () => {
+    it("replaces generic first-run content on an existing project", () => {
+      const project = makeProject();
+      const updatedProject = applyOnboardingStarterContent(project, {
+        primaryIdea: "A clinic workflow assistant",
+        targetUser: "Practice managers",
+        mainUncertainty: "Whether no-show recovery is the first wedge.",
+      });
+
+      expect(updatedProject.notes).toMatchObject([
+        {
+          title: "Idea brief",
+          content: "A clinic workflow assistant.",
+        },
+        {
+          title: "First validation focus",
+          content:
+            "Target user: Practice managers\nMain uncertainty: Whether no-show recovery is the first wedge.",
+        },
+      ]);
+      expect(updatedProject.messages[0]?.content).toContain("A clinic workflow assistant");
+      expect(updatedProject.messages[0]?.content).toContain("Practice managers");
+      expect(updatedProject.phases[0]?.tasks[0]?.label).toBe("Capture the core idea: A clinic workflow assistant");
+      expect(updatedProject.phases[1]?.tasks[0]?.label).toBe(
+        "Pressure-test: Whether no-show recovery is the first wedge.",
+      );
     });
   });
 

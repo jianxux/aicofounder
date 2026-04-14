@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
 import { trackEvent } from "@/lib/analytics";
-import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
+import {
+  applyOnboardingStarterContent,
+  createProject as createProjectMock,
+  getProjects,
+  saveProject,
+} from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
 function createDeferredPromise<T>() {
@@ -76,6 +81,62 @@ vi.mock("@/components/AuthButton", () => ({
 }));
 
 vi.mock("@/lib/projects", () => ({
+  applyOnboardingStarterContent: vi.fn((project: Project, intake: {
+    primaryIdea: string;
+    targetUser?: string;
+    mainUncertainty?: string;
+    url?: string;
+  }) => ({
+    ...project,
+    notes: [
+      {
+        id: "note-tailored-1",
+        title: "Idea brief",
+        content: intake.primaryIdea,
+        color: "yellow",
+        x: 72,
+        y: 72,
+      },
+      {
+        id: "note-tailored-2",
+        title: "First validation focus",
+        content: [
+          intake.targetUser ? `Target user: ${intake.targetUser}` : null,
+          intake.mainUncertainty ? `Main uncertainty: ${intake.mainUncertainty}` : null,
+          intake.url ? `Reference URL: ${intake.url}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        color: "yellow",
+        x: 340,
+        y: 140,
+      },
+    ],
+    messages: [
+      {
+        id: "message-tailored-1",
+        sender: "assistant",
+        content: `I’m starting with ${intake.primaryIdea}`,
+        createdAt: "2024-03-10T15:31:00.000Z",
+      },
+    ],
+    phases: [
+      {
+        id: "getting-started",
+        title: "Getting started",
+        tasks: [
+          { id: "task-tailored-1", label: `Capture the core idea: ${intake.primaryIdea}`, done: false },
+          {
+            id: "task-tailored-2",
+            label: intake.targetUser
+              ? `Define why ${intake.targetUser} would care first`
+              : "Define the highest-priority user problem",
+            done: false,
+          },
+        ],
+      },
+    ],
+  })),
   getProjects: vi.fn(),
   createProject: vi.fn(),
   saveProject: vi.fn(),
@@ -495,12 +556,43 @@ describe("DashboardPage", () => {
 
     await waitFor(() => {
       expect(createProjectMock).toHaveBeenCalledTimes(1);
+      expect(applyOnboardingStarterContent).toHaveBeenCalledWith(createdProject, intake);
       expect(saveProject).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "guided-project",
           name: expect.stringMatching(/^An AI copilot for founder research/),
           description:
             `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
+          notes: [
+            expect.objectContaining({
+              title: "Idea brief",
+              content: intake.primaryIdea,
+            }),
+            expect.objectContaining({
+              title: "First validation focus",
+              content:
+                `Target user: ${intake.targetUser}\nMain uncertainty: ${intake.mainUncertainty}\nReference URL: ${intake.url}`,
+            }),
+          ],
+          messages: [
+            expect.objectContaining({
+              sender: "assistant",
+              content: expect.stringContaining(intake.primaryIdea),
+            }),
+          ],
+          phases: [
+            expect.objectContaining({
+              id: "getting-started",
+              tasks: [
+                expect.objectContaining({
+                  label: `Capture the core idea: ${intake.primaryIdea}`,
+                }),
+                expect.objectContaining({
+                  label: `Define why ${intake.targetUser} would care first`,
+                }),
+              ],
+            }),
+          ],
         }),
       );
       expect(pushMock).toHaveBeenCalledWith("/project/guided-project");

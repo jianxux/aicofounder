@@ -298,16 +298,21 @@ describe("OnboardingModal", () => {
   it("traps keyboard focus within the dialog while open", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
+    const closeButton = screen.getByRole("button", { name: "Close onboarding" });
     const skipButton = screen.getByRole("button", { name: "Skip" });
     const getStartedButton = screen.getByRole("button", { name: "Get Started" });
 
-    skipButton.focus();
-    fireEvent.keyDown(skipButton, { key: "Tab", shiftKey: true });
+    expect(closeButton).toBeInTheDocument();
+    expect(skipButton).toBeInTheDocument();
+    expect(getStartedButton).toBeInTheDocument();
+
+    closeButton.focus();
+    fireEvent.keyDown(closeButton, { key: "Tab", shiftKey: true });
     expect(getStartedButton).toHaveFocus();
 
     getStartedButton.focus();
     fireEvent.keyDown(getStartedButton, { key: "Tab" });
-    expect(skipButton).toHaveFocus();
+    expect(closeButton).toHaveFocus();
   });
 
   it("step indicator shows correct active step", () => {
