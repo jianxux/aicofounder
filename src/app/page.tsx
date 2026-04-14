@@ -96,6 +96,25 @@ const sampleArtifactRows = [
   },
 ];
 
+const workflowContrast = [
+  {
+    title: "Generic AI chat",
+    eyebrow: "Blank starting point",
+    body: "You write the brief, decide the structure, and hope the model asks the right follow-up.",
+    bullets: ["Starts from a blank box", "Easy to lose the buyer, claim, and proof gaps", "Outputs often read smart but generic"],
+    outcomeLabel: "Usually leaves you with",
+    outcome: "More text to sort through.",
+  },
+  {
+    title: "AI Cofounder",
+    eyebrow: "Structured founder workflow",
+    body: "You start with the idea, buyer, URL, or messy draft, then move through a workflow built for validation and positioning.",
+    bullets: ["Captures the founder context up front", "Pushes toward research, positioning, and next decisions", "Keeps outputs tied to one reusable project"],
+    outcomeLabel: "Leaves you with",
+    outcome: "A sharper claim, proof gaps, and the next moves.",
+  },
+];
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -520,6 +539,60 @@ export default function LandingPage() {
                 callback.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.84)_0%,rgba(248,243,234,0.95)_100%)] p-8 shadow-[0_26px_90px_rgba(28,25,23,0.06)] lg:p-10">
+          <div className="max-w-3xl">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Why this beats a blank chat</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              Generic AI gives you words.
+              <span className="block text-stone-700">AI Cofounder gives you a founder workflow.</span>
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
+              The difference is not intelligence. It is structure: the session starts from founder inputs and ends with decisions you can actually use.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {workflowContrast.map((item, index) => (
+              <div
+                key={item.title}
+                className={`rounded-[1.9rem] border p-6 shadow-[0_18px_50px_rgba(55,37,12,0.06)] ${
+                  index === 1 ? "border-stone-900 bg-stone-950 text-stone-50" : "border-stone-200 bg-white text-stone-900"
+                }`}
+              >
+                <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${index === 1 ? "text-stone-400" : "text-stone-500"}`}>{item.eyebrow}</div>
+                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em]">{item.title}</h3>
+                <p className={`mt-3 text-sm leading-7 ${index === 1 ? "text-stone-300" : "text-stone-600"}`}>{item.body}</p>
+
+                <ul className="mt-5 grid gap-3">
+                  {item.bullets.map((bullet) => (
+                    <li
+                      key={bullet}
+                      className={`rounded-[1.25rem] border px-4 py-3 text-sm leading-6 ${
+                        index === 1 ? "border-white/10 bg-white/5 text-stone-200" : "border-stone-200 bg-[#faf7f2] text-stone-700"
+                      }`}
+                    >
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+
+                <div
+                  className={`mt-5 rounded-[1.35rem] border px-4 py-4 ${
+                    index === 1 ? "border-amber-200/20 bg-amber-50/10" : "border-stone-200 bg-stone-950 text-stone-50"
+                  }`}
+                >
+                  <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${index === 1 ? "text-amber-200/80" : "text-stone-400"}`}>
+                    {item.outcomeLabel}
+                  </div>
+                  <p className={`mt-2 text-sm leading-6 ${index === 1 ? "text-stone-100" : "text-stone-100"}`}>{item.outcome}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

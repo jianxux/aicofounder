@@ -124,6 +124,9 @@ describe("LandingPage", () => {
     render(<LandingPage />);
 
     [
+      "Why this beats a blank chat",
+      "Generic AI gives you words.",
+      "AI Cofounder gives you a founder workflow.",
       "Prompt-first",
       "Structured",
       "Project-based",
@@ -143,6 +146,25 @@ describe("LandingPage", () => {
     });
 
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
+  });
+
+  it("renders the blank-chat comparison section with semantic bullet lists", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText("Why this beats a blank chat")).toBeInTheDocument();
+    expect(screen.getByText("Generic AI chat")).toBeInTheDocument();
+    expect(screen.getByText("AI Cofounder")).toBeInTheDocument();
+    expect(screen.getByText("Starts from a blank box")).toBeInTheDocument();
+    expect(screen.getByText("Captures the founder context up front")).toBeInTheDocument();
+    expect(screen.getByText("A sharper claim, proof gaps, and the next moves.")).toBeInTheDocument();
+
+    const blankChatBullet = screen.getByText("Starts from a blank box");
+    const cofounderBullet = screen.getByText("Captures the founder context up front");
+
+    expect(blankChatBullet.tagName).toBe("LI");
+    expect(cofounderBullet.tagName).toBe("LI");
+    expect(blankChatBullet.closest("ul")).not.toBeNull();
+    expect(cofounderBullet.closest("ul")).not.toBeNull();
   });
 
   it("renders an inspectable sample founder artifact preview with concrete output", () => {
