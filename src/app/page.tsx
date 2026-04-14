@@ -103,6 +103,24 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const founderProofTestimonials = [
+  {
+    name: "Adam Barta",
+    role: "Founder, Dev Blocks",
+    quote: "The workflow helped me turn a rough idea into a clearer starting point.",
+  },
+  {
+    name: "Ace Apolonio",
+    role: "Founder, Mindleaf",
+    quote: "I liked having the research, positioning, and next steps in one place.",
+  },
+  {
+    name: "Lorenso D'Agostino",
+    role: "Founder, Go ZERO",
+    quote: "What stood out most was the structure. It made the process easier to follow.",
+  },
+] as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -481,6 +499,37 @@ export default function LandingPage() {
           </div>
         </section>
       </div>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.15rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.9)_0%,rgba(248,243,234,0.98)_100%)] p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] lg:p-7">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Founder proof</div>
+              <h2 className="mt-3 text-[clamp(1.9rem,3.6vw,3rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                Selected public feedback from founders using the product.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                Quotes selected from public founder feedback shared on the AI Cofounder site.
+              </p>
+            </div>
+            <div className="inline-flex w-fit items-center rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm">
+              <span className="font-semibold text-stone-950">Selected founder feedback</span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {founderProofTestimonials.map((testimonial) => (
+              <figure key={testimonial.name} className="rounded-[1.5rem] border border-stone-200 bg-white p-5 shadow-[0_16px_45px_rgba(28,25,23,0.05)]">
+                <blockquote className="text-sm leading-7 text-stone-700">&ldquo;{testimonial.quote}&rdquo;</blockquote>
+                <figcaption className="mt-5 border-t border-stone-200 pt-4">
+                  <div className="text-base font-semibold tracking-[-0.02em] text-stone-950">{testimonial.name}</div>
+                  <div className="mt-1 text-sm text-stone-500">{testimonial.role}</div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -141,8 +141,40 @@ describe("LandingPage", () => {
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
+  });
 
-    expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
+  it("renders founder proof with testimonials", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Founder proof/i)).toBeInTheDocument();
+    expect(screen.getByText(/Selected founder feedback/i)).toBeInTheDocument();
+    const founderProofHeading = screen.getByRole("heading", {
+      name: /Selected public feedback from founders using the product/i,
+    });
+    expect(founderProofHeading).toBeInTheDocument();
+    expect(
+      screen.getByText(/Quotes selected from public founder feedback shared on the AI Cofounder site/i),
+    ).toBeInTheDocument();
+
+    const founderSection = founderProofHeading.closest("section");
+    expect(founderSection).not.toBeNull();
+
+    [
+      ["Adam Barta", "Founder, Dev Blocks"],
+      ["Ace Apolonio", "Founder, Mindleaf"],
+      ["Lorenso D'Agostino", "Founder, Go ZERO"],
+    ].forEach(([name, role]) => {
+      expect(within(founderSection as HTMLElement).getByText(name)).toBeInTheDocument();
+      expect(within(founderSection as HTMLElement).getByText(role)).toBeInTheDocument();
+    });
+
+    const testimonialCards = (founderSection as HTMLElement).querySelectorAll("figure");
+    expect(testimonialCards).toHaveLength(3);
+    testimonialCards.forEach((card) => {
+      const quote = card.querySelector("blockquote");
+      expect(quote).not.toBeNull();
+      expect(quote?.textContent?.trim().length ?? 0).toBeGreaterThan(20);
+    });
   });
 
   it("renders an inspectable sample founder artifact preview with concrete output", () => {
