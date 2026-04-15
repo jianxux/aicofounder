@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -199,15 +199,56 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    const previousBodyOverflow = document.body.style.overflow;
+    lastFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("disabled") && element.tabIndex !== -1);
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
@@ -215,6 +256,8 @@ function LoginPromptModal({
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      lastFocusedElementRef.current?.focus();
     };
   }, [onClose, open]);
 
@@ -225,6 +268,7 @@ function LoginPromptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -234,12 +278,13 @@ function LoginPromptModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
-            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
+            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to keep building from your founder workspace.</h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this prompt into AI Cofounder so you can keep the market question, positioning draft, and next founder moves in one place.
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
@@ -253,6 +298,21 @@ function LoginPromptModal({
           <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
         </div>
 
+        <div className="mt-4 rounded-[1.5rem] border border-stone-200/80 bg-[#f6f0e5] px-5 py-4">
+          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">What happens next</div>
+          <ul className="mt-3 space-y-3 text-sm leading-6 text-stone-700">
+            <li>
+              Your prompt opens inside the workspace so you can pick up the founder workflow without starting from a blank page.
+            </li>
+            <li>
+              Add supporting context like your URL, target user, and the riskiest assumption before you run the first session.
+            </li>
+            <li>
+              Leave with a concise founder brief and the next moves to validate or sharpen the idea.
+            </li>
+          </ul>
+        </div>
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <AuthButton
             redirectTo="/dashboard"
@@ -261,8 +321,8 @@ function LoginPromptModal({
             analyticsPage="/"
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
-          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
-            Explore demo first
+          <LandingLinkCta button="hero_prompt_view_workflow" variant="secondary" href="#workflow">
+            See the founder workflow
           </LandingLinkCta>
         </div>
       </div>
@@ -475,7 +535,7 @@ export default function LandingPage() {
               analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
-            <LandingLinkCta button="hero_see_workspace" variant="secondary">
+            <LandingLinkCta button="hero_see_workspace" variant="secondary" href="#workflow">
               See the founder workflow
             </LandingLinkCta>
           </div>

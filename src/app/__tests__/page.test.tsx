@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -90,7 +90,7 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
-  it("opens a login prompt modal when a visitor submits a hero prompt", () => {
+  it("opens a login prompt modal when a visitor submits a hero prompt", async () => {
     render(<LandingPage />);
 
     fireEvent.change(screen.getByLabelText("I want to"), {
@@ -98,14 +98,50 @@ describe("LandingPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: /Sign in to keep building from your founder workspace/i });
+
+    expect(dialog).toBeInTheDocument();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
+    expect(screen.getByText("What happens next")).toBeInTheDocument();
+    expect(screen.getByText(/keep the market question, positioning draft, and next founder moves in one place/i)).toBeInTheDocument();
+    expect(screen.getByText(/pick up the founder workflow without starting from a blank page/i)).toBeInTheDocument();
+    expect(screen.getByText(/Add supporting context like your URL, target user, and the riskiest assumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/Leave with a concise founder brief and the next moves/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    expect(within(dialog).getByRole("button", { name: "Close" })).toHaveFocus();
+    expect(within(dialog).getByRole("link", { name: "See the founder workflow" })).toHaveAttribute("href", "#workflow");
+    expect(document.body.style.overflow).toBe("hidden");
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",
     });
+  });
+
+  it("traps focus in the modal, restores body scroll, and returns focus to the trigger on close", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    const sendButton = screen.getByRole("button", { name: "Send" });
+
+    sendButton.focus();
+    fireEvent.click(sendButton);
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to keep building from your founder workspace/i });
+    const closeButton = within(dialog).getByRole("button", { name: "Close" });
+    const workflowLink = within(dialog).getByRole("link", { name: "See the founder workflow" });
+
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(workflowLink).toHaveFocus();
+
+    fireEvent.click(closeButton);
+    expect(screen.queryByRole("dialog", { name: /Sign in to keep building from your founder workspace/i })).not.toBeInTheDocument();
+    expect(document.body.style.overflow).toBe("");
+    expect(sendButton).toHaveFocus();
   });
 
   it("closes the login prompt modal on Escape", () => {
@@ -117,7 +153,31 @@ describe("LandingPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /Sign in to keep building from your founder workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("submits the hero prompt on Enter and tracks the modal workflow CTA", () => {
+    render(<LandingPage />);
+
+    const promptInput = screen.getByLabelText("I want to");
+    fireEvent.change(promptInput, {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.keyDown(promptInput, { key: "Enter" });
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to keep building from your founder workspace/i });
+    const workflowLink = within(dialog).getByRole("link", { name: "See the founder workflow" });
+
+    fireEvent.click(workflowLink);
+
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_view_workflow",
+    });
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
