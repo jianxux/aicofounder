@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
+import { LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY } from "@/app/landingPromptDraft";
 import DashboardPage from "@/app/dashboard/page";
 import { trackEvent } from "@/lib/analytics";
 import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
@@ -125,6 +126,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(saveProject).mockResolvedValue();
@@ -320,7 +322,10 @@ describe("DashboardPage", () => {
   it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.localStorage.setItem("onboarding-dismissed", "true");
-    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+    window.sessionStorage.setItem(
+      LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY,
+      "Pressure-test this founder workflow idea.",
+    );
 
     renderPage();
 
@@ -332,7 +337,7 @@ describe("DashboardPage", () => {
 
   it("skips onboarding by setting localStorage and closing the modal", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
-    window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
+    window.sessionStorage.setItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY, "Validate the draft idea.");
 
     renderPage();
 
@@ -340,16 +345,40 @@ describe("DashboardPage", () => {
 
     await waitFor(() => {
       expect(window.localStorage.getItem("onboarding-dismissed")).toBe("true");
-      expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+      expect(window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)).toBeNull();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+
+  it("keeps a stored landing draft for returning users until they intentionally open onboarding", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject({ id: "existing-project", name: "Existing Project" })]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY,
+      "Carry this idea into a new workspace.",
+    );
+
+    renderPage();
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Existing Project/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Carry this idea into a new workspace.",
+    );
   });
 
   it("completes onboarding by creating, saving, and redirecting to the new project", async () => {
     const createdProject = createProject({ id: "guided-project", name: "Untitled Project" });
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
-    window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
+    window.sessionStorage.setItem(
+      LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY,
+      "An AI copilot for founder research.",
+    );
 
     renderPage();
 
@@ -368,7 +397,7 @@ describe("DashboardPage", () => {
         }),
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
-      expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+      expect(window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)).toBeNull();
     });
 
     expect(trackEvent).toHaveBeenCalledWith(

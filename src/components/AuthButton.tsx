@@ -12,6 +12,7 @@ type AuthButtonProps = {
   className?: string;
   analyticsButton?: string;
   analyticsPage?: string;
+  beforeAction?: () => void;
 };
 
 function getInitials(user: User) {
@@ -34,6 +35,7 @@ export default function AuthButton({
   className,
   analyticsButton,
   analyticsPage,
+  beforeAction,
 }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,8 @@ export default function AuthButton({
       return;
     }
 
+    beforeAction?.();
+
     const origin = window.location.origin;
     if (analyticsButton) {
       void trackEvent("cta_click", {
@@ -118,6 +122,8 @@ export default function AuthButton({
       <Link
         href={redirectTo}
         onClick={() => {
+          beforeAction?.();
+
           if (!analyticsButton) {
             return;
           }
