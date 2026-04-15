@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -112,9 +112,9 @@ const focusPresets = [
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
     placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
     followUpPrompts: [
-      "What proof would convince me this problem is painful enough to solve?",
-      "Which buyer feels this pain often enough to pay for a fix right now?",
-      "What existing workaround are teams using today, and why is it failing?",
+      { id: "pain-proof", text: "What proof would convince me this problem is painful enough to solve?" },
+      { id: "buyer-urgency", text: "Which buyer feels this pain often enough to pay for a fix right now?" },
+      { id: "current-workaround", text: "What existing workaround are teams using today, and why is it failing?" },
     ],
     promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
     insightTitle: "Example insight: demand signal",
@@ -133,9 +133,9 @@ const focusPresets = [
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
     placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
     followUpPrompts: [
-      "Rewrite the homepage promise in the customer's language, not mine.",
-      "What does this product replace, and why is that switch worth it?",
-      "Which claim sounds generic, and how can I make it more specific?",
+      { id: "rewrite-homepage-promise", text: "Rewrite the homepage promise in the customer's language, not mine." },
+      { id: "replacement-and-switch", text: "What does this product replace, and why is that switch worth it?" },
+      { id: "generic-claim", text: "Which claim sounds generic, and how can I make it more specific?" },
     ],
     promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
     insightTitle: "Example insight: positioning",
@@ -154,9 +154,9 @@ const focusPresets = [
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
     placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
     followUpPrompts: [
-      "Based on what we know, what are the next 3 actions I should take this week?",
-      "What should I test first to reduce the biggest risk in this idea?",
-      "Turn these notes into a decision-ready plan with owners and outcomes.",
+      { id: "next-three-actions", text: "Based on what we know, what are the next 3 actions I should take this week?" },
+      { id: "first-risk-test", text: "What should I test first to reduce the biggest risk in this idea?" },
+      { id: "decision-ready-plan", text: "Turn these notes into a decision-ready plan with owners and outcomes." },
     ],
     promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
     insightTitle: "Example insight: next steps",
@@ -214,15 +214,51 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    closeButtonRef.current?.focus();
+
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const focusableElements = dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+
+      if (focusableElements.length === 0) {
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
@@ -240,6 +276,7 @@ function LoginPromptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -251,10 +288,11 @@ function LoginPromptModal({
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
             <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this prompt into AI Cofounder so you can pick it up in your workspace without losing the thread.
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
@@ -326,12 +364,13 @@ export default function LandingPage() {
     }
   };
 
-  const handleFollowUpPromptClick = (prompt: string, index: number) => {
-    setHeroPrompt(prompt);
+  const handleFollowUpPromptClick = (prompt: (typeof activePreset.followUpPrompts)[number], index: number) => {
+    setHeroPrompt(prompt.text);
     void trackEvent("cta_click", {
       page: "/",
-      button: `followup_prompt_${activePreset.id}_${index + 1}`,
+      button: `followup_prompt_${prompt.id}`,
       preset: activePreset.id,
+      rank: index + 1,
     });
   };
 
@@ -459,12 +498,12 @@ export default function LandingPage() {
                     <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
                       {activePreset.followUpPrompts.map((prompt, index) => (
                         <button
-                          key={prompt}
+                          key={prompt.id}
                           type="button"
                           onClick={() => handleFollowUpPromptClick(prompt, index)}
                           className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 text-left text-sm leading-6 text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
                         >
-                          {prompt}
+                          {prompt.text}
                         </button>
                       ))}
                     </div>

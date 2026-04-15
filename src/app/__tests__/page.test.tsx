@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -153,8 +154,9 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
-      button: "followup_prompt_positioning_2",
+      button: "followup_prompt_replacement-and-switch",
       preset: "positioning",
+      rank: 2,
     });
   });
 
@@ -174,6 +176,36 @@ describe("LandingPage", () => {
       page: "/",
       button: "hero_prompt_submit",
     });
+  });
+
+  it("focuses the login prompt modal on open and traps keyboard focus while open", async () => {
+    const user = userEvent.setup();
+
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+    const closeButton = within(dialog).getByRole("button", { name: "Close" });
+    const continueButton = await within(dialog).findByRole("button", { name: "Continue with Google" });
+    const exploreLink = within(dialog).getByRole("link", { name: "Explore demo first" });
+
+    expect(closeButton).toHaveFocus();
+
+    await user.tab();
+    expect(continueButton).toHaveFocus();
+
+    await user.tab();
+    expect(exploreLink).toHaveFocus();
+
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(exploreLink).toHaveFocus();
   });
 
   it("closes the login prompt modal on Escape", () => {
