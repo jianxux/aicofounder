@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY } from "@/app/landingPromptDraft";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -159,11 +160,13 @@ function LandingLinkCta({
   children,
   variant = "primary",
   href = "/dashboard",
+  beforeAction,
 }: {
   button: string;
   children: ReactNode;
   variant?: "primary" | "secondary";
   href?: string;
+  beforeAction?: () => void;
 }) {
   const baseClassName =
     "inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200";
@@ -175,12 +178,14 @@ function LandingLinkCta({
   return (
     <Link
       href={href}
-      onClick={() =>
+      onClick={() => {
+        beforeAction?.();
+
         void trackEvent("cta_click", {
           page: "/",
           button,
-        })
-      }
+        });
+      }}
       className={`${baseClassName} ${variantClassName}`}
     >
       {children}
@@ -259,10 +264,23 @@ function LoginPromptModal({
             label="Continue with Google"
             analyticsButton="hero_prompt_login"
             analyticsPage="/"
+            beforeAction={() => {
+              if (typeof window !== "undefined" && promptDraft) {
+                window.sessionStorage.setItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY, promptDraft);
+              }
+            }}
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
-          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
-            Explore demo first
+          <LandingLinkCta
+            button="hero_prompt_open_dashboard"
+            variant="secondary"
+            beforeAction={() => {
+              if (typeof window !== "undefined" && promptDraft) {
+                window.sessionStorage.setItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY, promptDraft);
+              }
+            }}
+          >
+            Continue to dashboard
           </LandingLinkCta>
         </div>
       </div>
@@ -284,16 +302,22 @@ export default function LandingPage() {
     });
   }, []);
 
+  const persistHeroPromptDraft = () => {
+    const nextPrompt = heroPrompt.trim();
+    if (!nextPrompt || typeof window === "undefined") {
+      return nextPrompt;
+    }
+
+    window.sessionStorage.setItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY, nextPrompt);
+    return nextPrompt;
+  };
+
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
-    const nextPrompt = heroPrompt.trim();
+    const nextPrompt = persistHeroPromptDraft();
     if (!nextPrompt) {
       return;
-    }
-
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("landingPromptDraft", nextPrompt);
     }
 
     void trackEvent("cta_click", {
@@ -473,9 +497,10 @@ export default function LandingPage() {
               label="Continue with Google"
               analyticsButton="hero_get_started_free"
               analyticsPage="/"
+              beforeAction={persistHeroPromptDraft}
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
-            <LandingLinkCta button="hero_see_workspace" variant="secondary">
+            <LandingLinkCta button="hero_see_workspace" variant="secondary" beforeAction={persistHeroPromptDraft}>
               See the founder workflow
             </LandingLinkCta>
           </div>
@@ -683,6 +708,7 @@ export default function LandingPage() {
               label="Continue with Google"
               analyticsButton="footer_get_started"
               analyticsPage="/"
+              beforeAction={persistHeroPromptDraft}
               className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-stone-950 shadow-[0_18px_45px_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-stone-100"
             />
           </div>

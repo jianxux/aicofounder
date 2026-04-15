@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY } from "@/app/landingPromptDraft";
 import LandingPage from "@/app/page";
 import { trackEvent } from "@/lib/analytics";
 import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -15,6 +16,38 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/Navbar", () => ({
   default: () => <div data-testid="navbar" />,
+}));
+
+vi.mock("@/components/AuthButton", () => ({
+  default: ({
+    beforeAction,
+    analyticsButton,
+    analyticsPage,
+    label = "Continue with Google",
+    className,
+  }: {
+    beforeAction?: () => void;
+    analyticsButton?: string;
+    analyticsPage?: string;
+    label?: string;
+    className?: string;
+  }) => (
+    <button
+      type="button"
+      className={className}
+      onClick={() => {
+        beforeAction?.();
+        if (analyticsButton && analyticsPage) {
+          void trackEvent("cta_click", {
+            page: analyticsPage,
+            button: analyticsButton,
+          });
+        }
+      }}
+    >
+      {label}
+    </button>
+  ),
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -101,7 +134,9 @@ describe("LandingPage", () => {
     expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
-    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    expect(window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)).toBe(
+      "Validate an AI workflow before I build it.",
+    );
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",
@@ -153,6 +188,26 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
     expect(screen.getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
+  });
+
+  it("persists the latest hero prompt when a visitor uses the hero CTA buttons instead of Send", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Carry this prompt into the dashboard." },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Continue with Google" })[0]);
+    expect(window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)).toBe(
+      "Carry this prompt into the dashboard.",
+    );
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Keep this draft when I inspect the workflow." },
+    });
+    fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
+    expect(window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)).toBe(
+      "Keep this draft when I inspect the workflow.",
+    );
   });
 
   it("tracks all primary CTA clicks", async () => {
