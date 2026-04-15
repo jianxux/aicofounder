@@ -977,6 +977,38 @@ describe("lib/supabase-projects", () => {
     expect(operations.some((operation) => operation.table === "messages" && operation.method === "insert")).toBe(true);
   });
 
+  it("createSupabaseProject forwards and persists a provided initial project", async () => {
+    const initialProject = makeProject({
+      id: "initial-project",
+      name: "Personalized Project",
+      description: "Personalized description",
+    });
+    const createProjectRecord = vi.fn(() => makeProject({ id: "should-not-be-used" }));
+    const operations: Operation[] = [];
+    const mockSupabase = createMockSupabase({}, operations);
+    const { module } = await loadModule({
+      createBrowserClient: vi.fn(() => mockSupabase),
+      createProjectRecord,
+    });
+
+    const result = await module.createSupabaseProject(initialProject);
+
+    expect(createProjectRecord).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      id: "initial-project",
+      name: "Personalized Project",
+      description: "Personalized description",
+    });
+
+    const upsert = operations.find((operation) => operation.table === "projects" && operation.method === "upsert");
+    expect(upsert?.args[0]).toMatchObject({
+      id: "initial-project",
+      name: "Personalized Project",
+      description: "Personalized description",
+    });
+    expect(operations.some((operation) => operation.table === "messages" && operation.method === "insert")).toBe(true);
+  });
+
   it("deleteProjectFromSupabase deletes remotely and falls back to localStorage on error", async () => {
     const fallbackProjects = [makeProject({ id: "keep" }), makeProject({ id: "remove" })];
     localStorage.setItem("aicofounder.projects", JSON.stringify(fallbackProjects));

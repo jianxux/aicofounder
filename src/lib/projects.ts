@@ -338,8 +338,8 @@ export function upsertProject(project: Project) {
   return next;
 }
 
-export function createAndStoreProject() {
-  const project = createProjectRecord();
+export function createAndStoreProject(initialProject?: Project) {
+  const project = normalizeProject(initialProject ?? createProjectRecord());
   upsertProject(project);
   return project;
 }
@@ -377,11 +377,11 @@ export async function saveProject(project: Project): Promise<void> {
   await saveProjectToSupabase(project);
 }
 
-export async function createProject(): Promise<Project> {
+export async function createProject(initialProject?: Project): Promise<Project> {
   if (!isSupabaseConfigured()) {
-    return Promise.resolve(createAndStoreProject());
+    return Promise.resolve(createAndStoreProject(initialProject));
   }
 
   const { createSupabaseProject } = await import("@/lib/supabase-projects");
-  return createSupabaseProject();
+  return createSupabaseProject(initialProject);
 }

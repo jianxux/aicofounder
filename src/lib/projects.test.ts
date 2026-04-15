@@ -512,6 +512,22 @@ describe("lib/projects", () => {
       expect(storedProjects).toHaveLength(1);
       expect(isProject(project)).toBe(true);
     });
+
+    it("stores the provided initial project without overwriting personalized fields", () => {
+      const initial = makeProject({
+        id: "initial-project",
+        name: "Personalized Project",
+        description: "Personalized description",
+      });
+
+      const project = createAndStoreProject(initial);
+      const storedProjects = getStoredProjects();
+
+      expect(project.id).toBe("initial-project");
+      expect(project.name).toBe("Personalized Project");
+      expect(project.description).toBe("Personalized description");
+      expect(storedProjects).toEqual([project]);
+    });
   });
 
   describe("getProjectById", () => {

@@ -11,7 +11,7 @@ import OnboardingModal, {
   type OnboardingStarterBrief,
 } from "@/components/OnboardingModal";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
-import { applyOnboardingStarterContent, createProject, getProjects, saveProject } from "@/lib/projects";
+import { createProject, createProjectRecord, getProjects } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
@@ -159,16 +159,13 @@ export default function DashboardPage() {
     setOnboardingError(null);
 
     try {
-      const project = await createProject();
-      const nextProject = applyOnboardingStarterContent(project, intake);
-      const personalizedProject = {
-        ...nextProject,
+      const initialProject = {
+        ...createProjectRecord(intake),
         name: deriveProjectName(intake.primaryIdea),
         description: buildProjectDescription(intake),
-        updatedAt: new Date().toISOString(),
       };
 
-      await saveProject(personalizedProject);
+      const project = await createProject(initialProject);
       void trackEvent(ARTIFACT_INTAKE_SUBMITTED_EVENT, {
         page: "/dashboard",
         project_id: project.id,

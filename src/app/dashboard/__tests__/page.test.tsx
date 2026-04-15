@@ -4,10 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "@/app/dashboard/page";
 import { trackEvent } from "@/lib/analytics";
 import {
-  applyOnboardingStarterContent,
   createProject as createProjectMock,
+  createProjectRecord,
   getProjects,
-  saveProject,
 } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
@@ -81,13 +80,17 @@ vi.mock("@/components/AuthButton", () => ({
 }));
 
 vi.mock("@/lib/projects", () => ({
-  applyOnboardingStarterContent: vi.fn((project: Project, intake: {
+  createProjectRecord: vi.fn((intake: {
     primaryIdea: string;
     targetUser?: string;
     mainUncertainty?: string;
     url?: string;
   }) => ({
-    ...project,
+    id: "created-record-id",
+    name: "Untitled Project",
+    description: "A new concept taking shape with your AI cofounder.",
+    phase: "Getting started",
+    updatedAt: "2024-03-10T15:31:00.000Z",
     notes: [
       {
         id: "note-tailored-1",
@@ -112,6 +115,9 @@ vi.mock("@/lib/projects", () => ({
         y: 140,
       },
     ],
+    sections: [],
+    documents: [],
+    websiteBuilders: [],
     messages: [
       {
         id: "message-tailored-1",
@@ -136,12 +142,11 @@ vi.mock("@/lib/projects", () => ({
         ],
       },
     ],
+    research: null,
   })),
   getProjects: vi.fn(),
   createProject: vi.fn(),
-  saveProject: vi.fn(),
 }));
-
 vi.mock("@/lib/analytics", () => ({
   ARTIFACT_INTAKE_SUBMITTED_EVENT: "artifact_intake_submitted",
   trackEvent: vi.fn(),
@@ -213,7 +218,6 @@ describe("DashboardPage", () => {
     window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
-    vi.mocked(saveProject).mockResolvedValue();
     vi.mocked(trackEvent).mockResolvedValue(undefined);
   });
 
@@ -560,7 +564,7 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
   });
 
-  it("completes onboarding by creating, saving, and redirecting to the new project", async () => {
+  it("completes onboarding by creating and redirecting to the new project", async () => {
     const createdProject = createProject({ id: "guided-project", name: "Untitled Project" });
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
@@ -573,11 +577,11 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
+      expect(createProjectRecord).toHaveBeenCalledWith(intake);
       expect(createProjectMock).toHaveBeenCalledTimes(1);
-      expect(applyOnboardingStarterContent).toHaveBeenCalledWith(createdProject, intake);
-      expect(saveProject).toHaveBeenCalledWith(
+      expect(createProjectMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: "guided-project",
+          id: "created-record-id",
           name: expect.stringMatching(/^An AI copilot for founder research/),
           description:
             `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
@@ -654,9 +658,15 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
-      expect(saveProject).toHaveBeenCalledWith(
+      expect(createProjectRecord).toHaveBeenCalledWith({
+        primaryIdea: "A tool for founder research synthesis.",
+        url: "",
+        targetUser: "",
+        mainUncertainty: "",
+      });
+      expect(createProjectMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: "guided-project-minimal",
+          id: "created-record-id",
           name: "A tool for founder research synthesis",
           description: "A tool for founder research synthesis.",
         }),
@@ -694,9 +704,9 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
-      expect(saveProject).toHaveBeenCalledWith(
+      expect(createProjectMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: "guided-project-long-name",
+          id: "created-record-id",
           name: "An AI copilot for founder research that turns scattered n...",
           description:
             "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
@@ -737,28 +747,9 @@ describe("DashboardPage", () => {
     });
   });
 
-  it("shows a visible error and keeps onboarding open when project creation fails", async () => {
+  it("shows a visible error and keeps onboarding open when project creation fails unexpectedly", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockRejectedValue(new Error("create failed"));
-
-    await renderPage();
-
-    await startOnboarding();
-    completeIntake();
-    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "We couldn't create your project. Please try again.",
-    );
-    expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
-    expect(pushMock).not.toHaveBeenCalled();
-  });
-
-  it("shows a visible error and keeps onboarding open when saving fails", async () => {
-    const createdProject = createProject({ id: "guided-project-save-failure", name: "Untitled Project" });
-    vi.mocked(getProjects).mockResolvedValue([]);
-    vi.mocked(createProjectMock).mockResolvedValue(createdProject);
-    vi.mocked(saveProject).mockRejectedValue(new Error("save failed"));
 
     await renderPage();
 
