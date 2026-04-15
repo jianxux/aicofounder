@@ -111,6 +111,11 @@ const focusPresets = [
     description: "Start with customer pain, competing workarounds, and the proof gaps that would change your mind.",
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
     placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
+    followUpPrompts: [
+      "What proof would convince me this problem is painful enough to solve?",
+      "Which buyer feels this pain often enough to pay for a fix right now?",
+      "What existing workaround are teams using today, and why is it failing?",
+    ],
     promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
     insightTitle: "Example insight: demand signal",
     insightBody: "The strongest demand signals show up when the buyer already pays a hidden tax to work around the problem.",
@@ -127,6 +132,11 @@ const focusPresets = [
     description: "Start with the claim, the buyer language it depends on, and where your story sounds generic today.",
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
     placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
+    followUpPrompts: [
+      "Rewrite the homepage promise in the customer's language, not mine.",
+      "What does this product replace, and why is that switch worth it?",
+      "Which claim sounds generic, and how can I make it more specific?",
+    ],
     promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
     insightTitle: "Example insight: positioning",
     insightBody: "The strongest angle usually comes from sharper customer language, not a longer feature list.",
@@ -143,6 +153,11 @@ const focusPresets = [
     description: "Start with what you already know, what still feels uncertain, and the decisions you need to make this week.",
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
     placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
+    followUpPrompts: [
+      "Based on what we know, what are the next 3 actions I should take this week?",
+      "What should I test first to reduce the biggest risk in this idea?",
+      "Turn these notes into a decision-ready plan with owners and outcomes.",
+    ],
     promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
     insightTitle: "Example insight: next steps",
     insightBody: "Momentum improves when each next step closes a specific uncertainty instead of producing more abstract output.",
@@ -311,6 +326,15 @@ export default function LandingPage() {
     }
   };
 
+  const handleFollowUpPromptClick = (prompt: string, index: number) => {
+    setHeroPrompt(prompt);
+    void trackEvent("cta_click", {
+      page: "/",
+      button: `followup_prompt_${activePreset.id}_${index + 1}`,
+      preset: activePreset.id,
+    });
+  };
+
   return (
     <>
       <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
@@ -426,6 +450,24 @@ export default function LandingPage() {
                         {prompt}
                       </button>
                     ))}
+                  </div>
+
+                  <div className="mt-5 rounded-[1.5rem] border border-stone-200 bg-[#fcfaf6] px-4 py-4 sm:px-5">
+                    <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      After the first answer, ask one of these next
+                    </div>
+                    <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                      {activePreset.followUpPrompts.map((prompt, index) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => handleFollowUpPromptClick(prompt, index)}
+                          className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 text-left text-sm leading-6 text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </form>
 
