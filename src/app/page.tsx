@@ -154,6 +154,52 @@ const focusPresets = [
   },
 ] as const;
 
+const founderJobStarters: Array<{
+  id: string;
+  task: string;
+  bringsIn: string;
+  leavesWith: string;
+  presetId: (typeof focusPresets)[number]["id"];
+  starterPrompt: string;
+}> = [
+  {
+    id: "workflow-demand-scan",
+    task: "Validate demand for a single painful workflow",
+    bringsIn: "A rough idea, target buyer, and the current workaround they use today.",
+    leavesWith: "A demand signal scorecard, proof gaps to close, and the next 5 interview questions.",
+    presetId: "demand-validation",
+    starterPrompt:
+      "Pressure-test demand for this workflow: [describe the workflow] for [who the buyer is]. Map the current workaround, why it's painful, what triggers urgency, and what proof would convince me to build.",
+  },
+  {
+    id: "homepage-positioning-rewrite",
+    task: "Rewrite a homepage claim that currently reads generic",
+    bringsIn: "Your current headline + subhead (even if it's messy) and the top 3 alternatives buyers compare you to.",
+    leavesWith: "A sharper positioning angle, 3 headline options, and the differentiators you can actually defend.",
+    presetId: "positioning",
+    starterPrompt:
+      "Here is my current homepage draft: [paste]. Rewrite the claim into a sharper angle for [ICP]. Flag generic language, propose 3 alternative headlines, and tell me what proof I need to make the claim believable.",
+  },
+  {
+    id: "competitor-story-brief",
+    task: "Turn competitor notes into a POV buyers will repeat",
+    bringsIn: "A list of 5 competitors plus the phrases they use to describe the problem and outcome.",
+    leavesWith: "A competitor narrative, whitespace hypotheses, and a founder-ready messaging brief.",
+    presetId: "positioning",
+    starterPrompt:
+      "Using these competitors: [list], extract the shared promises, the implied buyer fear, and the obvious gaps. Propose a differentiated POV and turn it into a short messaging brief I can use on a landing page.",
+  },
+  {
+    id: "72-hour-plan",
+    task: "Plan the next 72 hours of validation work",
+    bringsIn: "What you already know, what still feels uncertain, and the decision you need to make this week.",
+    leavesWith: "A 3-step validation plan, interview targets, and what to measure after each step.",
+    presetId: "next-step-planning",
+    starterPrompt:
+      "Turn this into a 72-hour validation plan. My idea: [one sentence]. What I know: [bullets]. What I'm unsure about: [bullets]. The decision I need by Friday: [decision]. Give me the next 3 steps with interview targets and success criteria.",
+  },
+];
+
 function LandingLinkCta({
   button,
   children,
@@ -283,6 +329,26 @@ export default function LandingPage() {
       source: "landing",
     });
   }, []);
+
+  const handleStarterCardClick = (starter: (typeof founderJobStarters)[number]) => {
+    setActivePresetId(starter.presetId);
+    setHeroPrompt(starter.starterPrompt);
+    setShowLoginPrompt(false);
+
+    void trackEvent("cta_click", {
+      page: "/",
+      button: `starter_card_${starter.id}`,
+      preset: starter.presetId,
+    });
+
+    if (typeof document !== "undefined") {
+      const heroTextarea = document.getElementById("hero-prompt") as HTMLTextAreaElement | null;
+      if (heroTextarea?.scrollIntoView) {
+        heroTextarea.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      heroTextarea?.focus();
+    }
+  };
 
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -481,6 +547,71 @@ export default function LandingPage() {
           </div>
         </section>
       </div>
+
+      <section aria-labelledby="founder-job-starters" className="mx-auto w-full max-w-7xl px-6 py-10 lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(248,243,234,0.96)_100%)] p-7 shadow-[0_26px_90px_rgba(28,25,23,0.06)] lg:p-9">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Founder job starters</div>
+              <h2 id="founder-job-starters" className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                Make the first prompt specific enough to ship decisions.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-stone-600">
+                Pick the job you are trying to get done, drop in the raw inputs you already have, and leave with concrete outputs you can use the same day.
+              </p>
+            </div>
+            <div className="rounded-[1.6rem] border border-stone-200 bg-white px-5 py-4 text-sm text-stone-600 shadow-[0_18px_50px_rgba(55,37,12,0.05)]">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Outcome focused</div>
+              <div className="mt-2 leading-7">Bring in rough drafts. Leave with a founder-ready brief and next steps.</div>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {founderJobStarters.map((starter) => {
+              const presetLabel = focusPresets.find((preset) => preset.id === starter.presetId)?.label ?? "Focus preset";
+
+              return (
+                <div
+                  key={starter.id}
+                  className="rounded-[2rem] border border-stone-200 bg-white/85 p-6 shadow-[0_20px_60px_rgba(28,25,23,0.05)] backdrop-blur-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Starter card</div>
+                    <div className="rounded-full border border-stone-200 bg-[#faf7f2] px-3 py-1 text-xs font-medium text-stone-600">
+                      {presetLabel}
+                    </div>
+                  </div>
+
+                  <h3 className="mt-4 text-[1.35rem] font-semibold tracking-[-0.04em] text-stone-950">{starter.task}</h3>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf7] px-4 py-4">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Bring in</div>
+                      <p className="mt-2 text-sm leading-7 text-stone-700">{starter.bringsIn}</p>
+                    </div>
+                    <div className="rounded-[1.4rem] border border-stone-200 bg-stone-950 px-4 py-4 text-stone-50">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-300">Leave with</div>
+                      <p className="mt-2 text-sm leading-7 text-stone-200">{starter.leavesWith}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      aria-label={`Use starter: ${starter.task}`}
+                      onClick={() => handleStarterCardClick(starter)}
+                      className="inline-flex items-center justify-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
+                    >
+                      Use this starter
+                    </button>
+                    <div className="text-xs font-medium text-stone-500">Loads focus preset + starter prompt</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
