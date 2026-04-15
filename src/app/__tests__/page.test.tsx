@@ -90,6 +90,34 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
+  it("renders a founder job starter section with four starter cards", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Founder job starters/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Make the first prompt specific enough to ship decisions\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Validate demand for a single painful workflow/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Use starter:/i })).toHaveLength(4);
+  });
+
+  it("loads the matching focus preset and pre-fills the hero prompt when a starter card is used", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Use starter: Rewrite a homepage claim that currently reads generic/i }));
+
+    expect(screen.getByRole("radio", { name: /Positioning/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Demand validation/i })).not.toBeChecked();
+
+    const heroTextarea = screen.getByLabelText("I want to") as HTMLTextAreaElement;
+    expect(heroTextarea.value).toContain("Here is my current homepage draft");
+    expect(heroTextarea.value).toContain("Rewrite the claim into a sharper angle");
+
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "starter_card_homepage-positioning-rewrite",
+      preset: "positioning",
+    });
+  });
+
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
