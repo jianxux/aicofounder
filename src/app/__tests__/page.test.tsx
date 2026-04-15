@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -90,6 +91,75 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
+  it("renders follow-up prompt suggestions for the default demand-validation preset", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/After the first answer, ask one of these next/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "What proof would convince me this problem is painful enough to solve?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Which buyer feels this pain often enough to pay for a fix right now?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "What existing workaround are teams using today, and why is it failing?",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("updates follow-up prompt suggestions when the Positioning preset is selected", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+
+    expect(
+      screen.getByRole("button", {
+        name: "Rewrite the homepage promise in the customer's language, not mine.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "What does this product replace, and why is that switch worth it?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Which claim sounds generic, and how can I make it more specific?",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "What proof would convince me this problem is painful enough to solve?",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("fills the hero textarea and tracks analytics when a follow-up prompt is clicked", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "What does this product replace, and why is that switch worth it?",
+      }),
+    );
+
+    expect(
+      screen.getByDisplayValue("What does this product replace, and why is that switch worth it?"),
+    ).toBeInTheDocument();
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "followup_prompt_replacement-and-switch",
+      preset: "positioning",
+      rank: 2,
+    });
+  });
+
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
@@ -106,6 +176,36 @@ describe("LandingPage", () => {
       page: "/",
       button: "hero_prompt_submit",
     });
+  });
+
+  it("focuses the login prompt modal on open and traps keyboard focus while open", async () => {
+    const user = userEvent.setup();
+
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+    const closeButton = within(dialog).getByRole("button", { name: "Close" });
+    const continueButton = await within(dialog).findByRole("button", { name: "Continue with Google" });
+    const exploreLink = within(dialog).getByRole("link", { name: "Explore demo first" });
+
+    expect(closeButton).toHaveFocus();
+
+    await user.tab();
+    expect(continueButton).toHaveFocus();
+
+    await user.tab();
+    expect(exploreLink).toHaveFocus();
+
+    await user.tab();
+    expect(closeButton).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(exploreLink).toHaveFocus();
   });
 
   it("closes the login prompt modal on Escape", () => {
