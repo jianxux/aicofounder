@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
+import { LANDING_PROMPT_DRAFT_KEY } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
-const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -47,7 +48,12 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
     .join("\n\n");
 }
 
+function getLandingPromptDraft() {
+  return window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
@@ -58,11 +64,12 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
-      const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+      const landingPromptDraft = getLandingPromptDraft();
+      const hasLandingPromptDraft = landingPromptDraft.length > 0;
+      const isFirstProject = loadedProjects.length === 0;
 
       setPrefilledOnboardingIntake(
-        shouldShowDraftHandoff
+        hasLandingPromptDraft
           ? {
               primaryIdea: landingPromptDraft,
             }
@@ -70,15 +77,23 @@ export default function DashboardPage() {
       );
       setProjects(loadedProjects);
       setShowOnboarding(
-        loadedProjects.length === 0 &&
-          (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
+        isFirstProject &&
+          (hasLandingPromptDraft || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
       );
     });
   }, []);
 
   const handleOpenOnboarding = () => {
+    const landingPromptDraft = getLandingPromptDraft();
+
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    setPrefilledOnboardingIntake(
+      landingPromptDraft.length > 0
+        ? {
+            primaryIdea: landingPromptDraft,
+          }
+        : {},
+    );
     setShowOnboarding(true);
   };
 
@@ -116,7 +131,7 @@ export default function DashboardPage() {
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
-    window.location.href = `/project/${project.id}`;
+    router.push(`/project/${project.id}`);
   };
 
   return (
