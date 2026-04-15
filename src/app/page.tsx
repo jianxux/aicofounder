@@ -81,6 +81,39 @@ const firstSessionTimeline = [
   },
 ];
 
+const founderFaqs = [
+  {
+    id: "bring-to-session",
+    question: "What should I bring to the first session?",
+    answer:
+      "Bring the rough draft you already have: a homepage, pitch deck, customer notes, onboarding flow, or even a list of assumptions. Messy inputs are fine if they show the claim you want to pressure-test.",
+  },
+  {
+    id: "existing-product",
+    question: "Does this work for an existing product, or only for new ideas?",
+    answer:
+      "It works for both. Founders use it to sharpen an existing product story, diagnose weak conversion language, or reframe what is already live when the market response feels softer than it should.",
+  },
+  {
+    id: "privacy-mode",
+    question: "What happens to sensitive drafts if I use privacy mode?",
+    answer:
+      "In privacy mode, the draft stays inside that working session and is not carried forward into reusable project memory after you leave. Use it when you need to pressure-test sensitive wording without keeping the full draft around, and still avoid pasting secrets, credentials, or regulated data.",
+  },
+  {
+    id: "session-output",
+    question: "What comes out of the first session?",
+    answer:
+      "You should leave with a tighter positioning angle, a working founder brief, and a short list of next validation tasks. The goal is usable output you can react to the same day, not a generic brainstorm recap.",
+  },
+  {
+    id: "time-to-value",
+    question: "How long does it take to get useful value?",
+    answer:
+      "Most of the value should show up inside the first working session, roughly 25 minutes. If the inputs are concrete, you should leave with something clearer to test, rewrite, or prioritize immediately.",
+  },
+] as const;
+
 const sampleArtifactRows = [
   {
     label: "Core buyer",
@@ -274,6 +307,7 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const [openFaqId, setOpenFaqId] = useState<(typeof founderFaqs)[number]["id"] | null>(null);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
@@ -625,6 +659,60 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(248,243,234,0.95)_100%)] p-8 shadow-[0_26px_90px_rgba(28,25,23,0.06)] lg:p-10">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Founder FAQ</div>
+              <h2 className="mt-4 text-[clamp(2rem,4vw,3.1rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                Handle the practical objections before the session starts.
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-7 text-stone-600">
+              Short answers for founders deciding whether to bring an early draft, a live product, or sensitive working material.
+            </p>
+          </div>
+
+          <div className="mt-8 space-y-3">
+            {founderFaqs.map((item) => {
+              const isOpen = openFaqId === item.id;
+              const buttonId = `${item.id}-button`;
+              const panelId = `${item.id}-panel`;
+
+              return (
+                <div key={item.id} className="rounded-[1.6rem] border border-stone-200 bg-white/90 shadow-[0_18px_50px_rgba(55,37,12,0.05)]">
+                  <h3>
+                    <button
+                      id={buttonId}
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      onClick={() => setOpenFaqId(isOpen ? null : item.id)}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-[1rem] font-semibold tracking-[-0.02em] text-stone-950 transition hover:bg-[#faf7f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    >
+                      <span>{item.question}</span>
+                      <span className="text-lg leading-none text-stone-500" aria-hidden="true">
+                        {isOpen ? "−" : "+"}
+                      </span>
+                    </button>
+                  </h3>
+                  {isOpen ? (
+                    <div
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={buttonId}
+                      className="border-t border-stone-200 px-5 py-4 text-sm leading-7 text-stone-600"
+                    >
+                      {item.answer}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
