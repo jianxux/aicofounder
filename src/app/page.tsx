@@ -81,21 +81,6 @@ const firstSessionTimeline = [
   },
 ];
 
-const sampleArtifactRows = [
-  {
-    label: "Core buyer",
-    value: "Ops leads at 50 to 200 person home-service companies drowning in manual dispatch follow-up.",
-  },
-  {
-    label: "Claim to test",
-    value: "Stop losing booked jobs to slow, inconsistent customer follow-up.",
-  },
-  {
-    label: "Proof to gather next",
-    value: "Measure callback speed, missed estimate rate, and no-response drop-off across ten recent leads.",
-  },
-];
-
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -119,6 +104,25 @@ const focusPresets = [
       "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
     ],
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
+    artifactPreview: {
+      title: "Demand validation brief v1",
+      sourceBadge: "Generated from pain-point interviews + workflow notes",
+      rows: [
+        {
+          label: "Core buyer",
+          value: "Dispatch managers at growing home-service companies who lose revenue when leads sit too long between estimate and callback.",
+        },
+        {
+          label: "Claim to test",
+          value: "Stop losing booked jobs to slow, inconsistent customer follow-up.",
+        },
+        {
+          label: "Proof to gather next",
+          value: "Measure callback speed, missed estimate rate, and no-response drop-off across ten recent leads.",
+        },
+      ],
+      homepageOpening: "Follow up with every inbound lead before the job cools off and the customer books someone else.",
+    },
   },
   {
     id: "positioning",
@@ -135,6 +139,25 @@ const focusPresets = [
       "Your next move is tightening the positioning claim before shipping the homepage.",
     ],
     sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
+    artifactPreview: {
+      title: "Positioning brief v1",
+      sourceBadge: "Generated from interviews + homepage draft",
+      rows: [
+        {
+          label: "Core buyer",
+          value: "Independent wealth advisors losing prospects because every client update tool sounds polished but interchangeable.",
+        },
+        {
+          label: "Claim to test",
+          value: "The category sounds polished but still interchangeable unless the product feels compliance-safe and distinctly human.",
+        },
+        {
+          label: "Proof to gather next",
+          value: "Pull homepage language from five advisor tools and mark where the buyer promise collapses into generic automation copy.",
+        },
+      ],
+      homepageOpening: "A compliance-safe client update system for advisors who hate sounding generic every time they reach out.",
+    },
   },
   {
     id: "next-step-planning",
@@ -151,6 +174,25 @@ const focusPresets = [
       "Name the metric or learning target before you draft the task list.",
     ],
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
+    artifactPreview: {
+      title: "Next-step plan v1",
+      sourceBadge: "Generated from validation notes + founder decisions",
+      rows: [
+        {
+          label: "Current signal",
+          value: "Three pilot conversations agree onboarding is slow, but each buyer names a different blocker in the setup flow.",
+        },
+        {
+          label: "Decision to make",
+          value: "Choose whether to tighten onboarding for one segment first or keep testing a broader workflow promise.",
+        },
+        {
+          label: "Next move",
+          value: "Run five guided onboarding reviews, tag the exact step where momentum drops, and compare it with pilot conversion by segment.",
+        },
+      ],
+      homepageOpening: "See exactly where onboarding momentum drops, then fix the next founder bottleneck before you add more product.",
+    },
   },
 ] as const;
 
@@ -276,6 +318,7 @@ export default function LandingPage() {
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const activeArtifactPreview = activePreset.artifactPreview;
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -499,13 +542,13 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-start justify-between gap-3 rounded-[1.5rem] border border-stone-200 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(52,39,21,0.06)]">
               <div>
                 <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Previewed founder artifact</div>
-                <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">Positioning brief v1</div>
+                <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">{activeArtifactPreview.title}</div>
               </div>
-              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">Generated from interviews + homepage draft</div>
+              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">{activeArtifactPreview.sourceBadge}</div>
             </div>
 
             <div className="mt-4 grid gap-3">
-              {sampleArtifactRows.map((row) => (
+              {activeArtifactPreview.rows.map((row) => (
                 <div key={row.label} className="rounded-[1.25rem] border border-stone-200/80 bg-white px-4 py-4">
                   <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{row.label}</div>
                   <p className="mt-2 text-sm leading-7 text-stone-700">{row.value}</p>
@@ -515,10 +558,7 @@ export default function LandingPage() {
 
             <div className="mt-4 rounded-[1.4rem] border border-stone-950 bg-stone-950 px-4 py-4 text-stone-50 shadow-[0_20px_55px_rgba(20,16,12,0.18)]">
               <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-400">Homepage opening to test</div>
-              <p className="mt-2 text-sm leading-7 text-stone-200">
-                AI Cofounder helps service operators follow up with every lead fast enough to save the jobs that usually disappear between estimate and
-                callback.
-              </p>
+              <p className="mt-2 text-sm leading-7 text-stone-200">{activeArtifactPreview.homepageOpening}</p>
             </div>
           </div>
         </div>

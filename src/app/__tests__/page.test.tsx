@@ -145,14 +145,25 @@ describe("LandingPage", () => {
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
   });
 
-  it("renders an inspectable sample founder artifact preview with concrete output", () => {
+  it("updates the sample founder artifact preview when the focus preset changes", () => {
     render(<LandingPage />);
 
     expect(screen.getByText(/Sample first deliverable/i)).toBeInTheDocument();
-    expect(screen.getByText(/Positioning brief v1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
+    expect(screen.getByText(/Demand validation brief v1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Generated from pain-point interviews \+ workflow notes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dispatch managers at growing home-service companies/i)).toBeInTheDocument();
     expect(screen.getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
+    expect(screen.getByText(/Follow up with every inbound lead before the job cools off/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+
+    expect(screen.getByText(/Positioning brief v1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Generated from interviews \+ homepage draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/Independent wealth advisors losing prospects/i)).toBeInTheDocument();
+    expect(screen.getByText(/The category sounds polished but still interchangeable/i)).toBeInTheDocument();
+    expect(screen.getByText(/A compliance-safe client update system for advisors who hate sounding generic/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Dispatch managers at growing home-service companies/i)).not.toBeInTheDocument();
   });
 
   it("tracks all primary CTA clicks", async () => {
