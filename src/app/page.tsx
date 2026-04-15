@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
+import { LANDING_PROMPT_DRAFT_KEY } from "@/app/prompt-handoff";
 import { trackEvent } from "@/lib/analytics";
 
 const proofMetrics = [
@@ -103,6 +112,42 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(", ");
+
+const founderSituationCards = [
+  {
+    id: "founder-calls",
+    title: "You have founder calls, but no clear pattern yet.",
+    situation: "Early interview notes are piling up and the problem still sounds broad every time you explain it.",
+    outcome: "Leave with a tighter demand-validation angle and the proof gaps that matter most before you build.",
+    prompt: "Synthesize these founder interviews into the clearest painful workflow, weak assumptions, and proof gaps.",
+    presetId: "demand-validation",
+  },
+  {
+    id: "homepage-draft",
+    title: "You built a draft, but the homepage still reads generic.",
+    situation: "The product exists in rough form, yet the promise sounds like every other AI tool in the category.",
+    outcome: "Turn the current story into a sharper positioning claim buyers can repeat back to each other.",
+    prompt: "Tighten this homepage draft into a specific positioning angle with sharper buyer language and fewer generic claims.",
+    presetId: "positioning",
+  },
+  {
+    id: "scattered-research",
+    title: "You have research scattered across docs and need the next move.",
+    situation: "Customer notes, experiments, and open questions exist, but they are not turning into a weekly plan.",
+    outcome: "Convert mixed signal into the next founder steps, ordered by what closes uncertainty fastest.",
+    prompt: "Turn these scattered research notes into the next three founder moves, the learning goal for each, and what to test first.",
+    presetId: "next-step-planning",
+  },
+] as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -154,6 +199,12 @@ const focusPresets = [
   },
 ] as const;
 
+const STARTER_PROMPTS: ReadonlySet<string> = new Set([
+  ...founderSituationCards.map((card) => card.prompt),
+  ...focusPresets.map((preset) => preset.placeholder),
+  ...focusPresets.flatMap((preset) => preset.promptIdeas),
+]);
+
 function LandingLinkCta({
   button,
   children,
@@ -199,24 +250,65 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      closeButtonRef.current?.focus();
       return;
     }
 
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
+    if (previousFocusRef.current?.isConnected) {
+      previousFocusRef.current.focus();
+    }
+    previousFocusRef.current = null;
+  }, [open]);
 
-    window.addEventListener("keydown", handleKeyDown);
+  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose, open]);
+    if (event.key !== "Tab" || !dialogRef.current) {
+      return;
+    }
+
+    const focusableElements = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+      (element) => !element.closest("[hidden]") && !element.closest("[aria-hidden='true']"),
+    );
+
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      dialogRef.current.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    const activeElement = document.activeElement as HTMLElement | null;
+
+    if (!activeElement || !dialogRef.current.contains(activeElement)) {
+      event.preventDefault();
+      firstElement.focus();
+      return;
+    }
+
+    if (event.shiftKey && activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+      return;
+    }
+
+    if (!event.shiftKey && activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  };
 
   if (!open) {
     return null;
@@ -229,6 +321,9 @@ function LoginPromptModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         className="w-full max-w-xl rounded-[2rem] border border-stone-200 bg-[#faf7f2] p-6 shadow-[0_32px_110px_rgba(28,25,23,0.18)] sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
@@ -242,7 +337,8 @@ function LoginPromptModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
+            ref={closeButtonRef}
+            className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-950 focus-visible:ring-offset-2"
           >
             Close
           </button>
@@ -261,8 +357,8 @@ function LoginPromptModal({
             analyticsPage="/"
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
-          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
-            Explore demo first
+          <LandingLinkCta button="hero_prompt_open_dashboard" variant="secondary">
+            Continue to dashboard
           </LandingLinkCta>
         </div>
       </div>
@@ -274,6 +370,9 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const [selectedFounderSituationId, setSelectedFounderSituationId] = useState<(typeof founderSituationCards)[number]["id"] | null>(
+    null,
+  );
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
@@ -284,6 +383,27 @@ export default function LandingPage() {
     });
   }, []);
 
+  const handleHeroPromptChange = (nextValue: string) => {
+    setHeroPrompt(nextValue);
+
+    const selectedCard = founderSituationCards.find((card) => card.id === selectedFounderSituationId);
+    if (selectedCard && nextValue !== selectedCard.prompt) {
+      setSelectedFounderSituationId(null);
+    }
+  };
+
+  const handlePresetChange = (presetId: (typeof focusPresets)[number]["id"]) => {
+    const nextPreset = focusPresets.find((preset) => preset.id === presetId) ?? focusPresets[0];
+    const normalizedPrompt = heroPrompt.trim();
+
+    setActivePresetId(presetId);
+    setSelectedFounderSituationId(null);
+
+    if (!normalizedPrompt || STARTER_PROMPTS.has(normalizedPrompt)) {
+      setHeroPrompt(nextPreset.placeholder);
+    }
+  };
+
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
@@ -293,7 +413,7 @@ export default function LandingPage() {
     }
 
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("landingPromptDraft", nextPrompt);
+      window.sessionStorage.setItem(LANDING_PROMPT_DRAFT_KEY, nextPrompt);
     }
 
     void trackEvent("cta_click", {
@@ -305,10 +425,21 @@ export default function LandingPage() {
   };
 
   const handleHeroKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    const isImeComposing =
+      event.nativeEvent.isComposing ||
+      (event as ReactKeyboardEvent<HTMLTextAreaElement> & { isComposing?: boolean }).isComposing ||
+      event.keyCode === 229;
+
+    if (event.key === "Enter" && !event.shiftKey && !isImeComposing) {
       event.preventDefault();
       handleHeroSubmit();
     }
+  };
+
+  const handleFounderSituationSelect = (card: (typeof founderSituationCards)[number]) => {
+    setSelectedFounderSituationId(card.id);
+    setActivePresetId(card.presetId);
+    setHeroPrompt(card.prompt);
   };
 
   return (
@@ -367,15 +498,15 @@ export default function LandingPage() {
                             name="landing-focus-preset"
                             value={preset.id}
                             checked={isActive}
-                            onChange={() => setActivePresetId(preset.id)}
-                            className="sr-only"
+                            onChange={() => handlePresetChange(preset.id)}
+                            className="peer sr-only"
                           />
                           <div
                             className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
                               isActive
                                 ? "border-stone-950 bg-stone-950 text-stone-50 shadow-[0_18px_45px_rgba(28,25,23,0.12)]"
                                 : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
-                            }`}
+                            } peer-focus-visible:ring-2 peer-focus-visible:ring-stone-950 peer-focus-visible:ring-offset-2`}
                           >
                             <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${isActive ? "text-stone-300" : "text-stone-500"}`}>
                               Choose your first focus
@@ -398,7 +529,7 @@ export default function LandingPage() {
                     <textarea
                       id="hero-prompt"
                       value={heroPrompt}
-                      onChange={(event) => setHeroPrompt(event.target.value)}
+                      onChange={(event) => handleHeroPromptChange(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
                       rows={4}
                       placeholder={activePreset.placeholder}
@@ -420,7 +551,10 @@ export default function LandingPage() {
                       <button
                         key={prompt}
                         type="button"
-                        onClick={() => setHeroPrompt(prompt)}
+                        onClick={() => {
+                          setSelectedFounderSituationId(null);
+                          setHeroPrompt(prompt);
+                        }}
                         className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-50"
                       >
                         {prompt}
@@ -428,6 +562,52 @@ export default function LandingPage() {
                     ))}
                   </div>
                 </form>
+
+                <fieldset className="mt-5 text-left">
+                  <legend id="founder-situation-label" className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                    Choose the founder situation that feels closest
+                  </legend>
+                  <div role="radiogroup" aria-labelledby="founder-situation-label" className="mt-3 grid gap-3 md:grid-cols-3">
+                    {founderSituationCards.map((card) => {
+                      const isActive = selectedFounderSituationId === card.id;
+
+                      return (
+                        <label key={card.id} className="block cursor-pointer">
+                          <input
+                            type="radio"
+                            name="landing-founder-situation"
+                            value={card.id}
+                            checked={isActive}
+                            onChange={() => handleFounderSituationSelect(card)}
+                            className="peer sr-only"
+                          />
+                          <div
+                            className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                              isActive
+                                ? "border-stone-950 bg-stone-950 text-stone-50 shadow-[0_18px_45px_rgba(28,25,23,0.12)]"
+                                : "border-stone-200 bg-[#fcfaf6] text-stone-700 hover:border-stone-300 hover:bg-white"
+                            } peer-focus-visible:ring-2 peer-focus-visible:ring-stone-950 peer-focus-visible:ring-offset-2`}
+                          >
+                            <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${isActive ? "text-stone-300" : "text-stone-500"}`}>
+                              Founder stage
+                            </div>
+                            <div className="mt-2 text-base font-semibold tracking-[-0.03em]">{card.title}</div>
+                            <p className={`mt-2 text-sm leading-6 ${isActive ? "text-stone-200" : "text-stone-600"}`}>{card.situation}</p>
+                            <div className={`mt-4 rounded-[1.1rem] border px-3 py-3 text-sm leading-6 ${
+                              isActive ? "border-white/10 bg-white/5 text-stone-100" : "border-stone-200 bg-white text-stone-700"
+                            }`}>
+                              {card.outcome}
+                            </div>
+                            <div className={`mt-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${isActive ? "text-stone-300" : "text-stone-500"}`}>
+                              Starter prompt
+                            </div>
+                            <p className={`mt-2 text-sm leading-6 ${isActive ? "text-stone-200" : "text-stone-600"}`}>{card.prompt}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
 
                 <div className="mt-6 grid gap-4 text-left lg:grid-cols-[1.05fr_0.95fr]">
                   <div className="rounded-[1.6rem] border border-stone-200 bg-stone-950 p-5 text-stone-50">
@@ -475,7 +655,7 @@ export default function LandingPage() {
               analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
-            <LandingLinkCta button="hero_see_workspace" variant="secondary">
+            <LandingLinkCta button="hero_see_workspace" variant="secondary" href="#workflow">
               See the founder workflow
             </LandingLinkCta>
           </div>
