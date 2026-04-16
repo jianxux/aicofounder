@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingModal from "@/components/OnboardingModal";
@@ -129,7 +129,7 @@ describe("OnboardingModal", () => {
     const launchDescription = document.getElementById(launchDialog.getAttribute("aria-describedby") ?? "");
     const stepTwoSection = screen.getByText("About Your Idea").closest("section");
 
-    expect(launchDescription).toHaveTextContent("Here’s what you’re starting with.");
+    expect(launchDescription).toHaveTextContent("Here’s the guidance you’re starting with.");
     expect(stepTwoSection).toHaveAttribute("hidden");
   });
 
@@ -247,6 +247,60 @@ describe("OnboardingModal", () => {
     expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
   });
 
+  it("previews the first workspace handoff with personalized artifact copy", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({
+      targetUser: "Seed-stage founders",
+      mainUncertainty: "Whether they want one workspace.",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const handoff = screen.getByLabelText("What happens next");
+
+    expect(within(handoff).getByText("First Workspace Handoff")).toBeInTheDocument();
+    expect(
+      within(handoff).getByText("Use the workspace to sharpen your claim for Seed-stage founders."),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to outline a customer research memo for Seed-stage founders, including early findings, contradictions, and next questions.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        'Use a validation scorecard to pressure-test "Whether they want one workspace." so the next decision is explicit.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to generic handoff copy when optional personalization fields are blank", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const handoff = screen.getByLabelText("What happens next");
+
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to sharpen your claim about the customer and problem worth validating.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to outline a customer research memo that captures early findings, contradictions, and next questions.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use a validation scorecard to pressure-test the biggest open risk so the next decision is explicit.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("shows the attachments coming soon policy before launch without implying uploads are live", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -284,6 +338,37 @@ describe("OnboardingModal", () => {
       url: "https://example.com",
       targetUser: "Seed-stage founders",
       mainUncertainty: "Whether they want one workspace.",
+    });
+  });
+
+  it("disables Launch Project while submission is in flight and prevents double submit", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const launchButton = screen.getByRole("button", { name: "Launch Project" });
+    fireEvent.click(launchButton);
+
+    expect(screen.getByRole("button", { name: "Launching..." })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launching..." }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+
+    resolveLaunch?.();
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Launch Project" })).toBeEnabled();
     });
   });
 
