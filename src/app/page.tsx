@@ -103,6 +103,13 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const sourceMaterialChips = [
+  "Customer interview notes",
+  "Existing homepage or URL",
+  "Sales or customer call notes",
+  "Competitor screenshots or teardown notes",
+];
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -394,6 +401,19 @@ export default function LandingPage() {
                     I want to
                   </label>
                   <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
+                  <div className="mt-4 rounded-[1.35rem] border border-stone-200 bg-[#faf7f2] px-4 py-4 text-left">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Bring whatever you already have</div>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      Rough artifacts are welcome. Start with the notes, links, and scraps you already have instead of polishing a perfect prompt first.
+                    </p>
+                    <ul className="mt-3 flex flex-wrap gap-2" aria-label="Useful starting material examples">
+                      {sourceMaterialChips.map((item) => (
+                        <li key={item} className="list-none rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
