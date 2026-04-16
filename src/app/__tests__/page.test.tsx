@@ -134,6 +134,12 @@ describe("LandingPage", () => {
       "Research and messaging stay connected",
       "Trust comes from visible structure",
       "First session timeline",
+      "Founder FAQ",
+      "What should I bring to the first session?",
+      "Does this work for an existing product, or only for new ideas?",
+      "What happens to sensitive drafts if I use privacy mode?",
+      "What comes out of the first session?",
+      "How long does it take to get useful value?",
       "0-5 min",
       "6-14 min",
       "15-25 min",
@@ -143,6 +149,67 @@ describe("LandingPage", () => {
     });
 
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
+  });
+
+  it("expands and collapses a founder FAQ answer", () => {
+    render(<LandingPage />);
+
+    const faqButton = screen.getByRole("button", {
+      name: "What should I bring to the first session?",
+    });
+    const secondFaqButton = screen.getByRole("button", {
+      name: "Does this work for an existing product, or only for new ideas?",
+    });
+
+    expect(faqButton).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByText(/Bring the rough draft you already have: a homepage, pitch deck, customer notes, onboarding flow/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(faqButton);
+
+    const faqPanelId = faqButton.getAttribute("aria-controls");
+    const faqButtonId = faqButton.getAttribute("id");
+    const faqPanel = screen.getByRole("region");
+
+    expect(faqButton).toHaveAttribute("aria-expanded", "true");
+    expect(faqButtonId).toBe("bring-to-session-button");
+    expect(faqPanelId).toBeTruthy();
+    expect(faqPanelId).toBe("bring-to-session-panel");
+    expect(faqPanel).toHaveAttribute("id", faqPanelId);
+    expect(faqPanel).toHaveAttribute("aria-labelledby", faqButtonId);
+    expect(
+      screen.getByText(/Bring the rough draft you already have: a homepage, pitch deck, customer notes, onboarding flow/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(secondFaqButton);
+
+    expect(faqButton).toHaveAttribute("aria-expanded", "false");
+    expect(secondFaqButton).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.queryByText(/Bring the rough draft you already have: a homepage, pitch deck, customer notes, onboarding flow/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(secondFaqButton);
+
+    expect(secondFaqButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("explains privacy mode behavior while warning against secrets or regulated data", () => {
+    render(<LandingPage />);
+
+    const privacyFaqButton = screen.getByRole("button", {
+      name: "What happens to sensitive drafts if I use privacy mode?",
+    });
+
+    fireEvent.click(privacyFaqButton);
+
+    expect(
+      screen.getByText(
+        /In privacy mode, the draft stays inside that working session and is not carried forward into reusable project memory after you leave\./i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/still avoid pasting secrets, credentials, or regulated data\./i)).toBeInTheDocument();
   });
 
   it("renders an inspectable sample founder artifact preview with concrete output", () => {
