@@ -154,6 +154,21 @@ const focusPresets = [
   },
 ] as const;
 
+const heroReviewCheckpoints = [
+  {
+    step: "Prompt",
+    body: "Your typed prompt is carried forward as the session starting point.",
+  },
+  {
+    step: "Working brief",
+    body: "The first pass turns that prompt into a scoped brief with the buyer, claim, and open questions visible.",
+  },
+  {
+    step: "Reviewable next moves",
+    body: "You can inspect the suggested artifacts before acting: brief, positioning angle, and next validation tasks.",
+  },
+];
+
 function LandingLinkCta({
   button,
   children,
@@ -428,6 +443,23 @@ export default function LandingPage() {
                     ))}
                   </div>
                 </form>
+
+                <div className="mx-auto mt-4 max-w-3xl rounded-[1.6rem] border border-stone-200 bg-[#f7f2e8] p-4 text-left sm:p-5">
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">What happens next</div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    {heroReviewCheckpoints.map((checkpoint, index) => (
+                      <div key={checkpoint.step} className="rounded-[1.25rem] border border-stone-200 bg-white px-4 py-4 shadow-[0_10px_30px_rgba(28,25,23,0.04)]">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-stone-950 text-[0.68rem] font-semibold text-stone-50">
+                            {index + 1}
+                          </span>
+                          <div className="text-sm font-semibold tracking-[-0.02em] text-stone-950">{checkpoint.step}</div>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-stone-600">{checkpoint.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="mt-6 grid gap-4 text-left lg:grid-cols-[1.05fr_0.95fr]">
                   <div className="rounded-[1.6rem] border border-stone-200 bg-stone-950 p-5 text-stone-50">

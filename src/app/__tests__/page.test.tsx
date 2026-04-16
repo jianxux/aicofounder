@@ -73,6 +73,18 @@ describe("LandingPage", () => {
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
+  it("shows a near-hero what happens next sequence with explicit review checkpoints", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText("What happens next")).toBeInTheDocument();
+    expect(screen.getByText("Prompt")).toBeInTheDocument();
+    expect(screen.getByText("Working brief")).toBeInTheDocument();
+    expect(screen.getByText("Reviewable next moves")).toBeInTheDocument();
+    expect(screen.getByText(/Your typed prompt is carried forward as the session starting point\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The first pass turns that prompt into a scoped brief with the buyer, claim, and open questions visible\./i)).toBeInTheDocument();
+    expect(screen.getByText(/You can inspect the suggested artifacts before acting: brief, positioning angle, and next validation tasks\./i)).toBeInTheDocument();
+  });
+
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
     render(<LandingPage />);
 
