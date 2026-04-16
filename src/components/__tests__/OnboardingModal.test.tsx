@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingModal from "@/components/OnboardingModal";
@@ -380,6 +380,35 @@ describe("OnboardingModal", () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
+  it("does not allow Skip to dismiss the modal while launch is in flight", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    const skipButton = screen.getByRole("button", { name: "Skip" });
+
+    expect(skipButton).toBeDisabled();
+
+    fireEvent.click(skipButton);
+
+    expect(onSkip).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveLaunch?.();
+    });
+  });
+
   it("traps keyboard focus within the dialog while open", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -428,6 +457,36 @@ describe("OnboardingModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+  });
+
+  it("does not allow step 3 Back to rewind while launch is in flight", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    const backButton = screen.getByRole("button", { name: "Back" });
+
+    expect(backButton).toBeDisabled();
+
+    fireEvent.click(backButton);
+
+    expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "About Your Idea" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveLaunch?.();
+    });
   });
 
   it("shows not provided for optional summary fields when they are empty", () => {

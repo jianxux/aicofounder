@@ -250,8 +250,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
           <button
             ref={skipButtonRef}
             type="button"
+            disabled={isLaunching}
             onClick={onSkip}
-            className="text-sm font-medium text-stone-500 transition hover:text-stone-800"
+            className="text-sm font-medium text-stone-500 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
             Skip
           </button>
@@ -584,8 +585,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             <div className="mt-8 flex items-center justify-between gap-3">
               <button
                 type="button"
+                disabled={isLaunching}
                 onClick={() => setStep(2)}
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
               >
                 Back
               </button>
