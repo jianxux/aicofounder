@@ -53,6 +53,24 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
       "Would operators switch from spreadsheets for better forecasting alone, or only if the tool also recommends concrete reorder actions?",
   },
 ];
+const VALIDATION_WORKFLOW_STAGES = [
+  {
+    label: "Idea",
+    detail: "Frame the founder idea as a testable problem worth investigating.",
+  },
+  {
+    label: "Assumptions",
+    detail: "Surface the riskiest user, demand, and workflow assumptions first.",
+  },
+  {
+    label: "Evidence",
+    detail: "Turn interviews, links, and notes into signals strong enough to trust.",
+  },
+  {
+    label: "Next moves",
+    detail: "Leave with the clearest validation action to run after this session.",
+  },
+] as const;
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
   "[href]",
@@ -444,6 +462,39 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               Here’s what you’re starting with. Once launched, your AI cofounder will guide you
               through the discovery, planning, build, and launch phases.
             </p>
+
+            <section
+              aria-label="Validation workflow preview"
+              className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                    Validation workflow
+                  </div>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+                    Your first project starts as an evidence-driven workflow, not a blank chat. Each
+                    step builds the case for what to validate next.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {VALIDATION_WORKFLOW_STAGES.map((stage, index) => (
+                  <div
+                    key={stage.label}
+                    className="rounded-[22px] border border-stone-200 bg-[#fcfbf8] p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                        {`0${index + 1}`}
+                      </span>
+                      <div className="text-sm font-semibold text-stone-900">{stage.label}</div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-stone-600">{stage.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <div className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
