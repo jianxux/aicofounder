@@ -43,6 +43,18 @@ function completeIntake(overrides?: {
   return intake;
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
@@ -125,6 +137,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(saveProject).mockResolvedValue();
@@ -326,6 +339,67 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("prefills onboarding from the stored draft when a returning user with projects clicks New Project", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("keeps a user-opened onboarding draft open when the initial projects load resolves afterward", async () => {
+    const deferredProjects = createDeferredPromise<Project[]>();
+
+    vi.mocked(getProjects).mockReturnValue(deferredProjects.promise);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+
+    deferredProjects.resolve([createProject()]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "About Your Idea" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("does not clear the stored draft when a returning user opens onboarding", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(
       "Pressure-test this founder workflow idea.",
     );
   });
