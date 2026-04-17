@@ -96,6 +96,29 @@ const sampleArtifactRows = [
   },
 ];
 
+const sampleBriefSections = [
+  {
+    title: "Problem / buyer",
+    text: "Manual lead follow-up is breaking for lean service teams once estimate volume rises above what one ops lead can chase alone.",
+  },
+  {
+    title: "Claim to test",
+    text: "Faster, more consistent callback coverage could recover booked jobs before the CRM gets blamed for a staffing problem.",
+  },
+  {
+    title: "Evidence gaps",
+    text: "Missing proof: callback lag by rep, estimate-to-booked drop-off, and whether missed follow-up is a budget problem or an execution problem.",
+  },
+  {
+    title: "Homepage angle",
+    text: "Lead with the jobs lost between estimate and callback, not generic AI automation language.",
+  },
+  {
+    title: "Next validation moves",
+    text: "Audit ten recent leads, interview two dispatch managers, and compare current callback timing against closed-won outcomes.",
+  },
+] as const;
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -236,7 +259,7 @@ function LoginPromptModal({
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
             <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this prompt into AI Cofounder so you can keep going from the dashboard instead of losing the thought.
             </p>
           </div>
           <button
@@ -482,12 +505,12 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+      <section aria-label="Sample founder brief preview" className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
           <div className="max-w-md">
-            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample first deliverable</div>
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample founder brief</div>
             <h2 className="mt-4 text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-stone-950">
-              Inspect the artifact before you trust the workflow.
+              Inspect the brief before you trust the workflow.
             </h2>
             <p className="mt-4 text-sm leading-7 text-stone-600">
               The first output is not a vague pep talk. It reads like a working founder brief with a testable claim, evidence gaps, and homepage language you
@@ -498,10 +521,31 @@ export default function LandingPage() {
           <div className="rounded-[1.9rem] border border-stone-200/80 bg-[#fcfaf7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3 rounded-[1.5rem] border border-stone-200 bg-white px-4 py-4 shadow-[0_12px_30px_rgba(52,39,21,0.06)]">
               <div>
-                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Previewed founder artifact</div>
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Previewed founder brief</div>
                 <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-stone-950">Positioning brief v1</div>
               </div>
               <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">Generated from interviews + homepage draft</div>
+            </div>
+
+            <div className="mt-4 rounded-[1.5rem] border border-stone-200/80 bg-[linear-gradient(180deg,#f7efe3_0%,#fcfaf7_100%)] px-4 py-4 shadow-[0_12px_30px_rgba(52,39,21,0.04)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Inside the brief</div>
+                  <div className="mt-2 text-sm font-semibold tracking-[-0.02em] text-stone-950">The brief opens with the sections founders usually scan first.</div>
+                </div>
+                <div className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  Brief preview
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {sampleBriefSections.map((section) => (
+                  <div key={section.title} className="rounded-[1.2rem] border border-white/80 bg-white/90 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{section.title}</div>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">{section.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3">
@@ -514,7 +558,7 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-4 rounded-[1.4rem] border border-stone-950 bg-stone-950 px-4 py-4 text-stone-50 shadow-[0_20px_55px_rgba(20,16,12,0.18)]">
-              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-400">Homepage opening to test</div>
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-400">Homepage angle to test</div>
               <p className="mt-2 text-sm leading-7 text-stone-200">
                 AI Cofounder helps service operators follow up with every lead fast enough to save the jobs that usually disappear between estimate and
                 callback.
