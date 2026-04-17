@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -98,9 +98,11 @@ describe("LandingPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
-    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
-    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    const loginDialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(loginDialog).toBeInTheDocument();
+    expect(within(loginDialog).getByText("Prompt preview")).toBeInTheDocument();
+    expect(within(loginDialog).getByText(/Validate an AI workflow before I build it\./i)).toBeInTheDocument();
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
@@ -148,11 +150,20 @@ describe("LandingPage", () => {
   it("renders an inspectable sample founder artifact preview with concrete output", () => {
     render(<LandingPage />);
 
-    expect(screen.getByText(/Sample first deliverable/i)).toBeInTheDocument();
-    expect(screen.getByText(/Positioning brief v1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
-    expect(screen.getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
-    expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
+    const briefPreview = screen.getByRole("region", { name: /Sample founder brief preview/i });
+
+    expect(within(briefPreview).getByText(/Sample founder brief/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Positioning brief v1/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Inside the brief/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Problem \/ buyer/i)).toBeInTheDocument();
+    expect(within(briefPreview).getAllByText(/Claim to test/i)).toHaveLength(2);
+    expect(within(briefPreview).getByText(/Next validation moves/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Faster, more consistent callback coverage could recover booked jobs/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Missing proof: callback lag by rep, estimate-to-booked drop-off/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Lead with the jobs lost between estimate and callback/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
+    expect(within(briefPreview).getByText(/Homepage angle to test/i)).toBeInTheDocument();
   });
 
   it("tracks all primary CTA clicks", async () => {
