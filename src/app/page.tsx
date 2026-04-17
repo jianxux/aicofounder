@@ -118,6 +118,11 @@ const focusPresets = [
       "If the workaround is spreadsheets plus manual follow-up, quantify the wasted time before promising automation.",
       "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
     ],
+    commitments: [
+      "The buyer pain, workaround, and urgency signals worth trusting first.",
+      "The exact demand assumption that still needs real proof.",
+      "The next validation move required before building or pitching harder.",
+    ],
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
   },
   {
@@ -134,6 +139,11 @@ const focusPresets = [
       "Founders who win here explain the problem more clearly, not just the product.",
       "Your next move is tightening the positioning claim before shipping the homepage.",
     ],
+    commitments: [
+      "The sharpest buyer-facing problem framing to anchor the story.",
+      "The positioning angle that sounds specific instead of interchangeable.",
+      "The next message or homepage test to run before rewriting everything.",
+    ],
     sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
   },
   {
@@ -149,6 +159,11 @@ const focusPresets = [
     insightPoints: [
       "Sequence the work so each conversation or experiment earns the right to make the next decision.",
       "Name the metric or learning target before you draft the task list.",
+    ],
+    commitments: [
+      "The key uncertainty this session should close first.",
+      "The decision filter for what deserves attention this week.",
+      "The next three founder moves with a clear learning goal behind each.",
     ],
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
   },
@@ -428,6 +443,18 @@ export default function LandingPage() {
                     ))}
                   </div>
                 </form>
+
+                <div className="mx-auto mt-4 max-w-3xl rounded-[1.6rem] border border-stone-200 bg-[#f7f1e6] px-5 py-5 text-left shadow-[0_16px_40px_rgba(28,25,23,0.04)]">
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">What you should leave with</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {activePreset.commitments.map((item, index) => (
+                      <div key={item} className="rounded-[1.25rem] border border-stone-200 bg-white/90 px-4 py-4">
+                        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-400">Commitment {index + 1}</div>
+                        <p className="mt-2 text-sm leading-6 text-stone-700">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="mt-6 grid gap-4 text-left lg:grid-cols-[1.05fr_0.95fr]">
                   <div className="rounded-[1.6rem] border border-stone-200 bg-stone-950 p-5 text-stone-50">
