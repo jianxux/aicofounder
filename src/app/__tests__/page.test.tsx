@@ -69,6 +69,10 @@ describe("LandingPage", () => {
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
+    expect(screen.getByText(/What you should leave with/i)).toBeInTheDocument();
+    expect(screen.getByText(/The buyer pain, workaround, and urgency signals worth trusting first\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The exact demand assumption that still needs real proof\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The next validation move required before building or pitching harder\./i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
@@ -86,6 +90,10 @@ describe("LandingPage", () => {
     expect(screen.getByDisplayValue("Keep my draft intact.")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you have signal scattered across notes/i)).toBeInTheDocument();
     expect(screen.getByText("Prioritize the next 3 moves")).toBeInTheDocument();
+    expect(screen.getByText(/The key uncertainty this session should close first\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The decision filter for what deserves attention this week\./i)).toBeInTheDocument();
+    expect(screen.getByText(/The next three founder moves with a clear learning goal behind each\./i)).toBeInTheDocument();
+    expect(screen.queryByText(/The buyer pain, workaround, and urgency signals worth trusting first\./i)).not.toBeInTheDocument();
     expect(screen.getByText("Next-step plan")).toBeInTheDocument();
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
