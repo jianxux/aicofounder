@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
+import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
@@ -62,11 +63,7 @@ export default function DashboardPage() {
       const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
 
       setPrefilledOnboardingIntake(
-        shouldShowDraftHandoff
-          ? {
-              primaryIdea: landingPromptDraft,
-            }
-          : {},
+        shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
       );
       setProjects(loadedProjects);
       setShowOnboarding(
