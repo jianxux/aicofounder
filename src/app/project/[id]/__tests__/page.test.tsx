@@ -439,6 +439,26 @@ describe("ProjectWorkspacePage", () => {
     expect(within(snapshot).queryByRole("link", { name: "javascript:alert(1)" })).not.toBeInTheDocument();
   });
 
+  it("parses existing url or homepage into the snapshot reference link", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        description: [
+          "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
+          "Existing URL or homepage: https://example.com/homepage",
+        ].join("\n"),
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByRole("link", { name: "https://example.com/homepage" })).toHaveAttribute(
+      "href",
+      "https://example.com/homepage",
+    );
+  });
+
   it("falls back to the active artifact state for the snapshot next move when phase tasks are complete", async () => {
     mockGetProject.mockResolvedValue(
       makeProject({

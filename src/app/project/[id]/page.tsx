@@ -183,9 +183,9 @@ function parseDescriptionMetadata(description: string) {
       continue;
     }
 
-    const referenceUrlMatch = line.match(/^reference url\s*:\s*(.+)$/i);
+    const referenceUrlMatch = line.match(/^(reference url|existing url or homepage)\s*:\s*(.+)$/i);
     if (referenceUrlMatch) {
-      metadata.referenceUrl = referenceUrlMatch[1].trim();
+      metadata.referenceUrl = referenceUrlMatch[2].trim();
       continue;
     }
 
