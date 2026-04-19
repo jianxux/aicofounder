@@ -151,6 +151,22 @@ describe("lib/projects async wrappers", () => {
     expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([project]);
   });
 
+  it("createProject persists a provided initial project when Supabase is not configured", async () => {
+    const projectsModule = await loadProjectsModule({ isSupabaseConfigured: false });
+    const initialProject = makeProject({
+      id: "initial-project",
+      name: "Personalized Project",
+      description: "Personalized description",
+    });
+
+    const project = await projectsModule.createProject(initialProject);
+
+    expect(project.id).toBe("initial-project");
+    expect(project.name).toBe("Personalized Project");
+    expect(project.description).toBe("Personalized description");
+    expect(JSON.parse(localStorage.getItem("aicofounder.projects") ?? "[]")).toEqual([project]);
+  });
+
   it("createProject delegates to supabase-projects when Supabase is configured", async () => {
     const createdProject = makeProject({ id: "remote-create" });
     const createSupabaseProject = vi.fn().mockResolvedValue(createdProject);
@@ -159,7 +175,13 @@ describe("lib/projects async wrappers", () => {
       supabaseProjectsMock: { createSupabaseProject },
     });
 
-    await expect(projectsModule.createProject()).resolves.toEqual(createdProject);
-    expect(createSupabaseProject).toHaveBeenCalledTimes(1);
+    const initialProject = makeProject({
+      id: "initial-project",
+      name: "Personalized Project",
+      description: "Personalized description",
+    });
+
+    await expect(projectsModule.createProject(initialProject)).resolves.toEqual(createdProject);
+    expect(createSupabaseProject).toHaveBeenCalledWith(initialProject);
   });
 });
