@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
@@ -11,6 +11,10 @@ import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
 const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
+
+function getLandingPromptDraft() {
+  return window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -51,6 +55,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
+  const onboardingOpenedManuallyRef = useRef(false);
 
   useEffect(() => {
     void trackEvent("dashboard_view", {
@@ -58,8 +63,14 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+      const landingPromptDraft = getLandingPromptDraft();
       const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+
+      setProjects(loadedProjects);
+
+      if (onboardingOpenedManuallyRef.current) {
+        return;
+      }
 
       setPrefilledOnboardingIntake(
         shouldShowDraftHandoff
@@ -68,7 +79,6 @@ export default function DashboardPage() {
             }
           : {},
       );
-      setProjects(loadedProjects);
       setShowOnboarding(
         loadedProjects.length === 0 &&
           (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
@@ -77,12 +87,22 @@ export default function DashboardPage() {
   }, []);
 
   const handleOpenOnboarding = () => {
+    const landingPromptDraft = getLandingPromptDraft();
+
+    onboardingOpenedManuallyRef.current = true;
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    setPrefilledOnboardingIntake(
+      landingPromptDraft
+        ? {
+            primaryIdea: landingPromptDraft,
+          }
+        : {},
+    );
     setShowOnboarding(true);
   };
 
   const handleSkipOnboarding = () => {
+    onboardingOpenedManuallyRef.current = false;
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
     setPrefilledOnboardingIntake({});
@@ -114,6 +134,7 @@ export default function DashboardPage() {
       source: "onboarding",
     });
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    onboardingOpenedManuallyRef.current = false;
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
