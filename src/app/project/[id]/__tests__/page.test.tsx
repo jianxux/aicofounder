@@ -570,6 +570,107 @@ describe("ProjectWorkspacePage", () => {
     expect(within(snapshot).getByText("Run research to generate the first customer research memo.")).toBeInTheDocument();
   });
 
+  it("shows the active artifact header state and next move for an empty validation scorecard", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const activeArtifactSection = await screen.findByLabelText("Active artifact");
+
+    expect(within(activeArtifactSection).getByText("Needs first draft")).toBeInTheDocument();
+    expect(within(activeArtifactSection).getByText("No draft yet")).toBeInTheDocument();
+    expect(
+      within(activeArtifactSection).getByText("Use chat to capture the strongest signal and the biggest open risk."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the active artifact header state and next move for a populated customer research memo", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: {
+              status: "success",
+              researchQuestion: "What should we learn first?",
+              sourceContext: "Saved locally",
+              updatedAt: "2025-01-10T00:00:00.000Z",
+              artifact: {
+                status: "completed",
+              },
+              report: {
+                sections: [],
+                executiveSummary: "Independent practices feel the pain most acutely.",
+                researchQuestion: "What should we learn first?",
+                generatedAt: "2025-01-10T00:00:00.000Z",
+              },
+            },
+          },
+        ],
+        activeArtifactId: "artifact-customer-research-memo",
+        research: {
+          status: "success",
+          researchQuestion: "What should we learn first?",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          artifact: {
+            status: "completed",
+          },
+          report: {
+            sections: [],
+            executiveSummary: "Independent practices feel the pain most acutely.",
+            researchQuestion: "What should we learn first?",
+            generatedAt: "2025-01-10T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const activeArtifactSection = await screen.findByLabelText("Active artifact");
+
+    expect(within(activeArtifactSection).getByText("Ready to refine")).toBeInTheDocument();
+    expect(within(activeArtifactSection).getByText("Draft is ready")).toBeInTheDocument();
+    expect(
+      within(activeArtifactSection).getByText(
+        "Review the memo and tighten the strongest finding, contradiction, or evidence gap.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("shows promoted project memory alongside the active artifact in the workspace", async () => {
     mockGetProject.mockResolvedValue(
       makeProject({
