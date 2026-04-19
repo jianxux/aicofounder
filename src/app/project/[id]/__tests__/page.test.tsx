@@ -387,6 +387,189 @@ describe("ProjectWorkspacePage", () => {
     expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("artifact-follow-up");
   });
 
+  it("renders the project snapshot with parsed metadata and task-driven next move", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        description: [
+          "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
+          "Target user: Solo immigration lawyers",
+          "Main uncertainty: Whether firms will trust automated matter summaries",
+          "Reference URL: https://example.com/research",
+        ].join("\n"),
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByText("Project snapshot")).toBeInTheDocument();
+    expect(
+      within(snapshot).getByText(
+        "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(snapshot).getByText("Solo immigration lawyers")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Whether firms will trust automated matter summaries")).toBeInTheDocument();
+    expect(within(snapshot).getByRole("link", { name: "https://example.com/research" })).toHaveAttribute(
+      "href",
+      "https://example.com/research",
+    );
+    expect(within(snapshot).getByText("Discovery")).toBeInTheDocument();
+    expect(within(snapshot).getByText("1/2 done")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Interview users")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Complete task: Interview users.")).toBeInTheDocument();
+  });
+
+  it("renders an unsafe snapshot reference URL as plain text instead of a link", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        description: [
+          "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
+          "Reference URL: javascript:alert(1)",
+        ].join("\n"),
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByText("javascript:alert(1)")).toBeInTheDocument();
+    expect(within(snapshot).queryByRole("link", { name: "javascript:alert(1)" })).not.toBeInTheDocument();
+  });
+
+  it("parses existing url or homepage into the snapshot reference link", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        description: [
+          "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
+          "Existing URL or homepage: https://example.com/homepage",
+        ].join("\n"),
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByRole("link", { name: "https://example.com/homepage" })).toHaveAttribute(
+      "href",
+      "https://example.com/homepage",
+    );
+  });
+
+  it("falls back to the active artifact state for the snapshot next move when phase tasks are complete", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: true }],
+          },
+        ],
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "Early demand signal looks promising.",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByText("1/1 done")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Refine validation scorecard")).toBeInTheDocument();
+    expect(
+      within(snapshot).getByText(
+        "Refine the validation scorecard by challenging weak evidence and updating the next check.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps customer research memo in create mode when a failed run has no usable report output", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: true }],
+          },
+        ],
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "",
+            criteria: [],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: {
+              status: "error",
+              researchQuestion: "What should we learn first?",
+              sourceContext: "Saved locally",
+              updatedAt: "2025-01-10T00:00:00.000Z",
+              artifact: {
+                status: "failed",
+                metrics: {
+                  attemptedAngles: 2,
+                },
+              },
+            },
+          },
+        ],
+        activeArtifactId: "artifact-customer-research-memo",
+        research: {
+          status: "error",
+          researchQuestion: "What should we learn first?",
+          sourceContext: "Saved locally",
+          updatedAt: "2025-01-10T00:00:00.000Z",
+          artifact: {
+            status: "failed",
+            metrics: {
+              attemptedAngles: 2,
+            },
+          },
+        },
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("create");
+    expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("create");
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByText("Create customer research memo")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Run research to generate the first customer research memo.")).toBeInTheDocument();
+  });
+
   it("shows promoted project memory alongside the active artifact in the workspace", async () => {
     mockGetProject.mockResolvedValue(
       makeProject({
@@ -1318,6 +1501,51 @@ describe("ProjectWorkspacePage", () => {
         }),
       );
     });
+  });
+
+  it("keeps the current active phase when asked to switch to an invalid phase id", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        phase: "Discovery",
+        phases: [
+          {
+            id: "discovery",
+            title: "Discovery",
+            tasks: [{ id: "task-1", label: "Interview users", done: false }],
+          },
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-2", label: "Create MVP", done: false }],
+          },
+        ],
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    const snapshot = await screen.findByLabelText("Project snapshot");
+
+    expect(within(snapshot).getByText("Discovery")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Complete task: Interview users.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Activate build phase" })[0]);
+
+    await waitFor(() => {
+      expect(within(snapshot).getByText("Build")).toBeInTheDocument();
+    });
+    expect(within(snapshot).getByText("Complete task: Create MVP.")).toBeInTheDocument();
+
+    const saveCallCountAfterValidSwitch = mockSaveProject.mock.calls.length;
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Activate missing phase" })[0]);
+
+    await waitFor(() => {
+      expect(within(snapshot).getByText("Build")).toBeInTheDocument();
+    });
+    expect(within(snapshot).getByText("Complete task: Create MVP.")).toBeInTheDocument();
+    expect(within(snapshot).queryByText("Complete task: Interview users.")).not.toBeInTheDocument();
+    expect(mockSaveProject).toHaveBeenCalledTimes(saveCallCountAfterValidSwitch);
   });
 
   it("advances to the next phase when the last open task is completed", async () => {
