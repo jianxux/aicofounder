@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -68,6 +68,10 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
+    expect(screen.getByText("Optional context")).toBeInTheDocument();
+    expect(screen.getByLabelText("Existing URL or homepage")).toBeInTheDocument();
+    expect(screen.getByLabelText("Who the customer is")).toBeInTheDocument();
+    expect(screen.getByLabelText("Biggest uncertainty or decision")).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
@@ -90,22 +94,64 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
-  it("opens a login prompt modal when a visitor submits a hero prompt", () => {
+  it("opens a login prompt modal when a visitor submits a hero prompt with optional context appended to the draft", () => {
     render(<LandingPage />);
+
+    const combinedDraft = [
+      "Validate an AI workflow before I build it.",
+      "Existing URL or homepage: https://example.com",
+      "Who the customer is: Ops leads at 50 to 200 person home-service companies",
+      "Biggest uncertainty or decision: Whether the pain is urgent enough to change budget behavior",
+    ].join("\n\n");
 
     fireEvent.change(screen.getByLabelText("I want to"), {
       target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.change(screen.getByLabelText("Existing URL or homepage"), {
+      target: { value: "https://example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Who the customer is"), {
+      target: { value: "Ops leads at 50 to 200 person home-service companies" },
+    });
+    fireEvent.change(screen.getByLabelText("Biggest uncertainty or decision"), {
+      target: { value: "Whether the pain is urgent enough to change budget behavior" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
     expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
-    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
-    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    expect(screen.getByText((_, element) => element?.textContent === combinedDraft)).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(combinedDraft);
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",
     });
+  });
+
+  it("preserves the original prompt when optional context fields are blank", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.change(screen.getByLabelText("Existing URL or homepage"), {
+      target: { value: "   " },
+    });
+    fireEvent.change(screen.getByLabelText("Who the customer is"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("Biggest uncertainty or decision"), {
+      target: { value: " " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Prompt preview").nextElementSibling).toHaveTextContent(
+      "Validate an AI workflow before I build it.",
+    );
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
   });
 
   it("closes the login prompt modal on Escape", () => {

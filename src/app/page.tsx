@@ -250,7 +250,9 @@ function LoginPromptModal({
 
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
-          <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">
+            {promptDraft || "Start with an idea, problem, or question."}
+          </p>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -270,12 +272,49 @@ function LoginPromptModal({
   );
 }
 
+function buildLandingPromptDraft({
+  heroPrompt,
+  existingUrl,
+  customer,
+  uncertainty,
+}: {
+  heroPrompt: string;
+  existingUrl: string;
+  customer: string;
+  uncertainty: string;
+}) {
+  const nextPrompt = heroPrompt.trim();
+
+  if (!nextPrompt) {
+    return "";
+  }
+
+  const optionalSections = [
+    ["Existing URL or homepage", existingUrl.trim()],
+    ["Who the customer is", customer.trim()],
+    ["Biggest uncertainty or decision", uncertainty.trim()],
+  ]
+    .filter(([, value]) => value)
+    .map(([label, value]) => `${label}: ${value}`);
+
+  return optionalSections.length > 0 ? [nextPrompt, ...optionalSections].join("\n\n") : nextPrompt;
+}
+
 export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
+  const [existingUrl, setExistingUrl] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [uncertainty, setUncertainty] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const heroPromptDraft = buildLandingPromptDraft({
+    heroPrompt,
+    existingUrl,
+    customer,
+    uncertainty,
+  });
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -287,7 +326,7 @@ export default function LandingPage() {
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
-    const nextPrompt = heroPrompt.trim();
+    const nextPrompt = heroPromptDraft;
     if (!nextPrompt) {
       return;
     }
@@ -313,7 +352,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPromptDraft} onClose={() => setShowLoginPrompt(false)} />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
@@ -404,6 +443,38 @@ export default function LandingPage() {
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
+                    <div className="mt-4 border-t border-stone-200 pt-4">
+                      <div className="text-left text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Optional context</div>
+                      <div className="mt-3 grid gap-3">
+                        <label className="block text-left">
+                          <span className="text-sm font-medium text-stone-600">Existing URL or homepage</span>
+                          <input
+                            type="text"
+                            value={existingUrl}
+                            onChange={(event) => setExistingUrl(event.target.value)}
+                            className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-stone-300"
+                          />
+                        </label>
+                        <label className="block text-left">
+                          <span className="text-sm font-medium text-stone-600">Who the customer is</span>
+                          <input
+                            type="text"
+                            value={customer}
+                            onChange={(event) => setCustomer(event.target.value)}
+                            className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-stone-300"
+                          />
+                        </label>
+                        <label className="block text-left">
+                          <span className="text-sm font-medium text-stone-600">Biggest uncertainty or decision</span>
+                          <input
+                            type="text"
+                            value={uncertainty}
+                            onChange={(event) => setUncertainty(event.target.value)}
+                            className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition placeholder:text-stone-400 focus:border-stone-300"
+                          />
+                        </label>
+                      </div>
+                    </div>
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
                       <button
