@@ -53,6 +53,24 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
       "Would operators switch from spreadsheets for better forecasting alone, or only if the tool also recommends concrete reorder actions?",
   },
 ];
+const SOURCE_MATERIAL_EXAMPLES = [
+  {
+    title: "Homepage copy or URL",
+    detail: "Anchor the problem, promise, and positioning.",
+  },
+  {
+    title: "Interview notes",
+    detail: "Capture repeated pain points and language.",
+  },
+  {
+    title: "Support or sales questions",
+    detail: "Surface objections, use cases, and urgency.",
+  },
+  {
+    title: "Competitor pages or workarounds",
+    detail: "Show alternatives and where you can differentiate.",
+  },
+] as const;
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
   "[href]",
@@ -77,6 +95,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const primaryIdeaInputRef = useRef<HTMLTextAreaElement | null>(null);
   const stepThreeHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
@@ -86,26 +105,30 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   };
 
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
       const nextPrimaryIdea = initialIntake?.primaryIdea?.trim() ?? "";
       setStep(nextPrimaryIdea ? 2 : 1);
       setPrimaryIdea(nextPrimaryIdea);
       setUrl(initialIntake?.url?.trim() ?? "");
       setTargetUser(initialIntake?.targetUser?.trim() ?? "");
       setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
-      return;
+      setSelectedStarterIndex(null);
     }
 
-    if (previouslyFocusedElementRef.current && previouslyFocusedElementRef.current.isConnected) {
-      previouslyFocusedElementRef.current.focus();
+    if (!open && wasOpenRef.current) {
+      if (previouslyFocusedElementRef.current && previouslyFocusedElementRef.current.isConnected) {
+        previouslyFocusedElementRef.current.focus();
+      }
+      previouslyFocusedElementRef.current = null;
+      setStep(1);
+      setPrimaryIdea("");
+      setUrl("");
+      setTargetUser("");
+      setMainUncertainty("");
+      setSelectedStarterIndex(null);
     }
-    previouslyFocusedElementRef.current = null;
-    setStep(1);
-    setPrimaryIdea("");
-    setUrl("");
-    setTargetUser("");
-    setMainUncertainty("");
-    setSelectedStarterIndex(null);
+
+    wasOpenRef.current = open;
   }, [initialIntake, open]);
 
   useEffect(() => {
@@ -141,6 +164,12 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   }, [open, step]);
 
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onSkip();
+      return;
+    }
+
     if (event.key !== "Tab" || !dialogRef.current) {
       return;
     }
@@ -347,6 +376,31 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 </div>
               </section>
 
+              <section
+                aria-label="Source material guidance"
+                className="rounded-[28px] border border-stone-200/90 bg-stone-50/80 p-5"
+              >
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Source material guidance
+                </div>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  You can paste or summarize materials into the fields today. Uploads are not
+                  enabled yet, so bring over the parts that best frame the brief.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {SOURCE_MATERIAL_EXAMPLES.map((example) => (
+                    <div
+                      key={example.title}
+                      className="rounded-[20px] border border-stone-200 bg-white/90 px-4 py-3"
+                    >
+                      <p className="text-sm leading-6 text-stone-700">
+                        {example.title}: {example.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">What are you thinking about building?</span>
                 <textarea
@@ -365,6 +419,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">Relevant URL (optional)</span>
                 <input
+                  type="url"
                   value={url}
                   onChange={(event) => {
                     clearSelectedStarter();

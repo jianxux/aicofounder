@@ -148,6 +148,34 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
   });
 
+  it("step 2 shows source material guidance for pasting or summarizing inputs without implying uploads are live", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    const guidance = screen.getByRole("region", { name: "Source material guidance" });
+
+    expect(guidance).toBeInTheDocument();
+    expect(
+      within(guidance).getByText(/paste or summarize materials into the fields today/i),
+    ).toBeInTheDocument();
+    expect(within(guidance).getByText(/uploads are not enabled yet/i)).toBeInTheDocument();
+    expect(within(guidance).queryByText(/upload files now/i)).not.toBeInTheDocument();
+
+    expect(
+      within(guidance).getByText(/homepage copy or url.*anchor the problem, promise, and positioning/i),
+    ).toBeInTheDocument();
+    expect(
+      within(guidance).getByText(/interview notes.*capture repeated pain points and language/i),
+    ).toBeInTheDocument();
+    expect(
+      within(guidance).getByText(/support or sales questions.*surface objections, use cases, and urgency/i),
+    ).toBeInTheDocument();
+    expect(
+      within(guidance).getByText(/competitor pages or workarounds.*show alternatives and where you can differentiate/i),
+    ).toBeInTheDocument();
+  });
+
   it("prefills the intake fields when a starter brief is selected", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -295,6 +323,14 @@ describe("OnboardingModal", () => {
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
 
+  it("calls onSkip when Escape is pressed", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
   it("traps keyboard focus within the dialog while open", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -386,6 +422,56 @@ describe("OnboardingModal", () => {
       "Carry this prompt into onboarding.",
     );
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("preserves in-progress edits when initialIntake rerenders with a fresh object while open", () => {
+    const { rerender } = render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          url: "https://initial.example.com",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "Edited while the modal is open." },
+    });
+    fireEvent.change(screen.getByLabelText("Relevant URL (optional)"), {
+      target: { value: "https://edited.example.com" },
+    });
+
+    rerender(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Fresh object that should not clobber edits.",
+          url: "https://fresh.example.com",
+          targetUser: "Different founders",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Edited while the modal is open.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("https://edited.example.com");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("uses url input semantics for the relevant URL field", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveAttribute("type", "url");
   });
 
   it("restores focus to the previously active element when closed", () => {
