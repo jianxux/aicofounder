@@ -246,6 +246,25 @@ function getArtifactStateFocus(activeArtifact: ProjectArtifact | null, hasOutput
   return hasOutput ? "Refine validation scorecard" : "Create validation scorecard";
 }
 
+function getArtifactWorkspaceSummary(activeArtifact: ProjectArtifact | null, hasOutput: boolean) {
+  if (!activeArtifact) {
+    return {
+      stateLabel: "Choose artifact",
+      summaryLabel: "No artifact selected",
+      nextAction: "Choose the artifact to update next.",
+    };
+  }
+
+  return {
+    stateLabel: hasOutput ? "Ready to refine" : "Needs first draft",
+    summaryLabel: hasOutput ? "Draft is ready" : "No draft yet",
+    nextAction:
+      activeArtifact.type === "validation-scorecard" && !hasOutput
+        ? "Use chat to capture the strongest signal and the biggest open risk."
+        : getArtifactStateNextMove(activeArtifact, hasOutput),
+  };
+}
+
 function deriveProjectSnapshot(
   project: Pick<Project, "name" | "description">,
   activePhase: Phase | null,
@@ -327,16 +346,20 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
 function ArtifactWorkspaceHeader({
   artifacts,
   activeArtifact,
+  activeArtifactHasOutput,
   isRefineMode,
   onSetActiveArtifact,
 }: {
   artifacts: ProjectArtifact[];
   activeArtifact: ProjectArtifact | null;
+  activeArtifactHasOutput: boolean;
   isRefineMode: boolean;
   onSetActiveArtifact: (artifactId: string) => void;
 }) {
+  const workspaceSummary = getArtifactWorkspaceSummary(activeArtifact, activeArtifactHasOutput);
+
   return (
-    <section className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+    <section aria-label="Active artifact" className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-4 rounded-3xl border border-stone-200 bg-[#f4efe7] p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -358,6 +381,20 @@ function ArtifactWorkspaceHeader({
               </span>
             </div>
           ) : null}
+        </div>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,180px)_minmax(0,180px)_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Current state</div>
+            <p className="mt-2 text-sm font-medium text-stone-800">{workspaceSummary.stateLabel}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Summary</div>
+            <p className="mt-2 text-sm font-medium text-stone-800">{workspaceSummary.summaryLabel}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Suggested next action</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{workspaceSummary.nextAction}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {artifacts.map((artifact) => (
@@ -1267,6 +1304,7 @@ export default function ProjectWorkspacePage() {
         <ArtifactWorkspaceHeader
           artifacts={project.artifacts ?? []}
           activeArtifact={activeArtifact}
+          activeArtifactHasOutput={activeArtifactHasOutput}
           isRefineMode={activeArtifactHasOutput}
           onSetActiveArtifact={handleSetActiveArtifact}
         />
