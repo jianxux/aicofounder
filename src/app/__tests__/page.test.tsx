@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -120,7 +120,7 @@ describe("LandingPage", () => {
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
   });
 
-  it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
+  it("renders prompt-first proof, comparison framing, workflow moments, trust framing, and the first-session timeline", () => {
     render(<LandingPage />);
 
     [
@@ -141,6 +141,25 @@ describe("LandingPage", () => {
     ].forEach((value) => {
       expect(screen.getByText(value)).toBeInTheDocument();
     });
+
+    const comparisonSection = screen.getByText("Where AI Cofounder fits").closest("section");
+
+    expect(comparisonSection).not.toBeNull();
+
+    const comparisonRegion = comparisonSection as HTMLElement;
+    const comparisonLaneHeadings = within(comparisonRegion).getAllByRole("heading", { level: 3 });
+
+    expect(comparisonLaneHeadings).toHaveLength(3);
+    expect(comparisonLaneHeadings.map((heading) => heading.textContent)).toEqual([
+      "Generic AI builders",
+      "Research and testing tools",
+      "AI Cofounder",
+    ]);
+    expect(within(comparisonRegion).getAllByText("Best starting point")).toHaveLength(3);
+    expect(within(comparisonRegion).getAllByText("What you leave with")).toHaveLength(3);
+    expect(within(comparisonRegion).getAllByText("When it helps")).toHaveLength(3);
+    expect(within(comparisonRegion).getByText("A fuzzy founder question, rough pitch, or homepage claim that still needs a point of view.")).toBeInTheDocument();
+    expect(within(comparisonRegion).getByText("A founder-ready brief, homepage angle, and the next validation moves worth running now.")).toBeInTheDocument();
 
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
   });

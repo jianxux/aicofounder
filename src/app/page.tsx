@@ -103,6 +103,69 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const comparisonLanes = [
+  {
+    name: "Generic AI builders",
+    featured: false,
+    accent: "border-stone-200 bg-white text-stone-900",
+    headerTone: "text-stone-500",
+    rows: [
+      {
+        label: "Best starting point",
+        value: "You already know what you want to build and need help producing pages, flows, or code.",
+      },
+      {
+        label: "What you leave with",
+        value: "A faster draft of the product or artifact you already had in mind.",
+      },
+      {
+        label: "When it helps",
+        value: "After the direction is clear and execution speed matters more than pressure-testing the claim.",
+      },
+    ],
+  },
+  {
+    name: "Research and testing tools",
+    featured: false,
+    accent: "border-stone-200 bg-[#fcfaf7] text-stone-900",
+    headerTone: "text-stone-500",
+    rows: [
+      {
+        label: "Best starting point",
+        value: "You have a specific question, interview plan, or experiment to run.",
+      },
+      {
+        label: "What you leave with",
+        value: "Evidence, transcripts, survey results, or isolated learnings from a single step.",
+      },
+      {
+        label: "When it helps",
+        value: "When you need sharper signal inside one research task, not a founder-level synthesis across the whole story.",
+      },
+    ],
+  },
+  {
+    name: "AI Cofounder",
+    featured: true,
+    accent: "border-stone-900 bg-stone-950 text-stone-50",
+    headerTone: "text-stone-400",
+    rows: [
+      {
+        label: "Best starting point",
+        value: "A fuzzy founder question, rough pitch, or homepage claim that still needs a point of view.",
+      },
+      {
+        label: "What you leave with",
+        value: "A founder-ready brief, homepage angle, and the next validation moves worth running now.",
+      },
+      {
+        label: "When it helps",
+        value: "When you need to pressure-test the claim before you commit to the product story, roadmap, or build.",
+      },
+    ],
+  },
+] as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -532,6 +595,42 @@ export default function LandingPage() {
               <span>{item}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-6 lg:px-8">
+        <div className="rounded-[2.15rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(248,243,234,0.96)_100%)] p-6 shadow-[0_24px_80px_rgba(28,25,23,0.06)] lg:p-7">
+          <div className="max-w-2xl">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Where AI Cofounder fits</div>
+            <h2 className="mt-4 text-[clamp(1.95rem,3.6vw,3rem)] font-semibold leading-[1.02] tracking-[-0.05em] text-stone-950">
+              Use it when the founder question is still fuzzy, but the next decision matters.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              Builders help once the direction is set. Research tools help inside one task. AI Cofounder is for pressure-testing the claim and leaving with a sharper founder brief.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {comparisonLanes.map((lane) => (
+              <article key={lane.name} className={`rounded-[1.7rem] border p-5 shadow-[0_18px_55px_rgba(28,25,23,0.05)] ${lane.accent}`}>
+                <div className={`text-[0.72rem] font-semibold uppercase tracking-[0.22em] ${lane.headerTone}`}>Comparison lane</div>
+                <h3 className="mt-3 text-[1.35rem] font-semibold tracking-[-0.04em]">{lane.name}</h3>
+                <div className="mt-5 space-y-3">
+                  {lane.rows.map((row) => (
+                    <div
+                      key={row.label}
+                      className={`rounded-[1.2rem] border px-4 py-4 ${
+                        lane.featured ? "border-white/10 bg-white/5" : "border-stone-200 bg-white/75"
+                      }`}
+                    >
+                      <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${lane.headerTone}`}>{row.label}</div>
+                      <p className={`mt-2 text-sm leading-7 ${lane.featured ? "text-stone-200" : "text-stone-600"}`}>{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
