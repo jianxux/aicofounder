@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -154,6 +154,24 @@ const focusPresets = [
   },
 ] as const;
 
+const handoffSteps = [
+  {
+    number: "01",
+    title: "Start with the prompt",
+    body: "Drop in the founder question, messy draft, or market doubt you need to pressure-test first.",
+  },
+  {
+    number: "02",
+    title: "Choose the right focus",
+    body: "Pick a preset so the session knows whether to validate demand, sharpen positioning, or plan the next move.",
+  },
+  {
+    number: "03",
+    title: "Open the workspace with context",
+    body: "Carry that draft into AI Cofounder so the dashboard starts with the prompt, not a blank project.",
+  },
+] as const;
+
 function LandingLinkCta({
   button,
   children,
@@ -199,15 +217,60 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    previouslyFocusedElementRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+
+      if (focusableElements.length === 0) {
+        return;
+      }
+
+      const firstFocusableElement = focusableElements[0];
+      const lastFocusableElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const focusIsInsideDialog = activeElement ? dialog.contains(activeElement) : false;
+
+      if (event.shiftKey) {
+        if (!focusIsInsideDialog || activeElement === firstFocusableElement) {
+          event.preventDefault();
+          lastFocusableElement.focus();
+        }
+
+        return;
+      }
+
+      if (!focusIsInsideDialog || activeElement === lastFocusableElement) {
+        event.preventDefault();
+        firstFocusableElement.focus();
       }
     };
 
@@ -215,6 +278,8 @@ function LoginPromptModal({
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      previouslyFocusedElementRef.current?.focus();
+      previouslyFocusedElementRef.current = null;
     };
   }, [onClose, open]);
 
@@ -229,6 +294,7 @@ function LoginPromptModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        ref={dialogRef}
         className="w-full max-w-xl rounded-[2rem] border border-stone-200 bg-[#faf7f2] p-6 shadow-[0_32px_110px_rgba(28,25,23,0.18)] sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
@@ -241,6 +307,7 @@ function LoginPromptModal({
           </div>
           <button
             type="button"
+            ref={closeButtonRef}
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
           >
@@ -276,6 +343,9 @@ export default function LandingPage() {
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const handleCloseLoginPrompt = useCallback(() => {
+    setShowLoginPrompt(false);
+  }, []);
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -313,7 +383,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={handleCloseLoginPrompt} />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
@@ -353,6 +423,26 @@ export default function LandingPage() {
                   Start with the founder question you cannot shake.
                 </div>
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">{activePreset.description}</p>
+
+                <section
+                  aria-labelledby="handoff-steps-title"
+                  className="mx-auto mt-6 max-w-3xl rounded-[1.6rem] border border-stone-200 bg-white px-4 py-4 text-left shadow-[0_14px_34px_rgba(28,25,23,0.05)] sm:px-5"
+                >
+                  <h2 id="handoff-steps-title" className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                    How it works
+                  </h2>
+                  <ol className="mt-3 grid gap-3 md:grid-cols-3">
+                    {handoffSteps.map((step) => (
+                      <li key={step.number} className="list-none">
+                        <article className="h-full rounded-[1.25rem] border border-stone-200 bg-[#fcfaf6] px-4 py-4">
+                          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{step.number}</div>
+                          <h3 className="mt-2 text-sm font-semibold tracking-[-0.02em] text-stone-950">{step.title}</h3>
+                          <p className="mt-2 text-sm leading-6 text-stone-600">{step.body}</p>
+                        </article>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
 
                 <fieldset className="mx-auto mt-6 max-w-3xl text-left">
                   <legend className="sr-only">Choose your first focus</legend>

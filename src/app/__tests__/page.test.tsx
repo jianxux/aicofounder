@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -63,6 +64,15 @@ describe("LandingPage", () => {
 
     expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
     expect(screen.getByText(/Start with the founder question you cannot shake/i)).toBeInTheDocument();
+
+    const howItWorks = screen.getByRole("region", { name: /How it works/i });
+    const steps = within(howItWorks).getAllByRole("listitem");
+
+    expect(steps).toHaveLength(3);
+    expect(within(howItWorks).getByRole("heading", { level: 3, name: /Start with the prompt/i })).toBeInTheDocument();
+    expect(within(howItWorks).getByRole("heading", { level: 3, name: /Choose the right focus/i })).toBeInTheDocument();
+    expect(within(howItWorks).getByRole("heading", { level: 3, name: /Open the workspace with context/i })).toBeInTheDocument();
+
     expect(screen.getByRole("group", { name: /Choose your first focus/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Demand validation/i })).toBeChecked();
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
@@ -108,16 +118,50 @@ describe("LandingPage", () => {
     });
   });
 
-  it("closes the login prompt modal on Escape", () => {
+  it("moves focus into the login prompt modal and restores it on close", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    const sendButton = screen.getByRole("button", { name: "Send" });
+
+    sendButton.focus();
+    fireEvent.click(sendButton);
+
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(sendButton).toHaveFocus();
+  });
+
+  it("keeps keyboard tabbing inside the login prompt modal while it is open", async () => {
+    const user = userEvent.setup();
+
     render(<LandingPage />);
 
     fireEvent.change(screen.getByLabelText("I want to"), {
       target: { value: "Validate an AI workflow before I build it." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+    const closeButton = within(dialog).getByRole("button", { name: "Close" });
+    const continueButton = await within(dialog).findByRole("button", { name: "Continue with Google" });
+    const exploreLink = within(dialog).getByRole("link", { name: "Explore demo first" });
+
+    expect(closeButton).toHaveFocus();
+
+    await user.tab();
+    expect(continueButton).toHaveFocus();
+
+    await user.tab();
+    expect(exploreLink).toHaveFocus();
+
+    await user.tab();
+    expect(closeButton).toHaveFocus();
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
