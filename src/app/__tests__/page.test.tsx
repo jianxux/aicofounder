@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -49,6 +49,13 @@ beforeEach(() => {
 });
 
 describe("LandingPage", () => {
+  function expectChecklistStatus(label: string, status: "Complete" | "Incomplete") {
+    const item = screen.getByText(label).closest("li");
+
+    expect(item).not.toBeNull();
+    expect(within(item as HTMLElement).getByText(status)).toBeInTheDocument();
+  }
+
   it("tracks the landing page view on mount", () => {
     render(<LandingPage />);
 
@@ -68,9 +75,122 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /Prompt quality checklist/i })).toBeInTheDocument();
+    expect(screen.getByText("Name the buyer or customer")).toBeInTheDocument();
+    expect(screen.getByText("Include proof, evidence, or a metric")).toBeInTheDocument();
+    expect(screen.getByText("State the founder goal or decision")).toBeInTheDocument();
+    expectChecklistStatus("Name the buyer or customer", "Incomplete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Incomplete");
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+  });
+
+  it("updates the prompt quality checklist live as the textarea changes", () => {
+    render(<LandingPage />);
+
+    const promptInput = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptInput, {
+      target: { value: "Help me decide if property managers need this workflow." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+
+    fireEvent.change(promptInput, {
+      target: { value: "Help me decide if property managers need this workflow based on 12 interviews and a 15% conversion rate." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Complete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("does not treat a standalone number as proof", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide if dentists need this workflow for 2025." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("does not treat generic audience words alone as a named buyer", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide if founders or users on the team need this workflow." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Incomplete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("recognizes explicit founder audience phrases like seed-stage founders", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide if the target audience is seed-stage founders before I write the homepage." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("recognizes explicit audience phrases for teams, PMs, operators, and agencies", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide whether this is built for PMs and operators at small agencies and in-house teams." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("keeps proof incomplete when the prompt has a buyer and goal but no evidence", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide how restaurant owners should prioritize this workflow." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("marks evidence without a buyer when the prompt only includes proof and a goal", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide based on 8 interviews and 22% churn." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Incomplete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Complete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
+  });
+
+  it("does not treat generic data or results language alone as proof", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Help me decide if property managers need this workflow using more data and findings next quarter." },
+    });
+
+    expectChecklistStatus("Name the buyer or customer", "Complete");
+    expectChecklistStatus("Include proof, evidence, or a metric", "Incomplete");
+    expectChecklistStatus("State the founder goal or decision", "Complete");
   });
 
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
@@ -99,6 +219,7 @@ describe("LandingPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
     expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
@@ -118,6 +239,49 @@ describe("LandingPage", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps Tab focus inside the login prompt modal and wraps on Shift+Tab", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const promptInput = screen.getByLabelText("I want to");
+    const closeButton = screen.getByRole("button", { name: "Close" });
+
+    promptInput.focus();
+    expect(promptInput).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Tab" });
+
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+
+    expect(screen.getByRole("link", { name: "Explore demo first" })).toHaveFocus();
+  });
+
+  it("restores focus to the submit trigger after the login prompt closes", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+
+    const sendButton = screen.getByRole("button", { name: "Send" });
+    sendButton.focus();
+    expect(sendButton).toHaveFocus();
+
+    fireEvent.click(sendButton);
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(sendButton).toHaveFocus();
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {

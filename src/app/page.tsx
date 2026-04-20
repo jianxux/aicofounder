@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -154,6 +154,69 @@ const focusPresets = [
   },
 ] as const;
 
+const promptChecklistItems = [
+  {
+    id: "buyer",
+    label: "Name the buyer or customer",
+    helper: "Mention who experiences the problem, pays, or makes the choice.",
+  },
+  {
+    id: "proof",
+    label: "Include proof, evidence, or a metric",
+    helper: "Add a signal like interviews, conversion rate, revenue, time saved, or another concrete measure.",
+  },
+  {
+    id: "goal",
+    label: "State the founder goal or decision",
+    helper: "Say what you want to decide, validate, improve, or leave with after this prompt.",
+  },
+] as const;
+
+const buyerRolePattern =
+  /\b(property managers?|dentists?|accountants?|bookkeepers?|hr admins?|human resources admins?|ops leads?|operations leads?|restaurant owners?|recruiters?|coordinators?|consultants?|brokers?|nurses?|teachers?|lawyers?|marketers?|developers?|designers?|sellers?|parents?|students?)\b/i;
+
+const buyerContextPattern =
+  /\b(for|with|from|by|serving|serve|helps?|helping|used by|built for|sold to|sell to)\s+(?:(?:[a-z]+(?:[-/][a-z]+)?\s+){1,3}(customers?|buyers?)|(?:seed|series [ab]|growth)[-/\s]+stage founders?|founders?|operators?|product managers?|pms?|teams?|agencies?|property managers?|dentists?|accountants?|bookkeepers?|hr admins?|human resources admins?|ops leads?|operations leads?|restaurant owners?|recruiters?|coordinators?|consultants?|brokers?|nurses?|teachers?|lawyers?|marketers?|developers?|designers?|sellers?|parents?|students?)\b/i;
+
+const buyerAudiencePhrasePattern =
+  /\b(icp|ideal customer profile|audience|target audience|persona|target customer|target buyer|customer segment|buyer segment)\b[\s:,-]*(?:is|are|for)?\s*(?:(?:[a-z]+(?:[-/][a-z]+)?\s+){1,3}(customers?|buyers?)|(?:seed|series [ab]|growth)[-/\s]+stage founders?|founders?|operators?|product managers?|pms?|teams?|agencies?|property managers?|dentists?|accountants?|bookkeepers?|hr admins?|human resources admins?|ops leads?|operations leads?|restaurant owners?|recruiters?|coordinators?|consultants?|brokers?|nurses?|teachers?|lawyers?|marketers?|developers?|designers?|sellers?|parents?|students?)\b/i;
+
+const proofKeywordPattern =
+  /\b(metric|metrics|proof|evidence|benchmark|benchmarks|kpi|kpis|conversion|revenue|retention|churn|ctr|cac|ltv|nps|roi|interviews?|survey|surveys|arr|mrr)\b/i;
+
+const proofContextPattern =
+  /\b(data|results?|findings?)\b(?=[^.!?]{0,48}\b(from|based on|across|show(?:s|ing)?|measured|quantified|tracked)\b)(?=[^.!?]{0,80}\b(\d+(\.\d+)?\s*(%|percent|percentage points?|interviews?|survey|surveys|responses?|customers?|users?|teams?|hours?|minutes?|days?|weeks?|months?|years?|dollars?|usd|mrr|arr|revenue|conversion|conversions|conversion rate|churn|retention|ctr|cac|ltv|nps|roi)|interviews?|survey|surveys|benchmark|benchmarks|kpi|kpis|conversion|revenue|retention|churn|ctr|cac|ltv|nps|roi|arr|mrr)\b)/i;
+
+const measuredNumberPattern =
+  /\b\d+(\.\d+)?\s*(%|percent|percentage points?|interviews?|survey|surveys|responses?|customers?|users?|teams?|hours?|minutes?|days?|weeks?|months?|years?|dollars?|usd|mrr|arr|revenue|conversion|conversions|conversion rate|churn|retention|ctr|cac|ltv|nps|roi)\b/i;
+
+function getPromptChecklistState(prompt: string) {
+  const normalizedPrompt = prompt.trim().toLowerCase();
+
+  if (!normalizedPrompt) {
+    return {
+      buyer: false,
+      proof: false,
+      goal: false,
+    };
+  }
+
+  const buyer = buyerRolePattern.test(prompt) || buyerContextPattern.test(prompt) || buyerAudiencePhrasePattern.test(prompt);
+
+  const proof = proofKeywordPattern.test(prompt) || measuredNumberPattern.test(prompt) || proofContextPattern.test(prompt);
+
+  const goal =
+    /\b(decide|decision|goal|outcome|validate|validation|prove|learn|choose|prioritize|improve|increase|reduce|launch|ship|test|compare|find|figure out|understand|clarify|leave with|next step|next steps|plan)\b/i.test(
+      prompt,
+    );
+
+  return {
+    buyer,
+    proof,
+    goal,
+  };
+}
+
 function LandingLinkCta({
   button,
   children,
@@ -199,15 +262,57 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    focusableElements?.[0]?.focus();
+
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+
+      if (!focusableElements || focusableElements.length === 0) {
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+      const activeInsideDialog = activeElement instanceof Node && dialogRef.current?.contains(activeElement);
+
+      if (!activeInsideDialog) {
+        event.preventDefault();
+        (event.shiftKey ? lastElement : firstElement).focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
       }
     };
 
@@ -215,6 +320,7 @@ function LoginPromptModal({
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
     };
   }, [onClose, open]);
 
@@ -225,6 +331,7 @@ function LoginPromptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -276,6 +383,7 @@ export default function LandingPage() {
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const promptChecklistState = getPromptChecklistState(heroPrompt);
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -404,6 +512,48 @@ export default function LandingPage() {
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
+                    <section className="mt-4 rounded-[1.25rem] border border-stone-200 bg-white/80 p-3 sm:p-4" aria-live="polite" aria-label="Prompt quality checklist">
+                      <h2 className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Prompt quality checklist</h2>
+                      <ul className="mt-3 grid gap-2.5" role="list">
+                        {promptChecklistItems.map((item) => {
+                          const isComplete = promptChecklistState[item.id];
+
+                          return (
+                            <li
+                              key={item.id}
+                              className={`flex items-start gap-3 rounded-[1rem] border px-3 py-3 transition ${
+                                isComplete ? "border-emerald-200 bg-emerald-50/80" : "border-stone-200 bg-white"
+                              }`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full border text-[0.68rem] font-semibold ${
+                                  isComplete
+                                    ? "border-emerald-600 bg-emerald-600 text-white"
+                                    : "border-stone-300 bg-transparent text-stone-400"
+                                }`}
+                              >
+                                {isComplete ? "✓" : "•"}
+                              </span>
+                              <div className="min-w-0 text-left">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-semibold text-stone-800">{item.label}</span>
+                                  <span
+                                    aria-label={`${item.label}: ${isComplete ? "Complete" : "Incomplete"}`}
+                                    className={`rounded-full px-2 py-0.5 text-[0.68rem] font-medium ${
+                                      isComplete ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"
+                                    }`}
+                                  >
+                                    {isComplete ? "Complete" : "Incomplete"}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-sm leading-6 text-stone-500">{item.helper}</p>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
                       <button
