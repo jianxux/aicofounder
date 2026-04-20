@@ -125,6 +125,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(saveProject).mockResolvedValue();
@@ -327,6 +328,93 @@ describe("DashboardPage", () => {
     expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
       "Pressure-test this founder workflow idea.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
+  });
+
+  it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Pressure-test an AI copilot for founder research before writing code.",
+        "",
+        "Existing URL or homepage: https://example.com",
+        "Who the customer is: Seed-stage founders",
+        "Biggest uncertainty: Whether they want one workspace.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test an AI copilot for founder research before writing code.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("https://example.com");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they want one workspace.",
+    );
+  });
+
+  it("prefills structured landingPromptDraft fields from accepted label variants", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "An AI copilot for founder research that turns scattered notes into a validation plan.",
+        "",
+        "Reference URL: https://example.com/founder-research",
+        "Target user: Seed-stage founders",
+        "Main uncertainty: Whether they trust AI-generated synthesis.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI copilot for founder research that turns scattered notes into a validation plan.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue(
+      "https://example.com/founder-research",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they trust AI-generated synthesis.",
+    );
+  });
+
+  it("prefills onboarding when landingPromptDraft uses a labeled primary idea line", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Primary idea: An AI copilot for founder research that turns scattered notes into a validation plan.",
+        "Reference URL: https://example.com/founder-research",
+        "Target user: Seed-stage founders",
+        "Main uncertainty: Whether they trust AI-generated synthesis.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI copilot for founder research that turns scattered notes into a validation plan.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue(
+      "https://example.com/founder-research",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they trust AI-generated synthesis.",
     );
   });
 
