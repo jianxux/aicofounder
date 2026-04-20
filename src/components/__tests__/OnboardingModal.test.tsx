@@ -139,27 +139,56 @@ describe("OnboardingModal", () => {
     moveToIdeaStep();
 
     expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Retail demand planner/i })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Starter briefs" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Customer research copilot/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Retail demand planner/i })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toBeInTheDocument();
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
   });
 
+  it("shows concrete starter deliverables inside the brief cards", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    const researchStarter = screen.getByRole("radio", { name: /Customer research copilot/i });
+
+    expect(researchStarter).toHaveAccessibleName("Customer research copilot");
+    expect(researchStarter).toHaveAccessibleDescription(
+      "Turn interview notes and market links into next-step validation plans. You'll leave with A founder-ready validation brief with the sharpest problem to test first. A shortlist of interview themes and follow-up questions worth pursuing. A concrete next-step plan for research, synthesis, and early product scoping.",
+    );
+    expect(within(researchStarter).getByText("You'll leave with")).toBeInTheDocument();
+    expect(
+      within(researchStarter).getByText(
+        "A founder-ready validation brief with the sharpest problem to test first.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(researchStarter).getByText(
+        "A shortlist of interview themes and follow-up questions worth pursuing.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("prefills the intake fields when a starter brief is selected", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
-    const retailStarter = screen.getByRole("button", { name: /Retail demand planner/i });
+    const clinicStarter = screen.getByRole("radio", { name: /Ops assistant for clinics/i });
+    const retailStarter = screen.getByRole("radio", { name: /Retail demand planner/i });
 
-    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
-    expect(retailStarter).toHaveAttribute("aria-pressed", "false");
+    expect(clinicStarter).toHaveAttribute("aria-checked", "false");
+    expect(retailStarter).toHaveAttribute("aria-checked", "false");
 
     fireEvent.click(clinicStarter);
 
+    expect(within(clinicStarter).getByText("You'll leave with")).toBeInTheDocument();
+    expect(
+      within(clinicStarter).getByText("A workflow brief showing where scheduling and no-show recovery can be automated."),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
       "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
     );
@@ -170,8 +199,8 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
     );
-    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
-    expect(retailStarter).toHaveAttribute("aria-pressed", "false");
+    expect(clinicStarter).toHaveAttribute("aria-checked", "true");
+    expect(retailStarter).toHaveAttribute("aria-checked", "false");
     expect(clinicStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
   });
 
@@ -179,16 +208,16 @@ describe("OnboardingModal", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
-    const retailStarter = screen.getByRole("button", { name: /Retail demand planner/i });
+    const clinicStarter = screen.getByRole("radio", { name: /Ops assistant for clinics/i });
+    const retailStarter = screen.getByRole("radio", { name: /Retail demand planner/i });
 
     fireEvent.click(clinicStarter);
     expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
 
     fireEvent.click(retailStarter);
 
-    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
-    expect(retailStarter).toHaveAttribute("aria-pressed", "true");
+    expect(clinicStarter).toHaveAttribute("aria-checked", "false");
+    expect(retailStarter).toHaveAttribute("aria-checked", "true");
     expect(retailStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
       "A lightweight planning tool that helps Shopify brands forecast demand, time reorders, and spot risky stockouts before bestsellers go out of stock.",
@@ -196,21 +225,55 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
   });
 
+  it("updates focus, selection, and intake fields when navigating starter briefs with the keyboard", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const researchStarter = screen.getByRole("radio", { name: /Customer research copilot/i });
+    const clinicStarter = screen.getByRole("radio", { name: /Ops assistant for clinics/i });
+    const retailStarter = screen.getByRole("radio", { name: /Retail demand planner/i });
+
+    researchStarter.focus();
+    fireEvent.keyDown(researchStarter, { key: "ArrowRight" });
+
+    expect(clinicStarter).toHaveFocus();
+    expect(clinicStarter).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+    );
+
+    fireEvent.keyDown(clinicStarter, { key: "End" });
+
+    expect(retailStarter).toHaveFocus();
+    expect(retailStarter).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue(
+      "Operators at small e-commerce brands doing $1M-$10M in annual revenue",
+    );
+
+    fireEvent.keyDown(retailStarter, { key: "Home" });
+
+    expect(researchStarter).toHaveFocus();
+    expect(researchStarter).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Will founders trust an AI-generated brief enough to use it before talking to more customers?",
+    );
+  });
+
   it("clears the selected starter state after a manual intake edit", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+    const clinicStarter = screen.getByRole("radio", { name: /Ops assistant for clinics/i });
 
     fireEvent.click(clinicStarter);
-    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
+    expect(clinicStarter).toHaveAttribute("aria-checked", "true");
     expect(clinicStarter).toHaveClass("border-stone-900", "bg-stone-950", "text-white");
 
     fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
       target: { value: "A workflow assistant for independent clinics with custom routing." },
     });
 
-    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(clinicStarter).toHaveAttribute("aria-checked", "false");
     expect(clinicStarter).not.toHaveClass("border-stone-900", "bg-stone-950", "text-white");
   });
 
@@ -368,7 +431,34 @@ describe("OnboardingModal", () => {
     expect(screen.queryByDisplayValue("An AI copilot for founder research.")).not.toBeInTheDocument();
   });
 
-  it("prefills the intake and opens on the idea step when initialIntake is provided", () => {
+  it("prefills the intake, opens on the idea step, and selects the matching starter when initialIntake matches", () => {
+    render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea:
+            "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+          url: "",
+          targetUser: "Practice managers at independent primary care clinics",
+          mainUncertainty:
+            "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue(
+      "Practice managers at independent primary care clinics",
+    );
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("leaves all starter briefs unselected when initialIntake does not match a starter", () => {
     render(
       <OnboardingModal
         open
@@ -382,10 +472,78 @@ describe("OnboardingModal", () => {
     );
 
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
-    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
-      "Carry this prompt into onboarding.",
+    expect(screen.getByRole("radio", { name: /Customer research copilot/i })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /Retail demand planner/i })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("resyncs the selected starter when initialIntake updates while the modal is open", () => {
+    const { rerender } = render(
+      <OnboardingModal open onComplete={onComplete} onSkip={onSkip} initialIntake={{ primaryIdea: "Carry this prompt into onboarding." }} />,
     );
-    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toHaveAttribute("aria-checked", "false");
+
+    rerender(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea:
+            "A workflow assistant for independent clinics that automates patient scheduling follow-ups, no-show recovery, and front-desk task handoffs.",
+          url: "",
+          targetUser: "Practice managers at independent primary care clinics",
+          mainUncertainty:
+            "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("does not clobber user edits when rerendered with equivalent normalized initialIntake values", () => {
+    const { rerender } = render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "Edited locally after the first render." },
+    });
+    fireEvent.change(screen.getByLabelText("Target user (optional)"), {
+      target: { value: "Edited founders" },
+    });
+
+    rerender(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "  Carry this prompt into onboarding.  ",
+          url: "   ",
+          targetUser: "Founders",
+          mainUncertainty: "",
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Edited locally after the first render.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Edited founders");
+    expect(screen.getByRole("radio", { name: /Customer research copilot/i })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /Ops assistant for clinics/i })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: /Retail demand planner/i })).toHaveAttribute("aria-checked", "false");
   });
 
   it("restores focus to the previously active element when closed", () => {
