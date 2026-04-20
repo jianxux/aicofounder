@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -90,7 +90,42 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
-  it("opens a login prompt modal when a visitor submits a hero prompt", () => {
+  it("opens a login prompt modal with a structured founder handoff preview from the combined draft", () => {
+    render(<LandingPage />);
+
+    const combinedDraft = [
+      "Validate an AI workflow before I build it.",
+      "",
+      "Existing URL or homepage: https://example.com",
+      "Who the customer is: Seed-stage founders",
+      "Biggest uncertainty: Whether they trust the first output.",
+    ].join("\n");
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: combinedDraft },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Prompt preview")).toBeInTheDocument();
+    expect(within(dialog).getByText("Founder question")).toBeInTheDocument();
+    expect(within(dialog).getByText("Existing URL")).toBeInTheDocument();
+    expect(within(dialog).getByText("Customer")).toBeInTheDocument();
+    expect(within(dialog).getByText("Biggest uncertainty")).toBeInTheDocument();
+    expect(within(dialog).getByText("Validate an AI workflow before I build it.")).toBeInTheDocument();
+    expect(within(dialog).getByText("https://example.com")).toBeInTheDocument();
+    expect(within(dialog).getByText("Seed-stage founders")).toBeInTheDocument();
+    expect(within(dialog).getByText("Whether they trust the first output.")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(combinedDraft);
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("omits empty optional preview rows when the combined draft only contains the founder question", () => {
     render(<LandingPage />);
 
     fireEvent.change(screen.getByLabelText("I want to"), {
@@ -98,14 +133,59 @@ describe("LandingPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
-    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
-    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
-    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
-    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
-      page: "/",
-      button: "hero_prompt_submit",
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(within(dialog).getByText("Founder question")).toBeInTheDocument();
+    expect(within(dialog).getByText("Validate an AI workflow before I build it.")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Existing URL")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Customer")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Biggest uncertainty")).not.toBeInTheDocument();
+  });
+
+  it("uses the placeholder founder question when the draft only contains recognized supporting rows", () => {
+    render(<LandingPage />);
+
+    const labeledOnlyDraft = [
+      "Existing URL or homepage: https://example.com",
+      "Who the customer is: Seed-stage founders",
+      "Biggest uncertainty: Whether they trust the first output.",
+    ].join("\n");
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: labeledOnlyDraft },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(within(dialog).getByText("Start with an idea, problem, or question.")).toBeInTheDocument();
+    expect(within(dialog).queryByText(labeledOnlyDraft)).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Existing URL")).toBeInTheDocument();
+    expect(within(dialog).getByText("Customer")).toBeInTheDocument();
+    expect(within(dialog).getByText("Biggest uncertainty")).toBeInTheDocument();
+  });
+
+  it("uses the placeholder founder question when recognized labeled rows have empty values only", () => {
+    render(<LandingPage />);
+
+    const emptyLabeledDraft = [
+      "Existing URL or homepage:",
+      "Who the customer is:",
+      "Biggest uncertainty:",
+    ].join("\n");
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: emptyLabeledDraft },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(within(dialog).getByText("Start with an idea, problem, or question.")).toBeInTheDocument();
+    expect(within(dialog).queryByText(emptyLabeledDraft)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Existing URL")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Customer")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Biggest uncertainty")).not.toBeInTheDocument();
   });
 
   it("closes the login prompt modal on Escape", () => {

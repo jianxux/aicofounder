@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
 import AuthButton from "@/components/AuthButton";
+import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
 
@@ -188,6 +189,42 @@ function LandingLinkCta({
   );
 }
 
+function getSessionDraftPreview(promptDraft: string) {
+  const placeholderFounderQuestion = "Start with an idea, problem, or question.";
+  const recognizedPromptLabels = [
+    "primary idea",
+    "idea",
+    "existing url or homepage",
+    "homepage",
+    "reference url",
+    "who the customer is",
+    "target user",
+    "biggest uncertainty",
+    "main uncertainty",
+  ];
+  const parsedDraft = parseLandingPromptDraft(promptDraft);
+  const hasRecognizedLabeledRows = promptDraft
+    .split("\n")
+    .some((line) => {
+      const match = line.match(/^([^:]+):\s*(.*)$/);
+      return match ? recognizedPromptLabels.includes(match[1].trim().toLowerCase()) : false;
+    });
+  const supportingRows = [
+    parsedDraft.url?.trim() ? { label: "Existing URL", value: parsedDraft.url.trim() } : null,
+    parsedDraft.targetUser?.trim() ? { label: "Customer", value: parsedDraft.targetUser.trim() } : null,
+    parsedDraft.mainUncertainty?.trim() ? { label: "Biggest uncertainty", value: parsedDraft.mainUncertainty.trim() } : null,
+  ].filter((row): row is { label: string; value: string } => Boolean(row));
+  const founderQuestion =
+    parsedDraft.primaryIdea?.trim() ||
+    (hasRecognizedLabeledRows ? placeholderFounderQuestion : promptDraft.trim()) ||
+    placeholderFounderQuestion;
+
+  return {
+    founderQuestion,
+    supportingRows,
+  };
+}
+
 function LoginPromptModal({
   open,
   promptDraft,
@@ -199,6 +236,7 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const sessionDraftPreview = getSessionDraftPreview(promptDraft);
 
   useEffect(() => {
     if (!open) {
@@ -236,7 +274,7 @@ function LoginPromptModal({
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
             <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this prompt into AI Cofounder so you can keep going from the dashboard instead of losing the thought.
             </p>
           </div>
           <button
@@ -250,7 +288,18 @@ function LoginPromptModal({
 
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
-          <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+          <div className="mt-3 space-y-3">
+            <div className="rounded-[1.25rem] border border-stone-200 bg-[#faf7f2] px-4 py-3">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Founder question</div>
+              <p className="mt-2 text-sm font-medium leading-7 text-stone-900">{sessionDraftPreview.founderQuestion}</p>
+            </div>
+            {sessionDraftPreview.supportingRows.map((row) => (
+              <div key={row.label} className="flex items-start justify-between gap-4 rounded-[1.1rem] border border-stone-200 px-4 py-3">
+                <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{row.label}</div>
+                <p className="max-w-[22rem] text-right text-sm leading-6 text-stone-700">{row.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
