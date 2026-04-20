@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY } from "@/app/landingPromptDraft";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
@@ -11,7 +12,10 @@ import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
-const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
+
+function getLandingPromptDraft() {
+  return window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY)?.trim() ?? "";
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -59,7 +63,7 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+      const landingPromptDraft = getLandingPromptDraft();
       const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
 
       setPrefilledOnboardingIntake(
@@ -74,14 +78,22 @@ export default function DashboardPage() {
   }, []);
 
   const handleOpenOnboarding = () => {
+    const landingPromptDraft = getLandingPromptDraft();
+
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    setPrefilledOnboardingIntake(
+      landingPromptDraft
+        ? {
+            primaryIdea: landingPromptDraft,
+          }
+        : {},
+    );
     setShowOnboarding(true);
   };
 
   const handleSkipOnboarding = () => {
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
-    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY);
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
   };
@@ -110,7 +122,7 @@ export default function DashboardPage() {
       project_id: project.id,
       source: "onboarding",
     });
-    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_SESSION_STORAGE_KEY);
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
