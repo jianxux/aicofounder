@@ -12,6 +12,47 @@ import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
 const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
+const EMPTY_STATE_STARTER_WORKFLOWS: Array<
+  OnboardingIntake & {
+    title: string;
+    whatToBring: string;
+    whatYouLeaveWith: string;
+  }
+> = [
+  {
+    title: "Pressure-test a customer pain",
+    whatToBring: "A customer segment, a painful workflow, and the signal that makes the pain feel urgent.",
+    whatYouLeaveWith: "A sharper problem statement, risky assumptions to validate, and the next interviews to run.",
+    primaryIdea:
+      "A founder research workflow that pressure-tests whether a specific customer pain is frequent, urgent, and painful enough to anchor a real startup wedge.",
+    targetUser: "First-time founders validating a narrow customer problem before building",
+    mainUncertainty:
+      "Is this pain severe enough that a customer will actively seek a new solution instead of tolerating the current workaround?",
+    url: "",
+  },
+  {
+    title: "Audit a manual workflow",
+    whatToBring: "The current steps, handoffs, and repeat work in one messy internal process.",
+    whatYouLeaveWith: "A bottleneck map, failure points, and the best automation wedge to test first.",
+    primaryIdea:
+      "A workflow copilot that maps how a manual team process runs today, where handoffs break, and which narrow automation wedge to test first.",
+    targetUser: "Operators running a repetitive, high-friction internal workflow",
+    mainUncertainty:
+      "Which step creates enough pain that a team would adopt a new workflow instead of patching the old one?",
+    url: "",
+  },
+  {
+    title: "Plan an MVP concierge test",
+    whatToBring: "A founder-led service idea, the manual steps you can do yourself, and who you want to test it with first.",
+    whatYouLeaveWith: "A concrete concierge MVP plan, success criteria, and the smallest test you can run this week.",
+    primaryIdea:
+      "A concierge MVP planning workflow that helps a founder define the manual service, recruiting target, and proof points needed before investing in product.",
+    targetUser: "First-time founders testing whether they can deliver value manually before building software",
+    mainUncertainty:
+      "Can a founder create repeatable customer value through a manual service before automating the workflow into an MVP?",
+    url: "",
+  },
+];
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -73,9 +114,9 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const handleOpenOnboarding = () => {
+  const handleOpenOnboarding = (intake: Partial<OnboardingIntake> = {}) => {
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    setPrefilledOnboardingIntake(intake);
     setShowOnboarding(true);
   };
 
@@ -147,7 +188,7 @@ export default function DashboardPage() {
           </div>
           <button
             type="button"
-            onClick={handleOpenOnboarding}
+            onClick={() => handleOpenOnboarding()}
             className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
           >
             New Project
@@ -157,7 +198,7 @@ export default function DashboardPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
             type="button"
-            onClick={handleOpenOnboarding}
+            onClick={() => handleOpenOnboarding()}
             className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-dashed border-stone-300 bg-white/70 p-7 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-stone-500 hover:bg-white"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-950 text-2xl text-white transition group-hover:bg-stone-800">
@@ -170,6 +211,34 @@ export default function DashboardPage() {
               </p>
             </div>
           </button>
+
+          {projects.length === 0 &&
+            EMPTY_STATE_STARTER_WORKFLOWS.map((workflow) => (
+              <button
+                key={workflow.title}
+                type="button"
+                onClick={() => handleOpenOnboarding(workflow)}
+                className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-stone-400 hover:shadow-md"
+              >
+                <div>
+                  <h2 className="text-2xl font-semibold text-stone-950">{workflow.title}</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      What to bring
+                    </div>
+                    <p className="mt-2 text-sm leading-7 text-stone-600">{workflow.whatToBring}</p>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      What you leave with
+                    </div>
+                    <p className="mt-2 text-sm leading-7 text-stone-600">{workflow.whatYouLeaveWith}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
 
           {projects.map((project) => (
             <Link

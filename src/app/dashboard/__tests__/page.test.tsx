@@ -418,6 +418,36 @@ describe("DashboardPage", () => {
     );
   });
 
+  it("shows starter workflow cards in the empty state and prefills onboarding from a selected workflow", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(getProjects).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText("Pressure-test a customer pain")).toBeInTheDocument();
+    expect(screen.getByText("Audit a manual workflow")).toBeInTheDocument();
+    expect(screen.getByText("Plan an MVP concierge test")).toBeInTheDocument();
+    expect(screen.getAllByText("What to bring")).toHaveLength(3);
+    expect(screen.getAllByText("What you leave with")).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole("button", { name: /Audit a manual workflow/i }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "A workflow copilot that maps how a manual team process runs today, where handoffs break, and which narrow automation wedge to test first.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue(
+      "Operators running a repetitive, high-friction internal workflow",
+    );
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Which step creates enough pain that a team would adopt a new workflow instead of patching the old one?",
+    );
+  });
+
   it("skips onboarding by setting localStorage and closing the modal", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
