@@ -145,28 +145,38 @@ describe("LandingPage", () => {
     expect(screen.queryByText("Filip Dite")).not.toBeInTheDocument();
   });
 
-  it("renders an inspectable sample founder artifact preview with concrete output", () => {
+  it("renders an inspectable sample founder artifact preview with a stable anchor target", () => {
     render(<LandingPage />);
 
-    expect(screen.getByText(/Sample first deliverable/i)).toBeInTheDocument();
+    const sampleCta = screen.getByRole("link", { name: "Inspect a sample brief" });
+    const sampleSection = document.querySelector("#sample-deliverable");
+
+    expect(sampleCta).toHaveAttribute("href", "#sample-deliverable");
+    expect(sampleSection).toBeInTheDocument();
+    expect(sampleSection).toContainElement(screen.getByText(/Sample first deliverable/i));
     expect(screen.getByText(/Positioning brief v1/i)).toBeInTheDocument();
     expect(screen.getByText(/Ops leads at 50 to 200 person home-service companies/i)).toBeInTheDocument();
     expect(screen.getByText(/Stop losing booked jobs to slow, inconsistent customer follow-up/i)).toBeInTheDocument();
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
-  it("tracks all primary CTA clicks", async () => {
+  it("tracks hero and footer CTA clicks including the sample brief jump link", async () => {
     render(<LandingPage />);
 
     const authButtons = await screen.findAllByRole("button", { name: "Continue with Google" });
 
     fireEvent.click(authButtons[0]);
+    fireEvent.click(screen.getByRole("link", { name: "Inspect a sample brief" }));
     fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
     fireEvent.click(authButtons[1]);
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_get_started_free",
+    });
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_inspect_sample_brief",
     });
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",

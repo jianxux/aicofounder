@@ -475,14 +475,18 @@ export default function LandingPage() {
               analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
+            <LandingLinkCta button="hero_inspect_sample_brief" variant="secondary" href="#sample-deliverable">
+              Inspect a sample brief
+            </LandingLinkCta>
             <LandingLinkCta button="hero_see_workspace" variant="secondary">
               See the founder workflow
             </LandingLinkCta>
           </div>
+          <p className="mt-4 text-sm text-stone-500">Prefer proof before signup? Jump straight to a sample validation brief.</p>
         </section>
       </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+      <section id="sample-deliverable" className="mx-auto w-full max-w-7xl scroll-mt-24 px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
           <div className="max-w-md">
             <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample first deliverable</div>
