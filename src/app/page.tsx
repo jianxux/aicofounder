@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -107,6 +107,9 @@ const focusPresets = [
   {
     id: "demand-validation",
     label: "Demand validation",
+    sessionLabel: "demand validation",
+    handoffLabel: "demand validation draft",
+    ctaLabel: "Start demand validation",
     title: "Check if the demand is real before you commit.",
     description: "Start with customer pain, competing workarounds, and the proof gaps that would change your mind.",
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
@@ -123,6 +126,9 @@ const focusPresets = [
   {
     id: "positioning",
     label: "Positioning",
+    sessionLabel: "positioning",
+    handoffLabel: "positioning draft",
+    ctaLabel: "Start positioning",
     title: "Sharpen the angle buyers will actually repeat.",
     description: "Start with the claim, the buyer language it depends on, and where your story sounds generic today.",
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
@@ -139,6 +145,9 @@ const focusPresets = [
   {
     id: "next-step-planning",
     label: "Next-step planning",
+    sessionLabel: "next-step planning",
+    handoffLabel: "next-step plan",
+    ctaLabel: "Start next-step planning",
     title: "Turn fuzzy research into the next founder moves.",
     description: "Start with what you already know, what still feels uncertain, and the decisions you need to make this week.",
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
@@ -153,6 +162,15 @@ const focusPresets = [
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
   },
 ] as const;
+
+const MODAL_FOCUSABLE_SELECTOR = [
+  "button:not([disabled])",
+  "[href]",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(", ");
 
 function LandingLinkCta({
   button,
@@ -191,14 +209,39 @@ function LandingLinkCta({
 function LoginPromptModal({
   open,
   promptDraft,
+  presetSessionLabel,
+  presetHandoffLabel,
   onClose,
 }: {
   open: boolean;
   promptDraft: string;
+  presetSessionLabel: string;
+  presetHandoffLabel: string;
   onClose: () => void;
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      previouslyFocusedElementRef.current = document.activeElement as HTMLElement | null;
+
+      const focusTarget =
+        closeButtonRef.current ??
+        (dialogRef.current?.querySelector<HTMLElement>(MODAL_FOCUSABLE_SELECTOR) ?? dialogRef.current);
+
+      focusTarget?.focus();
+      return;
+    }
+
+    if (previouslyFocusedElementRef.current && previouslyFocusedElementRef.current.isConnected) {
+      previouslyFocusedElementRef.current.focus();
+    }
+    previouslyFocusedElementRef.current = null;
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -208,6 +251,45 @@ function LoginPromptModal({
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialogRef.current) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR),
+      ).filter(
+        (element) =>
+          !element.closest("[hidden]") && !element.closest("[aria-hidden='true']"),
+      );
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement as HTMLElement | null;
+
+      if (!activeElement || !dialogRef.current.contains(activeElement)) {
+        event.preventDefault();
+        firstElement.focus();
+        return;
+      }
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
@@ -225,21 +307,26 @@ function LoginPromptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        tabIndex={-1}
         className="w-full max-w-xl rounded-[2rem] border border-stone-200 bg-[#faf7f2] p-6 shadow-[0_32px_110px_rgba(28,25,23,0.18)] sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
-            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
+            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">
+              Start {presetSessionLabel} inside your workspace.
+            </h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this {presetHandoffLabel} into AI Cofounder so you can keep going from the dashboard.
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
@@ -257,12 +344,14 @@ function LoginPromptModal({
           <AuthButton
             redirectTo="/dashboard"
             label="Continue with Google"
+            signedInMode="continue"
+            signedInContinueLabel="Continue to dashboard"
             analyticsButton="hero_prompt_login"
             analyticsPage="/"
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
           <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
-            Explore demo first
+            Explore dashboard
           </LandingLinkCta>
         </div>
       </div>
@@ -313,7 +402,13 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal
+        open={showLoginPrompt}
+        promptDraft={heroPrompt.trim()}
+        presetSessionLabel={activePreset.sessionLabel}
+        presetHandoffLabel={activePreset.handoffLabel}
+        onClose={() => setShowLoginPrompt(false)}
+      />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
@@ -405,13 +500,15 @@ export default function LandingPage() {
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
+                      <span className="text-sm text-stone-500">
+                        Press Enter to continue, or click {activePreset.ctaLabel} to open the login prompt.
+                      </span>
                       <button
                         type="submit"
                         disabled={!heroPrompt.trim()}
                         className="inline-flex h-11 items-center justify-center rounded-full bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
                       >
-                        Send
+                        {activePreset.ctaLabel}
                       </button>
                     </div>
                   </div>
@@ -476,7 +573,7 @@ export default function LandingPage() {
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
             <LandingLinkCta button="hero_see_workspace" variant="secondary">
-              See the founder workflow
+              Explore dashboard
             </LandingLinkCta>
           </div>
         </section>

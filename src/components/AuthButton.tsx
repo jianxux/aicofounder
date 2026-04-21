@@ -12,6 +12,8 @@ type AuthButtonProps = {
   className?: string;
   analyticsButton?: string;
   analyticsPage?: string;
+  signedInMode?: "profile" | "continue";
+  signedInContinueLabel?: string;
 };
 
 function getInitials(user: User) {
@@ -34,6 +36,8 @@ export default function AuthButton({
   className,
   analyticsButton,
   analyticsPage,
+  signedInMode = "profile",
+  signedInContinueLabel = "Continue to dashboard",
 }: AuthButtonProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -154,6 +158,39 @@ export default function AuthButton({
       >
         {label}
       </button>
+    );
+  }
+
+  if (signedInMode === "continue") {
+    return (
+      <div className="flex items-center gap-3">
+        <Link
+          href={redirectTo}
+          onClick={() => {
+            if (!analyticsButton) {
+              return;
+            }
+
+            void trackEvent("cta_click", {
+              page: analyticsPage ?? window.location.pathname,
+              button: analyticsButton,
+            });
+          }}
+          className={
+            className ??
+            "inline-flex items-center justify-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+          }
+        >
+          {signedInContinueLabel}
+        </Link>
+        <button
+          type="button"
+          onClick={signOut}
+          className="rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Sign out
+        </button>
+      </div>
     );
   }
 
