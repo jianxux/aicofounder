@@ -294,11 +294,25 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               About Your Idea
             </h2>
             <p id={descriptionIdForStep(2)} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
-              Start with one clear idea. Add a URL, target user, or the main uncertainty only if
-              they help sharpen the brief.
+              Start with one clear idea. Add a URL, target user, or pasted notes only if they help
+              sharpen the brief.
             </p>
 
             <div className="mt-8 space-y-5">
+              <section className="rounded-[28px] border border-stone-200/90 bg-white/80 p-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Useful source material
+                </div>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  You can start with plain text, one relevant URL, and pasted notes. Helpful context
+                  includes landing pages, docs, screenshots, customer feedback, interview notes, or
+                  research summaries.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-stone-600">
+                  Uploads are not available yet, so paste the most important details into these
+                  fields for now.
+                </p>
+              </section>
               <section
                 aria-label="Starter briefs"
                 className="rounded-[28px] border border-stone-200/90 bg-white/80 p-4 sm:p-5"

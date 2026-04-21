@@ -133,11 +133,24 @@ describe("OnboardingModal", () => {
     expect(stepTwoSection).toHaveAttribute("hidden");
   });
 
-  it("step 2 has the primary idea prompt and optional fields", () => {
+  it("step 2 has source-material guidance, starter briefs, and optional fields", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
 
+    const sourceMaterialSection = screen.getByText("Useful source material").closest("section");
+
+    expect(sourceMaterialSection).toBeInTheDocument();
+    expect(within(sourceMaterialSection!).getByText(/plain text, one relevant URL, and pasted notes/i)).toBeInTheDocument();
+    expect(
+      within(sourceMaterialSection!).getByText(
+        /landing pages, docs, screenshots, customer feedback, interview notes, or research summaries/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(sourceMaterialSection!).getByText(/uploads are not available yet, so paste the most important details/i),
+    ).toBeInTheDocument();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
     expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
