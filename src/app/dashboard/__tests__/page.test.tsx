@@ -11,7 +11,7 @@ async function startOnboarding() {
   fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
 }
 
-function completeIntake(overrides?: {
+async function completeIntake(overrides?: {
   primaryIdea?: string;
   url?: string;
   targetUser?: string;
@@ -26,6 +26,8 @@ function completeIntake(overrides?: {
     ...overrides,
   };
 
+  await screen.findByRole("heading", { name: "About Your Idea" });
+
   fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
     target: { value: intake.primaryIdea },
   });
@@ -38,7 +40,7 @@ function completeIntake(overrides?: {
   fireEvent.change(screen.getByLabelText("Main uncertainty (optional)"), {
     target: { value: intake.mainUncertainty },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Continue" }));
 
   return intake;
 }
@@ -226,6 +228,52 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Updated Mar 10, 2024")).toBeInTheDocument();
   });
 
+  it("renders a portfolio health strip with total projects, open tasks, and completed milestones", async () => {
+    const projects = [
+      createProject({
+        id: "project-open",
+        phase: "Build",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [
+              { id: "task-1", label: "Prototype workflow", done: true },
+              { id: "task-2", label: "Run usability test", done: false },
+            ],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-complete",
+        phase: "Plan",
+        phases: [
+          {
+            id: "plan",
+            title: "Plan",
+            tasks: [
+              { id: "task-3", label: "Define GTM plan", done: true },
+              { id: "task-4", label: "Set launch metric", done: true },
+            ],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-empty",
+        phase: "Discovery",
+        phases: [{ id: "discovery", title: "Discovery", tasks: [] }],
+      }),
+    ];
+    vi.mocked(getProjects).mockResolvedValue(projects);
+
+    renderPage();
+
+    await screen.findByText("Total projects");
+    expect(screen.getByTestId("portfolio-total-projects")).toHaveTextContent("3");
+    expect(screen.getByTestId("portfolio-open-tasks")).toHaveTextContent("1");
+    expect(screen.getByTestId("portfolio-completed-milestones")).toHaveTextContent("1");
+  });
+
   it("renders project cards as links to the project detail page", async () => {
     const project = createProject({ id: "project-42", name: "Signal Tracker" });
     vi.mocked(getProjects).mockResolvedValue([project]);
@@ -285,6 +333,181 @@ describe("DashboardPage", () => {
     expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Founder CRM/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Launch Assistant/i })).toBeInTheDocument();
+  });
+
+  it("renders each project card with status and current milestone task progress", async () => {
+    const projects = [
+      createProject({
+        id: "project-active",
+        name: "Project Active",
+        phase: "Build",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [
+              { id: "task-1", label: "Task A", done: true },
+              { id: "task-2", label: "Task B", done: false },
+            ],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-complete",
+        name: "Project Complete",
+        phase: "Launch",
+        phases: [
+          {
+            id: "launch",
+            title: "Launch",
+            tasks: [
+              { id: "task-3", label: "Task C", done: true },
+              { id: "task-4", label: "Task D", done: true },
+            ],
+          },
+        ],
+      }),
+    ];
+    vi.mocked(getProjects).mockResolvedValue(projects);
+
+    renderPage();
+
+    expect(await screen.findByText("In progress")).toBeInTheDocument();
+    expect(screen.getByText("Milestone complete")).toBeInTheDocument();
+    expect(screen.getByText("1/2 tasks complete")).toBeInTheDocument();
+    expect(screen.getByText("2/2 tasks complete")).toBeInTheDocument();
+  });
+
+  it("treats unmatched current phase as having no current-phase tasks", async () => {
+    const project = createProject({
+      id: "project-mismatch-phase",
+      name: "Mismatch Phase",
+      phase: "Nonexistent",
+      phases: [
+        {
+          id: "discovery",
+          title: "Discovery",
+          tasks: [{ id: "task-1", label: "This should not be counted", done: false }],
+        },
+      ],
+    });
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /Mismatch Phase/i })).toBeInTheDocument();
+    expect(screen.getAllByText("No tasks yet")).toHaveLength(2);
+    expect(screen.getByTestId("portfolio-open-tasks")).toHaveTextContent("0");
+    expect(screen.getByTestId("portfolio-completed-milestones")).toHaveTextContent("0");
+  });
+
+  it("sorts projects for triage by open work first, then recency, then completed milestones", async () => {
+    const projects = [
+      createProject({
+        id: "project-complete-new",
+        name: "Complete New",
+        phase: "Plan",
+        updatedAt: "2026-02-01T10:00:00.000Z",
+        phases: [
+          {
+            id: "plan",
+            title: "Plan",
+            tasks: [
+              { id: "task-1", label: "Task A", done: true },
+              { id: "task-2", label: "Task B", done: true },
+            ],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-open-old",
+        name: "Open Old",
+        phase: "Build",
+        updatedAt: "2024-01-01T10:00:00.000Z",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [
+              { id: "task-3", label: "Task C", done: true },
+              { id: "task-4", label: "Task D", done: false },
+            ],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-open-new",
+        name: "Open New",
+        phase: "Build",
+        updatedAt: "2025-01-01T10:00:00.000Z",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [
+              { id: "task-5", label: "Task E", done: false },
+              { id: "task-6", label: "Task F", done: false },
+            ],
+          },
+        ],
+      }),
+    ];
+    vi.mocked(getProjects).mockResolvedValue(projects);
+
+    renderPage();
+
+    await screen.findByRole("link", { name: /Open New/i });
+
+    const projectLinksInOrder = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href")?.startsWith("/project/"))
+      .map((link) => link.querySelector("h2")?.textContent?.trim());
+
+    expect(projectLinksInOrder).toEqual(["Open New", "Open Old", "Complete New"]);
+  });
+
+  it("handles malformed updatedAt values with a fallback label and stable triage ordering", async () => {
+    const projects = [
+      createProject({
+        id: "project-open-malformed-date",
+        name: "Open Malformed Date",
+        phase: "Build",
+        updatedAt: "not-a-date",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-1", label: "Task A", done: false }],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-open-valid-date",
+        name: "Open Valid Date",
+        phase: "Build",
+        updatedAt: "2025-04-01T10:00:00.000Z",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-2", label: "Task B", done: false }],
+          },
+        ],
+      }),
+    ];
+    vi.mocked(getProjects).mockResolvedValue(projects);
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /Open Valid Date/i })).toBeInTheDocument();
+    expect(screen.getByText("Updated Unknown date")).toBeInTheDocument();
+
+    const projectLinksInOrder = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("href")?.startsWith("/project/"))
+      .map((link) => link.querySelector("h2")?.textContent?.trim());
+
+    expect(projectLinksInOrder).toEqual(["Open Valid Date", "Open Malformed Date"]);
   });
 
   it("passes redirectTo=/dashboard to AuthButton", () => {
@@ -442,7 +665,7 @@ describe("DashboardPage", () => {
     renderPage();
 
     await startOnboarding();
-    const intake = completeIntake();
+    const intake = await completeIntake();
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
@@ -487,7 +710,7 @@ describe("DashboardPage", () => {
     renderPage();
 
     await startOnboarding();
-    completeIntake({
+    await completeIntake({
       primaryIdea: "A tool for founder research synthesis.",
       url: "",
       targetUser: "",
@@ -526,7 +749,7 @@ describe("DashboardPage", () => {
     renderPage();
 
     await startOnboarding();
-    completeIntake({
+    await completeIntake({
       primaryIdea:
         "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
       url: "",
