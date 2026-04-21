@@ -7,6 +7,7 @@ import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
 import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
+import { deriveProjectName } from "@/lib/project-name";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
@@ -19,22 +20,6 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function deriveProjectName(primaryIdea: string) {
-  const normalizedIdea = primaryIdea.trim().replace(/\s+/g, " ");
-
-  if (!normalizedIdea) {
-    return "Untitled Project";
-  }
-
-  const firstSentence = normalizedIdea.split(/[.!?]/)[0]?.trim() || normalizedIdea;
-
-  if (firstSentence.length <= 60) {
-    return firstSentence;
-  }
-
-  return `${firstSentence.slice(0, 57).trimEnd()}...`;
 }
 
 function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty }: OnboardingIntake) {

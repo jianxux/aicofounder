@@ -36,49 +36,48 @@ function createStarterNotes() {
   ];
 }
 
+const STARTER_PHASE_BLUEPRINT = [
+  {
+    id: "getting-started",
+    title: "Getting started",
+    tasks: ["Write down the idea", "Define the problem statement"],
+  },
+  {
+    id: "understand-project",
+    title: "Understand the project",
+    tasks: ["Collect market signals", "Identify the target customer"],
+  },
+  {
+    id: "plan",
+    title: "Plan",
+    tasks: ["Prioritize a first milestone", "Outline scope for MVP"],
+  },
+  {
+    id: "build",
+    title: "Build",
+    tasks: ["Create the core workflow", "Prepare validation assets"],
+  },
+  {
+    id: "launch",
+    title: "Launch",
+    tasks: ["Prepare launch checklist", "Define success metrics"],
+  },
+] as const;
+
+export function getStarterWorkspacePreview() {
+  const [firstPhase] = STARTER_PHASE_BLUEPRINT;
+  return {
+    startingPhase: firstPhase.title,
+    starterTasks: firstPhase.tasks.slice(0, 2),
+  };
+}
+
 function createStarterPhases() {
-  return [
-    {
-      id: "getting-started",
-      title: "Getting started",
-      tasks: [
-        { id: createId(), label: "Write down the idea", done: false },
-        { id: createId(), label: "Define the problem statement", done: false },
-      ],
-    },
-    {
-      id: "understand-project",
-      title: "Understand the project",
-      tasks: [
-        { id: createId(), label: "Collect market signals", done: false },
-        { id: createId(), label: "Identify the target customer", done: false },
-      ],
-    },
-    {
-      id: "plan",
-      title: "Plan",
-      tasks: [
-        { id: createId(), label: "Prioritize a first milestone", done: false },
-        { id: createId(), label: "Outline scope for MVP", done: false },
-      ],
-    },
-    {
-      id: "build",
-      title: "Build",
-      tasks: [
-        { id: createId(), label: "Create the core workflow", done: false },
-        { id: createId(), label: "Prepare validation assets", done: false },
-      ],
-    },
-    {
-      id: "launch",
-      title: "Launch",
-      tasks: [
-        { id: createId(), label: "Prepare launch checklist", done: false },
-        { id: createId(), label: "Define success metrics", done: false },
-      ],
-    },
-  ];
+  return STARTER_PHASE_BLUEPRINT.map((phase) => ({
+    id: phase.id,
+    title: phase.title,
+    tasks: phase.tasks.map((label) => ({ id: createId(), label, done: false })),
+  }));
 }
 
 function repairStoredProject(value: unknown): Project | null {
