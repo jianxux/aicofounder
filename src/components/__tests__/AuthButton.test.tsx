@@ -209,6 +209,34 @@ describe("AuthButton", () => {
     expect(supabase.signOut).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a signed-in continue CTA and sign-out in continue mode", async () => {
+    setupSupabaseClient(
+      Promise.resolve({
+        data: {
+          user: createUser({
+            email: "john@example.com",
+            user_metadata: { full_name: "John Doe" },
+          }),
+        },
+      }),
+    );
+
+    render(
+      <AuthButton
+        signedInMode="continue"
+        redirectTo="/dashboard"
+        signedInContinueLabel="Continue to dashboard"
+      />,
+    );
+
+    expect(await screen.findByRole("link", { name: "Continue to dashboard" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+    expect(screen.queryByText("John Doe")).not.toBeInTheDocument();
+  });
+
   it("renders initials from full_name when no avatar is available", async () => {
     setupSupabaseClient(
       Promise.resolve({
