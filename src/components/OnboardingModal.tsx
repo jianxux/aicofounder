@@ -4,6 +4,8 @@ import type { KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { summarizeIntakeAttachmentPolicy } from "@/lib/intake-attachment-policy";
+import { deriveProjectName } from "@/lib/project-name";
+import { getStarterWorkspacePreview } from "@/lib/projects";
 
 export type OnboardingIntake = {
   primaryIdea: string;
@@ -70,6 +72,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [mainUncertainty, setMainUncertainty] = useState("");
   const [selectedStarterIndex, setSelectedStarterIndex] = useState<number | null>(null);
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
+  const starterWorkspacePreview = getStarterWorkspacePreview();
+  const derivedProjectName = deriveProjectName(primaryIdea);
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const skipButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -444,6 +448,37 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               Here’s what you’re starting with. Once launched, your AI cofounder will guide you
               through the discovery, planning, build, and launch phases.
             </p>
+
+            <section
+              aria-label="Workspace preview"
+              className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6"
+            >
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                Workspace Preview
+              </div>
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Project name</div>
+                  <p className="mt-2 text-sm leading-7 text-stone-700">{derivedProjectName}</p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Starting phase
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-stone-700">{starterWorkspacePreview.startingPhase}</p>
+                </div>
+              </div>
+              <div className="mt-5">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                  First starter tasks
+                </div>
+                <ol className="mt-2 space-y-2 text-sm leading-7 text-stone-700">
+                  {starterWorkspacePreview.starterTasks.map((task) => (
+                    <li key={task}>{task}</li>
+                  ))}
+                </ol>
+              </div>
+            </section>
 
             <div className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">

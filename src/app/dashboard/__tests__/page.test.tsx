@@ -4,6 +4,7 @@ import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
 import { trackEvent } from "@/lib/analytics";
+import { deriveProjectName } from "@/lib/project-name";
 import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
@@ -61,6 +62,10 @@ vi.mock("@/lib/projects", () => ({
   getProjects: vi.fn(),
   createProject: vi.fn(),
   saveProject: vi.fn(),
+  getStarterWorkspacePreview: () => ({
+    startingPhase: "Getting started",
+    starterTasks: ["Write down the idea", "Define the problem statement"],
+  }),
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -450,7 +455,7 @@ describe("DashboardPage", () => {
       expect(saveProject).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "guided-project",
-          name: expect.stringMatching(/^An AI copilot for founder research/),
+          name: deriveProjectName(intake.primaryIdea),
           description:
             `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
         }),
@@ -539,7 +544,9 @@ describe("DashboardPage", () => {
       expect(saveProject).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "guided-project-long-name",
-          name: "An AI copilot for founder research that turns scattered n...",
+          name: deriveProjectName(
+            "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
+          ),
           description:
             "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
         }),

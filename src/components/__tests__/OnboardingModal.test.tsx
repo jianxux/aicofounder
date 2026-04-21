@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingModal from "@/components/OnboardingModal";
+import { deriveProjectName } from "@/lib/project-name";
 
 function moveToIdeaStep() {
   fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
@@ -245,6 +246,13 @@ describe("OnboardingModal", () => {
     expect(within(summary!).getByText(intake.url)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.targetUser)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
+
+    const workspacePreview = screen.getByRole("region", { name: "Workspace preview" });
+    expect(within(workspacePreview).getByText("Workspace Preview")).toBeInTheDocument();
+    expect(within(workspacePreview).getByText(deriveProjectName(intake.primaryIdea))).toBeInTheDocument();
+    expect(within(workspacePreview).getByText("Getting started")).toBeInTheDocument();
+    expect(within(workspacePreview).getByText("Write down the idea")).toBeInTheDocument();
+    expect(within(workspacePreview).getByText("Define the problem statement")).toBeInTheDocument();
   });
 
   it("shows the attachments coming soon policy before launch without implying uploads are live", () => {
