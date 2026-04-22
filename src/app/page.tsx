@@ -276,6 +276,24 @@ export default function LandingPage() {
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const promptPreview = heroPrompt.trim() || activePreset.placeholder;
+  const workflowPreviewSteps = [
+    {
+      label: "Intake",
+      title: "Founder brief",
+      detail: promptPreview,
+    },
+    {
+      label: "Next",
+      title: activePreset.label,
+      detail: activePreset.promptIdeas.slice(0, 2).join(" and "),
+    },
+    {
+      label: "Output",
+      title: activePreset.sessionOutputs[0],
+      detail: "Your prompt carries into the login and workspace handoff so the next step starts with context instead of a blank page.",
+    },
+  ];
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -413,6 +431,27 @@ export default function LandingPage() {
                       >
                         Send
                       </button>
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-[1.5rem] border border-stone-200 bg-[#fcfaf7] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-left">
+                        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">What happens next</div>
+                        <p className="mt-2 text-sm leading-6 text-stone-600">A compact preview of the first workflow you&apos;ll open from this prompt.</p>
+                      </div>
+                      <div className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600">{activePreset.label}</div>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      {workflowPreviewSteps.map((step, index) => (
+                        <div key={step.label} className="rounded-[1.25rem] border border-stone-200 bg-white px-4 py-4 text-left">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">{step.label}</div>
+                            <div className="text-xs font-medium text-stone-400">0{index + 1}</div>
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-stone-950">{step.title}</div>
+                          <p className="mt-2 line-clamp-4 text-sm leading-6 text-stone-600">{step.detail}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">

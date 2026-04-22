@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -61,22 +61,35 @@ describe("LandingPage", () => {
   it("renders a centered banner hero with a large founder prompt box", () => {
     render(<LandingPage />);
 
+    const heroPrompt = screen.getByLabelText("I want to");
+    const heroForm = heroPrompt.closest("form");
+
+    expect(heroForm).not.toBeNull();
+
     expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
     expect(screen.getByText(/Start with the founder question you cannot shake/i)).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Choose your first focus/i })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Demand validation/i })).toBeChecked();
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
-    expect(screen.getByLabelText("I want to")).toBeInTheDocument();
+    expect(heroPrompt).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
+    expect(within(heroForm!).getByText(/What happens next/i)).toBeInTheDocument();
+    expect(within(heroForm!).getByText("Founder brief")).toBeInTheDocument();
+    expect(within(heroForm!).getByText(/Pressure-test whether this AI workflow solves a painful enough problem/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(within(heroForm!).getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
 
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
     render(<LandingPage />);
 
-    fireEvent.change(screen.getByLabelText("I want to"), {
+    const heroPrompt = screen.getByLabelText("I want to");
+    const heroForm = heroPrompt.closest("form");
+
+    expect(heroForm).not.toBeNull();
+
+    fireEvent.change(heroPrompt, {
       target: { value: "Keep my draft intact." },
     });
     fireEvent.click(screen.getByRole("radio", { name: /Next-step planning/i }));
@@ -85,22 +98,30 @@ describe("LandingPage", () => {
     expect(screen.getByRole("radio", { name: /Demand validation/i })).not.toBeChecked();
     expect(screen.getByDisplayValue("Keep my draft intact.")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you have signal scattered across notes/i)).toBeInTheDocument();
-    expect(screen.getByText("Prioritize the next 3 moves")).toBeInTheDocument();
-    expect(screen.getByText("Next-step plan")).toBeInTheDocument();
+    expect(within(heroForm!).getByText("Prioritize the next 3 moves")).toBeInTheDocument();
+    expect(within(heroForm!).getByText("Next-step plan")).toBeInTheDocument();
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
+    expect(within(heroForm!).getByText("Keep my draft intact.", { selector: "p" })).toBeInTheDocument();
+    expect(within(heroForm!).getByText(/Prioritize the next 3 moves and Plan validation interviews/i)).toBeInTheDocument();
+    expect(within(heroForm!).getByRole("button", { name: "Choose what to test first" })).toBeInTheDocument();
   });
 
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
-    fireEvent.change(screen.getByLabelText("I want to"), {
+    const heroPrompt = screen.getByLabelText("I want to");
+
+    fireEvent.change(heroPrompt, {
       target: { value: "Validate an AI workflow before I build it." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
-    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
-    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Prompt preview")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Validate an AI workflow before I build it\./i)).toBeInTheDocument();
+    expect(heroPrompt).toHaveDisplayValue("Validate an AI workflow before I build it.");
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
