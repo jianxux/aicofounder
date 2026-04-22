@@ -332,6 +332,27 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
+    expect(screen.getByText("Imported from your landing draft")).toBeInTheDocument();
+    expect(screen.getAllByText("Pressure-test this founder workflow idea.").length).toBeGreaterThan(0);
+    expect(screen.getByText(/fields were prefilled from your landing draft/i)).toBeInTheDocument();
+  });
+
+  it("preserves the raw landingPromptDraft in the import panel while trimming for handoff detection and prefill", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    const rawDraft = "  Pressure-test this founder workflow idea.\n\nKeep this exact spacing.  ";
+    window.sessionStorage.setItem("landingPromptDraft", rawDraft);
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.\n\nKeep this exact spacing.",
+    );
+
+    const panel = screen.getByText("Imported from your landing draft").closest("section");
+    const importedDraftPre = panel?.querySelector("pre");
+    expect(importedDraftPre?.textContent).toBe(rawDraft);
   });
 
   it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
@@ -416,6 +437,15 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Whether they trust AI-generated synthesis.",
     );
+  });
+
+  it("does not show the landing draft panel for normal onboarding", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.queryByText("Imported from your landing draft")).not.toBeInTheDocument();
   });
 
   it("skips onboarding by setting localStorage and closing the modal", async () => {

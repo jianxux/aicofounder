@@ -17,6 +17,7 @@ type OnboardingModalProps = {
   onComplete: (intake: OnboardingIntake) => void;
   onSkip: () => void;
   initialIntake?: Partial<OnboardingIntake>;
+  importedLandingDraft?: string;
 };
 
 type OnboardingStep = 1 | 2 | 3;
@@ -62,7 +63,13 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
-export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
+export default function OnboardingModal({
+  open,
+  onComplete,
+  onSkip,
+  initialIntake,
+  importedLandingDraft,
+}: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
   const [url, setUrl] = useState("");
@@ -80,6 +87,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
+  const hasImportedLandingDraft = (importedLandingDraft?.trim().length ?? 0) > 0;
 
   const clearSelectedStarter = () => {
     setSelectedStarterIndex(null);
@@ -299,6 +307,21 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             </p>
 
             <div className="mt-8 space-y-5">
+              {hasImportedLandingDraft ? (
+                <section className="rounded-[28px] border border-amber-200 bg-amber-50/70 p-5">
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
+                    Imported from your landing draft
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-stone-700">
+                    These fields were prefilled from your landing draft. Review the original prompt
+                    below if anything looks incomplete.
+                  </p>
+                  <pre className="mt-3 overflow-x-auto rounded-2xl border border-amber-200/70 bg-white/90 p-4 text-sm leading-6 text-stone-700 whitespace-pre-wrap">
+                    {importedLandingDraft}
+                  </pre>
+                </section>
+              ) : null}
+
               <section
                 aria-label="Starter briefs"
                 className="rounded-[28px] border border-stone-200/90 bg-white/80 p-4 sm:p-5"
