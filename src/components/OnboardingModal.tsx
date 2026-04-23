@@ -11,6 +11,7 @@ export type OnboardingIntake = {
   targetUser: string;
   mainUncertainty: string;
 };
+export const ONBOARDING_DRAFT_KEY = "onboarding-intake-draft";
 
 type OnboardingModalProps = {
   open: boolean;
@@ -20,6 +21,7 @@ type OnboardingModalProps = {
 };
 
 type OnboardingStep = 1 | 2 | 3;
+type PersistedOnboardingDraft = OnboardingIntake & { step: Extract<OnboardingStep, 2 | 3> };
 
 const TOTAL_STEPS = 3;
 const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string }> = [
@@ -62,6 +64,48 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+function toTrimmedString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parsePersistedDraft(raw: string | null): PersistedOnboardingDraft | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedOnboardingDraft>;
+    const step = parsed.step === 2 || parsed.step === 3 ? parsed.step : null;
+
+    if (!step) {
+      return null;
+    }
+
+    return {
+      step,
+      primaryIdea: typeof parsed.primaryIdea === "string" ? parsed.primaryIdea : "",
+      url: typeof parsed.url === "string" ? parsed.url : "",
+      targetUser: typeof parsed.targetUser === "string" ? parsed.targetUser : "",
+      mainUncertainty: typeof parsed.mainUncertainty === "string" ? parsed.mainUncertainty : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function hasInitialIntake(intake?: Partial<OnboardingIntake>): boolean {
+  if (!intake) {
+    return false;
+  }
+
+  return (
+    toTrimmedString(intake.primaryIdea).length > 0 ||
+    toTrimmedString(intake.url).length > 0 ||
+    toTrimmedString(intake.targetUser).length > 0 ||
+    toTrimmedString(intake.mainUncertainty).length > 0
+  );
+}
+
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
@@ -87,12 +131,32 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
 
   useEffect(() => {
     if (open) {
-      const nextPrimaryIdea = initialIntake?.primaryIdea?.trim() ?? "";
-      setStep(nextPrimaryIdea ? 2 : 1);
-      setPrimaryIdea(nextPrimaryIdea);
-      setUrl(initialIntake?.url?.trim() ?? "");
-      setTargetUser(initialIntake?.targetUser?.trim() ?? "");
-      setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      if (hasInitialIntake(initialIntake)) {
+        const nextPrimaryIdea = initialIntake?.primaryIdea?.trim() ?? "";
+        setStep(nextPrimaryIdea ? 2 : 1);
+        setPrimaryIdea(nextPrimaryIdea);
+        setUrl(initialIntake?.url?.trim() ?? "");
+        setTargetUser(initialIntake?.targetUser?.trim() ?? "");
+        setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+        return;
+      }
+
+      const savedDraft = parsePersistedDraft(window.localStorage.getItem(ONBOARDING_DRAFT_KEY));
+      if (savedDraft) {
+        setStep(savedDraft.step);
+        setPrimaryIdea(savedDraft.primaryIdea);
+        setUrl(savedDraft.url);
+        setTargetUser(savedDraft.targetUser);
+        setMainUncertainty(savedDraft.mainUncertainty);
+        return;
+      }
+
+      setStep(1);
+      setPrimaryIdea("");
+      setUrl("");
+      setTargetUser("");
+      setMainUncertainty("");
+      setSelectedStarterIndex(null);
       return;
     }
 
@@ -107,6 +171,22 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     setMainUncertainty("");
     setSelectedStarterIndex(null);
   }, [initialIntake, open]);
+
+  useEffect(() => {
+    if (!open || step === 1) {
+      return;
+    }
+
+    const draft: PersistedOnboardingDraft = {
+      step,
+      primaryIdea,
+      url,
+      targetUser,
+      mainUncertainty,
+    };
+
+    window.localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+  }, [mainUncertainty, open, primaryIdea, step, targetUser, url]);
 
   useEffect(() => {
     if (!open) {
@@ -297,6 +377,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               Start with one clear idea. Add a URL, target user, or the main uncertainty only if
               they help sharpen the brief.
             </p>
+            <p className="mt-2 text-sm text-stone-500">Your progress on this step is saved locally as a draft.</p>
 
             <div className="mt-8 space-y-5">
               <section
@@ -503,14 +584,15 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               </button>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
+                  window.localStorage.removeItem(ONBOARDING_DRAFT_KEY);
                   onComplete({
                     primaryIdea: primaryIdea.trim(),
                     url: url.trim(),
                     targetUser: targetUser.trim(),
                     mainUncertainty: mainUncertainty.trim(),
-                  })
-                }
+                  });
+                }}
                 className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
               >
                 Launch Project

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
+import { ONBOARDING_DRAFT_KEY } from "@/components/OnboardingModal";
 import { trackEvent } from "@/lib/analytics";
 import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
 import type { Project } from "@/lib/types";
@@ -318,6 +319,26 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
   });
 
+  it("shows onboarding when there are no projects and a saved onboarding draft exists even if dismissed", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.localStorage.setItem(
+      ONBOARDING_DRAFT_KEY,
+      JSON.stringify({
+        step: 2,
+        primaryIdea: "Resume this idea",
+        url: "",
+        targetUser: "",
+        mainUncertainty: "",
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue("Resume this idea");
+  });
+
   it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.localStorage.setItem("onboarding-dismissed", "true");
@@ -438,6 +459,16 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
     window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
+    window.localStorage.setItem(
+      ONBOARDING_DRAFT_KEY,
+      JSON.stringify({
+        step: 2,
+        primaryIdea: "An outdated draft",
+        url: "",
+        targetUser: "",
+        mainUncertainty: "",
+      }),
+    );
 
     renderPage();
 
@@ -457,6 +488,7 @@ describe("DashboardPage", () => {
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
       expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+      expect(window.localStorage.getItem(ONBOARDING_DRAFT_KEY)).toBeNull();
     });
 
     expect(trackEvent).toHaveBeenCalledWith(
