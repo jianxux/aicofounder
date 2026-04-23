@@ -118,6 +118,11 @@ const focusPresets = [
       "If the workaround is spreadsheets plus manual follow-up, quantify the wasted time before promising automation.",
       "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
     ],
+    rationale: [
+      { label: "Best when", value: "the pain sounds real but you still do not trust the urgency." },
+      { label: "Bring", value: "customer notes, rough demand signals, and the workaround people use now." },
+      { label: "Decide next", value: "whether to validate deeper, reposition the problem, or stop early." },
+    ],
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
   },
   {
@@ -134,6 +139,11 @@ const focusPresets = [
       "Founders who win here explain the problem more clearly, not just the product.",
       "Your next move is tightening the positioning claim before shipping the homepage.",
     ],
+    rationale: [
+      { label: "Best when", value: "the product is plausible but the story still sounds interchangeable." },
+      { label: "Bring", value: "homepage copy, customer language, and competing claims in the category." },
+      { label: "Decide next", value: "which angle, promise, and wording deserve the next homepage test." },
+    ],
     sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
   },
   {
@@ -149,6 +159,11 @@ const focusPresets = [
     insightPoints: [
       "Sequence the work so each conversation or experiment earns the right to make the next decision.",
       "Name the metric or learning target before you draft the task list.",
+    ],
+    rationale: [
+      { label: "Best when", value: "your signal is spread across notes and decisions keep slipping." },
+      { label: "Bring", value: "research scraps, open questions, and the constraints shaping this week." },
+      { label: "Decide next", value: "the next three moves, who to talk to, and what to test first." },
     ],
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
   },
@@ -267,6 +282,30 @@ function LoginPromptModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function FocusRationalePanel({
+  rationale,
+}: {
+  rationale: (typeof focusPresets)[number]["rationale"];
+}) {
+  const headingId = useId();
+
+  return (
+    <section aria-labelledby={headingId} className="mt-4 rounded-[1.35rem] border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-left">
+      <h2 id={headingId} className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+        Why this focus
+      </h2>
+      <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+        {rationale.map((item) => (
+          <div key={item.label} className="rounded-[1.1rem] border border-stone-200 bg-white px-3 py-3">
+            <dt className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-stone-400">{item.label}</dt>
+            <dd className="mt-1.5 text-sm leading-6 text-stone-600">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -394,6 +433,7 @@ export default function LandingPage() {
                     I want to
                   </label>
                   <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
+                  <FocusRationalePanel rationale={activePreset.rationale} />
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"

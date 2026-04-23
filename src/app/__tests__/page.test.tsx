@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -61,6 +61,8 @@ describe("LandingPage", () => {
   it("renders a centered banner hero with a large founder prompt box", () => {
     render(<LandingPage />);
 
+    const rationalePanel = screen.getByRole("region", { name: /Why this focus/i });
+
     expect(screen.getByRole("heading", { name: /Make something people/i })).toBeInTheDocument();
     expect(screen.getByText(/Start with the founder question you cannot shake/i)).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Choose your first focus/i })).toBeInTheDocument();
@@ -68,6 +70,10 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
+    expect(rationalePanel).toBeInTheDocument();
+    expect(within(rationalePanel).getByText("Best when")).toBeInTheDocument();
+    expect(within(rationalePanel).getByText("Bring")).toBeInTheDocument();
+    expect(within(rationalePanel).getByText("Decide next")).toBeInTheDocument();
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
@@ -76,15 +82,24 @@ describe("LandingPage", () => {
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
     render(<LandingPage />);
 
+    const initialRationaleText = screen.getByRole("region", { name: /Why this focus/i }).textContent;
+
     fireEvent.change(screen.getByLabelText("I want to"), {
       target: { value: "Keep my draft intact." },
     });
     fireEvent.click(screen.getByRole("radio", { name: /Next-step planning/i }));
 
+    const updatedRationalePanel = screen.getByRole("region", { name: /Why this focus/i });
+
     expect(screen.getByRole("radio", { name: /Next-step planning/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /Demand validation/i })).not.toBeChecked();
     expect(screen.getByDisplayValue("Keep my draft intact.")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you have signal scattered across notes/i)).toBeInTheDocument();
+    expect(updatedRationalePanel).toBeInTheDocument();
+    expect(within(updatedRationalePanel).getByText("Best when")).toBeInTheDocument();
+    expect(within(updatedRationalePanel).getByText("Bring")).toBeInTheDocument();
+    expect(within(updatedRationalePanel).getByText("Decide next")).toBeInTheDocument();
+    expect(updatedRationalePanel.textContent).not.toEqual(initialRationaleText);
     expect(screen.getByText("Prioritize the next 3 moves")).toBeInTheDocument();
     expect(screen.getByText("Next-step plan")).toBeInTheDocument();
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
