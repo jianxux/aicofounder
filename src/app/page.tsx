@@ -154,6 +154,37 @@ const focusPresets = [
   },
 ] as const;
 
+const startingMaterials = [
+  {
+    id: "raw-idea",
+    label: "Raw idea",
+    helper: "Best when the concept is still rough and you need help turning the instinct into a testable founder brief.",
+    guidance: "Name the buyer, the problem moment, and what feels most uncertain so the output can challenge the weak spots.",
+    starterDraft: "I have a raw idea for [buyer] who struggle with [painful workflow]. Help me pressure-test the problem, the urgency, and the first proof I should gather before building.",
+  },
+  {
+    id: "homepage-url",
+    label: "Existing homepage / URL",
+    helper: "Use this when you already shipped a homepage, waitlist, or product URL and want sharper messaging feedback.",
+    guidance: "Paste the URL and call out which claim, audience, or section feels soft, generic, or hard to believe.",
+    starterDraft: "Review this homepage/URL: [https://example.com]. Tell me what the current positioning promises, where it sounds generic, and how I should rewrite the opening message for the real buyer.",
+  },
+  {
+    id: "customer-notes",
+    label: "Customer notes",
+    helper: "Useful when interviews, call notes, or support transcripts already exist but the signal is scattered.",
+    guidance: "Paste the strongest quotes or notes, then ask for repeated pain patterns, buyer language, and the next interview gaps.",
+    starterDraft: "Synthesize these customer notes into the main pain patterns, exact buyer language worth reusing, and the next questions I should ask to validate the opportunity.",
+  },
+  {
+    id: "positioning-draft",
+    label: "Positioning draft",
+    helper: "Best for a rough tagline, homepage draft, or positioning statement that needs sharper differentiation.",
+    guidance: "Include the current draft and ask which parts feel generic, unsupported, or mismatched to the buyer's real problem.",
+    starterDraft: "Here is my current positioning draft: [paste draft]. Rewrite it into a sharper founder-ready angle, explain what sounds generic, and suggest the strongest homepage claim to test next.",
+  },
+] as const;
+
 function LandingLinkCta({
   button,
   children,
@@ -274,8 +305,27 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const [activeStartingMaterialId, setActiveStartingMaterialId] = useState<(typeof startingMaterials)[number]["id"]>(startingMaterials[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const activeStartingMaterial =
+    startingMaterials.find((material) => material.id === activeStartingMaterialId) ?? startingMaterials[0];
+
+  const handleUseStarterDraft = () => {
+    setHeroPrompt((currentPrompt) => {
+      const trimmedPrompt = currentPrompt.trim();
+
+      if (!trimmedPrompt) {
+        return activeStartingMaterial.starterDraft;
+      }
+
+      if (currentPrompt.includes(activeStartingMaterial.starterDraft)) {
+        return currentPrompt;
+      }
+
+      return `${currentPrompt.replace(/\s*$/, "")}\n\n${activeStartingMaterial.starterDraft}`;
+    });
+  };
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -390,10 +440,58 @@ export default function LandingPage() {
                 </fieldset>
 
                 <form onSubmit={handleHeroSubmit} className="mx-auto mt-6 max-w-3xl rounded-[1.9rem] border border-stone-200 bg-white p-4 shadow-[0_18px_45px_rgba(28,25,23,0.06)] sm:p-5">
+                  <fieldset className="text-left">
+                    <legend className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Starting material</legend>
+                    <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose your starting material">
+                      {startingMaterials.map((material) => {
+                        const isActive = material.id === activeStartingMaterial.id;
+
+                        return (
+                          <label key={material.id} className="cursor-pointer">
+                            <input
+                              type="radio"
+                              name="landing-starting-material"
+                              value={material.id}
+                              checked={isActive}
+                              onChange={() => setActiveStartingMaterialId(material.id)}
+                              className="peer sr-only"
+                            />
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-2 text-sm font-medium transition peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-stone-950 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white ${
+                                isActive
+                                  ? "border-stone-950 bg-stone-950 text-stone-50"
+                                  : "border-stone-200 bg-[#faf7f2] text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+                              }`}
+                            >
+                              {material.label}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
                   <label htmlFor="hero-prompt" className="block text-left text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
                     I want to
                   </label>
                   <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
+                  <div className="mt-3 rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-left">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Prompt guidance for {activeStartingMaterial.label}</div>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">{activeStartingMaterial.helper}</p>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">{activeStartingMaterial.guidance}</p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="max-w-xl text-sm leading-6 text-stone-600">
+                        Starter draft: <span className="text-stone-700">{activeStartingMaterial.starterDraft}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleUseStarterDraft}
+                        className="inline-flex rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+                      >
+                        Use starter draft
+                      </button>
+                    </div>
+                  </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
