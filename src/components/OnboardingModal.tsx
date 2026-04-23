@@ -3,6 +3,7 @@
 import type { KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { LandingFocusContext } from "@/app/prompt-handoff";
 import { summarizeIntakeAttachmentPolicy } from "@/lib/intake-attachment-policy";
 
 export type OnboardingIntake = {
@@ -17,6 +18,7 @@ type OnboardingModalProps = {
   onComplete: (intake: OnboardingIntake) => void;
   onSkip: () => void;
   initialIntake?: Partial<OnboardingIntake>;
+  landingFocusContext?: LandingFocusContext;
 };
 
 type OnboardingStep = 1 | 2 | 3;
@@ -62,7 +64,13 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
-export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
+export default function OnboardingModal({
+  open,
+  onComplete,
+  onSkip,
+  initialIntake,
+  landingFocusContext,
+}: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
   const [url, setUrl] = useState("");
@@ -299,6 +307,26 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             </p>
 
             <div className="mt-8 space-y-5">
+              {landingFocusContext ? (
+                <section
+                  aria-label="Selected focus context"
+                  className="rounded-[28px] border border-amber-200 bg-amber-50/80 p-5"
+                >
+                  <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-900">
+                    Brought from landing
+                  </div>
+                  <div className="mt-3 text-base font-semibold text-stone-900">
+                    {landingFocusContext.label}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-stone-700">
+                    {landingFocusContext.angle}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-stone-700">
+                    Expected output: {landingFocusContext.output}
+                  </p>
+                </section>
+              ) : null}
+
               <section
                 aria-label="Starter briefs"
                 className="rounded-[28px] border border-stone-200/90 bg-white/80 p-4 sm:p-5"

@@ -93,6 +93,7 @@ describe("LandingPage", () => {
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
     fireEvent.change(screen.getByLabelText("I want to"), {
       target: { value: "Validate an AI workflow before I build it." },
     });
@@ -102,6 +103,14 @@ describe("LandingPage", () => {
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    expect(window.sessionStorage.getItem("landingFocusContext")).toBe(
+      JSON.stringify({
+        presetId: "positioning",
+        label: "Positioning",
+        angle: "Sharpen the angle buyers will actually repeat.",
+        output: "Positioning report",
+      }),
+    );
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",
@@ -115,9 +124,15 @@ describe("LandingPage", () => {
       target: { value: "Validate an AI workflow before I build it." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    expect(window.sessionStorage.getItem("landingFocusContext")).not.toBeNull();
+
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(window.sessionStorage.getItem("landingFocusContext")).toBeNull();
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {

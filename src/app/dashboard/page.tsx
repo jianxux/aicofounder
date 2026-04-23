@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { clearLandingHandoff, consumeLandingHandoff, type LandingFocusContext } from "@/app/prompt-handoff";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
-import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
-const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -52,6 +51,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
+  const [landingFocusContext, setLandingFocusContext] = useState<LandingFocusContext | undefined>();
 
   useEffect(() => {
     void trackEvent("dashboard_view", {
@@ -59,12 +59,13 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
-      const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+      const handoff = consumeLandingHandoff();
+      const shouldShowDraftHandoff = loadedProjects.length === 0 && handoff.draft.length > 0;
 
       setPrefilledOnboardingIntake(
-        shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
+        shouldShowDraftHandoff ? handoff.intake : {},
       );
+      setLandingFocusContext(shouldShowDraftHandoff ? handoff.focusContext : undefined);
       setProjects(loadedProjects);
       setShowOnboarding(
         loadedProjects.length === 0 &&
@@ -76,13 +77,15 @@ export default function DashboardPage() {
   const handleOpenOnboarding = () => {
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
     setPrefilledOnboardingIntake({});
+    setLandingFocusContext(undefined);
     setShowOnboarding(true);
   };
 
   const handleSkipOnboarding = () => {
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
-    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    clearLandingHandoff();
     setPrefilledOnboardingIntake({});
+    setLandingFocusContext(undefined);
     setShowOnboarding(false);
   };
 
@@ -110,8 +113,9 @@ export default function DashboardPage() {
       project_id: project.id,
       source: "onboarding",
     });
-    window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    clearLandingHandoff();
     setPrefilledOnboardingIntake({});
+    setLandingFocusContext(undefined);
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
   };
@@ -120,6 +124,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#faf7f2]">
       <OnboardingModal
         open={showOnboarding}
+        landingFocusContext={landingFocusContext}
         initialIntake={prefilledOnboardingIntake}
         onComplete={(intake) => void handleCompleteOnboarding(intake)}
         onSkip={handleSkipOnboarding}

@@ -322,16 +322,34 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.localStorage.setItem("onboarding-dismissed", "true");
     window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+    window.sessionStorage.setItem(
+      "landingFocusContext",
+      JSON.stringify({
+        presetId: "demand-validation",
+        label: "Demand validation",
+        angle: "Check if the demand is real before you commit.",
+        output: "Demand signal scorecard",
+      }),
+    );
 
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Selected focus context")).toHaveTextContent("Demand validation");
+    expect(screen.getByLabelText("Selected focus context")).toHaveTextContent(
+      "Check if the demand is real before you commit.",
+    );
+    expect(screen.getByLabelText("Selected focus context")).toHaveTextContent(
+      "Expected output: Demand signal scorecard",
+    );
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
       "Pressure-test this founder workflow idea.",
     );
     expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(window.sessionStorage.getItem("landingFocusContext")).toBeNull();
   });
 
   it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
@@ -421,6 +439,15 @@ describe("DashboardPage", () => {
   it("skips onboarding by setting localStorage and closing the modal", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
+    window.sessionStorage.setItem(
+      "landingFocusContext",
+      JSON.stringify({
+        presetId: "positioning",
+        label: "Positioning",
+        angle: "Sharpen the angle buyers will actually repeat.",
+        output: "Positioning report",
+      }),
+    );
 
     renderPage();
 
@@ -429,6 +456,7 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(window.localStorage.getItem("onboarding-dismissed")).toBe("true");
       expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+      expect(window.sessionStorage.getItem("landingFocusContext")).toBeNull();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
@@ -438,6 +466,15 @@ describe("DashboardPage", () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
     window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
+    window.sessionStorage.setItem(
+      "landingFocusContext",
+      JSON.stringify({
+        presetId: "positioning",
+        label: "Positioning",
+        angle: "Sharpen the angle buyers will actually repeat.",
+        output: "Positioning report",
+      }),
+    );
 
     renderPage();
 
@@ -457,6 +494,7 @@ describe("DashboardPage", () => {
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
       expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+      expect(window.sessionStorage.getItem("landingFocusContext")).toBeNull();
     });
 
     expect(trackEvent).toHaveBeenCalledWith(

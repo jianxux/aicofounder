@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { clearLandingHandoff, persistLandingHandoff } from "@/app/prompt-handoff";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -292,9 +293,15 @@ export default function LandingPage() {
       return;
     }
 
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("landingPromptDraft", nextPrompt);
-    }
+    persistLandingHandoff({
+      draft: nextPrompt,
+      focusContext: {
+        presetId: activePreset.id,
+        label: activePreset.label,
+        angle: activePreset.title,
+        output: activePreset.sessionOutputs[0],
+      },
+    });
 
     void trackEvent("cta_click", {
       page: "/",
@@ -311,9 +318,14 @@ export default function LandingPage() {
     }
   };
 
+  const handleLoginPromptClose = () => {
+    clearLandingHandoff();
+    setShowLoginPrompt(false);
+  };
+
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={handleLoginPromptClose} />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
