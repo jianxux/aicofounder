@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
-import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
+import OnboardingModal, {
+  ONBOARDING_DRAFT_KEY,
+  type OnboardingIntake,
+} from "@/components/OnboardingModal";
 import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
@@ -61,6 +64,8 @@ export default function DashboardPage() {
     getProjects().then((loadedProjects) => {
       const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
       const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+      const hasSavedOnboardingDraft =
+        loadedProjects.length === 0 && window.localStorage.getItem(ONBOARDING_DRAFT_KEY) !== null;
 
       setPrefilledOnboardingIntake(
         shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
@@ -68,7 +73,11 @@ export default function DashboardPage() {
       setProjects(loadedProjects);
       setShowOnboarding(
         loadedProjects.length === 0 &&
-          (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
+          (
+            shouldShowDraftHandoff ||
+            hasSavedOnboardingDraft ||
+            window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"
+          ),
       );
     });
   }, []);

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import OnboardingModal from "@/components/OnboardingModal";
+import OnboardingModal, { ONBOARDING_DRAFT_KEY } from "@/components/OnboardingModal";
 
 function moveToIdeaStep() {
   fireEvent.click(screen.getByRole("button", { name: "Get Started" }));
@@ -43,6 +43,7 @@ describe("OnboardingModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
   });
 
   it("renders step 1 by default when open=true", () => {
@@ -146,6 +147,7 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
+    expect(screen.getByText("Your progress on this step is saved locally as a draft.")).toBeInTheDocument();
   });
 
   it("prefills the intake fields when a starter brief is selected", () => {
@@ -355,17 +357,28 @@ describe("OnboardingModal", () => {
     expect(screen.getAllByText("Not provided")).toHaveLength(3);
   });
 
-  it("resets to the first step when reopened", () => {
+  it("restores a saved draft when reopened", () => {
     const { rerender } = render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({
+      primaryIdea: "A reopened intake draft.",
+      url: "https://example.com/draft",
+      targetUser: "Founders testing the workflow",
+      mainUncertainty: "Will they keep using it?",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     rerender(<OnboardingModal open={false} onComplete={onComplete} onSkip={onSkip} />);
     rerender(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
-    expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
-    expect(screen.queryByDisplayValue("An AI copilot for founder research.")).not.toBeInTheDocument();
+    const summary = screen.getByText("Intake Summary").closest("section");
+
+    expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
+    expect(within(summary!).getByText("A reopened intake draft.")).toBeInTheDocument();
+    expect(within(summary!).getByText("https://example.com/draft")).toBeInTheDocument();
+    expect(within(summary!).getByText("Founders testing the workflow")).toBeInTheDocument();
+    expect(within(summary!).getByText("Will they keep using it?")).toBeInTheDocument();
   });
 
   it("prefills the intake and opens on the idea step when initialIntake is provided", () => {
@@ -386,6 +399,54 @@ describe("OnboardingModal", () => {
       "Carry this prompt into onboarding.",
     );
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("uses initialIntake instead of a saved local draft when both are present", () => {
+    window.localStorage.setItem(
+      ONBOARDING_DRAFT_KEY,
+      JSON.stringify({
+        step: 3,
+        primaryIdea: "Saved draft idea.",
+        url: "https://draft.example.com",
+        targetUser: "Draft users",
+        mainUncertainty: "Draft uncertainty",
+      }),
+    );
+
+    render(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Initial intake idea.",
+          url: "https://initial.example.com",
+          targetUser: "Initial users",
+          mainUncertainty: "Initial uncertainty",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue("Initial intake idea.");
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("https://initial.example.com");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Initial users");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("Initial uncertainty");
+  });
+
+  it("clears the saved draft before invoking onComplete", () => {
+    const onCompleteWithAssertion = vi.fn(() => {
+      expect(window.localStorage.getItem(ONBOARDING_DRAFT_KEY)).toBeNull();
+    });
+
+    render(<OnboardingModal open onComplete={onCompleteWithAssertion} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    expect(onCompleteWithAssertion).toHaveBeenCalledTimes(1);
   });
 
   it("restores focus to the previously active element when closed", () => {
