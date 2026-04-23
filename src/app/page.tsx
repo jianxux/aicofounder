@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
@@ -112,6 +112,23 @@ const focusPresets = [
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
     placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
     promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
+    promptIngredients: [
+      {
+        title: "Buyer",
+        why: "Why it matters: a specific buyer makes it easier to judge urgency, budget, and where the pain actually shows up.",
+        starter: "Buyer:",
+      },
+      {
+        title: "Problem trigger",
+        why: "Why it matters: the trigger reveals when the problem becomes painful enough that someone starts looking for a fix.",
+        starter: "Problem trigger:",
+      },
+      {
+        title: "Current workaround",
+        why: "Why it matters: the workaround shows what people already do today and what hidden cost your product must beat.",
+        starter: "Current workaround:",
+      },
+    ],
     insightTitle: "Example insight: demand signal",
     insightBody: "The strongest demand signals show up when the buyer already pays a hidden tax to work around the problem.",
     insightPoints: [
@@ -128,6 +145,23 @@ const focusPresets = [
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
     placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
     promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
+    promptIngredients: [
+      {
+        title: "Buyer",
+        why: "Why it matters: positioning only gets sharp when you know exactly who should hear the claim first.",
+        starter: "Buyer:",
+      },
+      {
+        title: "Problem trigger",
+        why: "Why it matters: the trigger anchors your message in the moment a buyer feels the pain instead of vague category language.",
+        starter: "Problem trigger:",
+      },
+      {
+        title: "Differentiator",
+        why: "Why it matters: a real differentiator gives the market a reason to remember you over the default alternative.",
+        starter: "Differentiator:",
+      },
+    ],
     insightTitle: "Example insight: positioning",
     insightBody: "The strongest angle usually comes from sharper customer language, not a longer feature list.",
     insightPoints: [
@@ -144,6 +178,23 @@ const focusPresets = [
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
     placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
     promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
+    promptIngredients: [
+      {
+        title: "Known signal",
+        why: "Why it matters: naming the strongest signal keeps the plan grounded in evidence instead of resetting to opinion.",
+        starter: "Known signal:",
+      },
+      {
+        title: "Open question",
+        why: "Why it matters: the open question defines what uncertainty the next step needs to close.",
+        starter: "Open question:",
+      },
+      {
+        title: "Next decision",
+        why: "Why it matters: the decision clarifies what action or commitment this week of work should unlock.",
+        starter: "Next decision:",
+      },
+    ],
     insightTitle: "Example insight: next steps",
     insightBody: "Momentum improves when each next step closes a specific uncertainty instead of producing more abstract output.",
     insightPoints: [
@@ -199,11 +250,17 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -215,8 +272,37 @@ function LoginPromptModal({
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+
+      if (previousFocusRef.current?.isConnected) {
+        previousFocusRef.current.focus();
+      }
     };
   }, [onClose, open]);
+
+  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusableElements = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+
+    if (!focusableElements?.length) {
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  };
 
   if (!open) {
     return null;
@@ -229,6 +315,8 @@ function LoginPromptModal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        ref={dialogRef}
+        onKeyDown={handleDialogKeyDown}
         className="w-full max-w-xl rounded-[2rem] border border-stone-200 bg-[#faf7f2] p-6 shadow-[0_32px_110px_rgba(28,25,23,0.18)] sm:p-8"
       >
         <div className="flex items-start justify-between gap-4">
@@ -241,6 +329,7 @@ function LoginPromptModal({
           </div>
           <button
             type="button"
+            ref={closeButtonRef}
             onClick={onClose}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
           >
@@ -250,7 +339,7 @@ function LoginPromptModal({
 
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
-          <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -261,7 +350,7 @@ function LoginPromptModal({
             analyticsPage="/"
             className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
           />
-          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
+          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary" href="#sample-artifact">
             Explore demo first
           </LandingLinkCta>
         </div>
@@ -274,6 +363,7 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const heroPromptGuidanceId = useId();
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
@@ -309,6 +399,25 @@ export default function LandingPage() {
       event.preventDefault();
       handleHeroSubmit();
     }
+  };
+
+  const appendPromptIngredient = (starter: string) => {
+    setHeroPrompt((currentPrompt) => {
+      const nextStarter = starter.trimEnd();
+      const trimmedPrompt = currentPrompt.trimEnd();
+
+      const escapedStarter = nextStarter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const starterPattern = new RegExp(`(^|\\n)${escapedStarter}(?=\\s|$)`, "m");
+      if (starterPattern.test(trimmedPrompt)) {
+        return currentPrompt;
+      }
+
+      if (!trimmedPrompt) {
+        return nextStarter;
+      }
+
+      return `${trimmedPrompt}\n\n${nextStarter}`;
+    });
   };
 
   return (
@@ -368,10 +477,10 @@ export default function LandingPage() {
                             value={preset.id}
                             checked={isActive}
                             onChange={() => setActivePresetId(preset.id)}
-                            className="sr-only"
+                            className="peer sr-only"
                           />
                           <div
-                            className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                            className={`rounded-[1.5rem] border px-4 py-4 text-left transition peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-stone-950 ${
                               isActive
                                 ? "border-stone-950 bg-stone-950 text-stone-50 shadow-[0_18px_45px_rgba(28,25,23,0.12)]"
                                 : "border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50"
@@ -397,6 +506,7 @@ export default function LandingPage() {
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
+                      aria-describedby={heroPromptGuidanceId}
                       value={heroPrompt}
                       onChange={(event) => setHeroPrompt(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
@@ -404,8 +514,31 @@ export default function LandingPage() {
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
+                    <section aria-label="Prompt ingredients" className="mt-4 border-t border-stone-200 pt-4">
+                      <div>
+                        <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt ingredients</div>
+                        <p className="mt-2 text-sm leading-6 text-stone-500">Use these starter lines to add the details that make this preset more useful.</p>
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-3">
+                        {activePreset.promptIngredients.map((ingredient) => (
+                          <div key={ingredient.title} className="rounded-2xl border border-stone-200 bg-white px-4 py-4 text-left shadow-sm">
+                            <div className="text-sm font-semibold tracking-[-0.02em] text-stone-950">{ingredient.title}</div>
+                            <p className="mt-2 text-sm leading-6 text-stone-600">{ingredient.why}</p>
+                            <button
+                              type="button"
+                              onClick={() => appendPromptIngredient(ingredient.starter)}
+                              className="mt-3 inline-flex rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-900 transition hover:border-stone-300 hover:bg-stone-100"
+                            >
+                              Add {ingredient.title}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
+                      <span id={heroPromptGuidanceId} className="text-sm text-stone-500">
+                        Press Enter to continue. Press Shift+Enter for a new line, or click Send to open the login prompt.
+                      </span>
                       <button
                         type="submit"
                         disabled={!heroPrompt.trim()}
@@ -415,6 +548,9 @@ export default function LandingPage() {
                       </button>
                     </div>
                   </div>
+                  <p className="mt-4 text-center text-sm leading-6 text-stone-500">
+                    Prompt ideas replace the draft below. Ingredient buttons above append starter lines.
+                  </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     {activePreset.promptIdeas.map((prompt) => (
                       <button
@@ -482,7 +618,7 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+      <section id="sample-artifact" className="mx-auto w-full max-w-7xl scroll-mt-24 px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
           <div className="max-w-md">
             <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample first deliverable</div>
