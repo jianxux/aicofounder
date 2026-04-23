@@ -61,6 +61,14 @@ const FOCUSABLE_SELECTOR = [
   "textarea:not([disabled])",
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
+const STRONG_IDEA_MIN_WORDS = 6;
+
+function countWords(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
 
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
@@ -78,6 +86,39 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const stepThreeHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
+  const hasConcreteIdeaSignal = countWords(primaryIdea) >= STRONG_IDEA_MIN_WORDS;
+  const hasTargetUserSignal = targetUser.trim().length > 0;
+  const hasMainUncertaintySignal = mainUncertainty.trim().length > 0;
+  const hasReferenceUrlSignal = url.trim().length > 0;
+  const intakeSignals = [
+    {
+      label: "Concrete idea or workflow",
+      present: hasConcreteIdeaSignal,
+      hint: `More than a few words helps. Aim for at least ${STRONG_IDEA_MIN_WORDS} words.`,
+    },
+    {
+      label: "Target user named",
+      present: hasTargetUserSignal,
+      hint: "Name the customer or operator you want to help.",
+    },
+    {
+      label: "Main uncertainty named",
+      present: hasMainUncertaintySignal,
+      hint: "Call out the risk, assumption, or decision you need to test.",
+    },
+    {
+      label: "Reference URL added",
+      present: hasReferenceUrlSignal,
+      hint: "Optional but helpful for a product, market, or workflow reference.",
+    },
+  ] as const;
+  const presentSignalCount = intakeSignals.filter((signal) => signal.present).length;
+  const intakeGuideSummary =
+    presentSignalCount <= 1
+      ? "Early signal only. Add a sharper idea, target user, or uncertainty so the first brief has more to work from."
+      : presentSignalCount <= 3
+        ? "Promising signal. You have a workable intake; one more detail would make the first brief more specific."
+        : "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.";
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
 
@@ -93,6 +134,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       setUrl(initialIntake?.url?.trim() ?? "");
       setTargetUser(initialIntake?.targetUser?.trim() ?? "");
       setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      setSelectedStarterIndex(null);
       return;
     }
 
@@ -365,6 +407,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">Relevant URL (optional)</span>
                 <input
+                  type="url"
                   value={url}
                   onChange={(event) => {
                     clearSelectedStarter();
@@ -401,6 +444,61 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
               </label>
+
+              <section
+                aria-label="Intake quality guide"
+                className="rounded-[28px] border border-stone-200/90 bg-[#f5efe5] p-5 sm:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div role="status" aria-live="polite" aria-atomic="true">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Intake quality guide
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      Rough completeness signal: {presentSignalCount} of 4 signals present.
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">{intakeGuideSummary}</p>
+                  </div>
+                  <div
+                    aria-hidden="true"
+                    className="rounded-full border border-stone-300 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600"
+                  >
+                    {presentSignalCount <= 1
+                      ? "Early signal"
+                      : presentSignalCount <= 3
+                        ? "Promising signal"
+                        : "Strong signal"}
+                  </div>
+                </div>
+
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-stone-700">
+                  {intakeSignals.map((signal) => (
+                    <li
+                      key={signal.label}
+                      className="flex items-start gap-3 rounded-[20px] border border-stone-200/80 bg-white/80 px-4 py-3"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${
+                          signal.present
+                            ? "bg-stone-900 text-white"
+                            : "border border-stone-300 bg-transparent text-stone-500"
+                        }`}
+                      >
+                        {signal.present ? "✓" : " "}
+                      </span>
+                      <span>
+                        <span className="font-medium text-stone-900">
+                          {signal.label}
+                          <span className="sr-only">: {signal.present ? "present" : "missing"}</span>
+                        </span>
+                        <span className="block text-stone-600">{signal.present ? "Present" : "Missing"}</span>
+                        <span className="block text-stone-600">{signal.hint}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             </div>
 
             <div className="mt-8 flex items-center justify-between gap-3">

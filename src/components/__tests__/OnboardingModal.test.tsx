@@ -139,6 +139,7 @@ describe("OnboardingModal", () => {
     moveToIdeaStep();
 
     expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Intake quality guide" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Retail demand planner/i })).toBeInTheDocument();
@@ -146,6 +147,88 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
+  });
+
+  it("shows the intake quality guide with missing signals by default", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+    const status = within(guide).getByRole("status");
+
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(status).toHaveTextContent("Early signal only.");
+    expect(
+      within(guide).getByText("More than a few words helps. Aim for at least 6 words."),
+    ).toBeInTheDocument();
+    expect(
+      within(guide).getByText("Optional but helpful for a product, market, or workflow reference."),
+    ).toBeInTheDocument();
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+  });
+
+  it("updates intake quality signals live through intermediate and complete states", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+    const status = within(guide).getByRole("status");
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "Founder research copilot" },
+    });
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research workflows" },
+    });
+    fireEvent.change(screen.getByLabelText("Target user (optional)"), {
+      target: { value: "Seed-stage founders" },
+    });
+
+    expect(status).toHaveTextContent("Rough completeness signal: 2 of 4 signals present.");
+    expect(status).toHaveTextContent("Promising signal.");
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: present",
+    );
+    expect(within(guide).getByText("Target user named", { exact: false })).toHaveTextContent(
+      "Target user named: present",
+    );
+
+    fillIntakeFields();
+
+    expect(status).toHaveTextContent("Rough completeness signal: 4 of 4 signals present.");
+    expect(status).toHaveTextContent("Strong signal.");
+    expect(status).toHaveTextContent(
+      "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.",
+    );
+  });
+
+  it("requires at least 6 words for the concrete idea signal", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research" },
+    });
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research planning" },
+    });
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: present",
+    );
   });
 
   it("prefills the intake fields when a starter brief is selected", () => {
@@ -386,6 +469,35 @@ describe("OnboardingModal", () => {
       "Carry this prompt into onboarding.",
     );
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("uses a url input and clears selected starter state when initialIntake changes while open", () => {
+    const { rerender } = render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+
+    fireEvent.click(clinicStarter);
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveAttribute("type", "url");
+
+    rerender(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          url: "https://example.com/new",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Carry this prompt into onboarding.",
+    );
   });
 
   it("restores focus to the previously active element when closed", () => {
