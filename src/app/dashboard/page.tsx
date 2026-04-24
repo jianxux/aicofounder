@@ -60,22 +60,23 @@ export default function DashboardPage() {
 
     getProjects().then((loadedProjects) => {
       const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
-      const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+      const shouldShowDraftHandoff = landingPromptDraft.length > 0;
 
       setPrefilledOnboardingIntake(
         shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
       );
       setProjects(loadedProjects);
       setShowOnboarding(
-        loadedProjects.length === 0 &&
-          (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
+        shouldShowDraftHandoff ||
+          (loadedProjects.length === 0 && window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
       );
     });
   }, []);
 
   const handleOpenOnboarding = () => {
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+    setPrefilledOnboardingIntake(landingPromptDraft ? parseLandingPromptDraft(landingPromptDraft) : {});
     setShowOnboarding(true);
   };
 
