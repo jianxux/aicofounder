@@ -90,6 +90,36 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
+  it("seeds the draft when a prompt idea chip is clicked on an empty textarea", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+
+    expect(screen.getByLabelText("I want to")).toHaveValue("Map the painful workflow");
+  });
+
+  it("appends a prompt idea chip to the existing draft instead of overwriting it", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "I already interviewed five operators." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+
+    expect(screen.getByLabelText("I want to")).toHaveValue("I already interviewed five operators.\n\nMap the painful workflow");
+  });
+
+  it("preserves the existing draft exactly before appending a prompt idea chip", () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Existing draft with trailing spaces   " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Map the painful workflow" }));
+
+    expect(screen.getByLabelText("I want to")).toHaveValue("Existing draft with trailing spaces   \n\nMap the painful workflow");
+  });
+
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 

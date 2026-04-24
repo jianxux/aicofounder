@@ -311,6 +311,16 @@ export default function LandingPage() {
     }
   };
 
+  const handlePromptIdeaClick = (promptIdea: string) => {
+    setHeroPrompt((currentPrompt) => {
+      if (!currentPrompt.trim()) {
+        return promptIdea;
+      }
+
+      return `${currentPrompt}\n\n${promptIdea}`;
+    });
+  };
+
   return (
     <>
       <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
@@ -420,7 +430,7 @@ export default function LandingPage() {
                       <button
                         key={prompt}
                         type="button"
-                        onClick={() => setHeroPrompt(prompt)}
+                        onClick={() => handlePromptIdeaClick(prompt)}
                         className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-50"
                       >
                         {prompt}
