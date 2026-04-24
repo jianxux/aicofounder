@@ -154,6 +154,8 @@ const focusPresets = [
   },
 ] as const;
 
+type FocusPreset = (typeof focusPresets)[number];
+
 function LandingLinkCta({
   button,
   children,
@@ -191,10 +193,14 @@ function LandingLinkCta({
 function LoginPromptModal({
   open,
   promptDraft,
+  focusLabel,
+  sessionOutputs,
   onClose,
 }: {
   open: boolean;
   promptDraft: string;
+  focusLabel: FocusPreset["label"];
+  sessionOutputs: readonly string[];
   onClose: () => void;
 }) {
   const titleId = useId();
@@ -236,7 +242,7 @@ function LoginPromptModal({
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
             <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard and leave with the outcomes listed here instead of losing the thought.
             </p>
           </div>
           <button
@@ -251,6 +257,24 @@ function LoginPromptModal({
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
           <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+        </div>
+
+        <div className="mt-4 grid gap-4 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm sm:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Session focus</div>
+            <p className="mt-3 text-sm font-medium text-stone-900">{focusLabel}</p>
+          </div>
+          <div>
+            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">You will leave with</div>
+            <ul className="mt-3 space-y-2 text-sm text-stone-700">
+              {sessionOutputs.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <span aria-hidden="true" className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -273,7 +297,8 @@ function LoginPromptModal({
 export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const [activePresetId, setActivePresetId] = useState<FocusPreset["id"]>(focusPresets[0].id);
+  const [submittedPreset, setSubmittedPreset] = useState<FocusPreset | null>(null);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
@@ -301,6 +326,7 @@ export default function LandingPage() {
       button: "hero_prompt_submit",
     });
 
+    setSubmittedPreset(activePreset);
     setShowLoginPrompt(true);
   };
 
@@ -313,7 +339,13 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal
+        open={showLoginPrompt}
+        promptDraft={heroPrompt.trim()}
+        focusLabel={submittedPreset?.label ?? activePreset.label}
+        sessionOutputs={submittedPreset?.sessionOutputs ?? activePreset.sessionOutputs}
+        onClose={() => setShowLoginPrompt(false)}
+      />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />

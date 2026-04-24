@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -98,9 +98,17 @@ describe("LandingPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
-    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Prompt preview")).toBeInTheDocument();
+    expect(within(dialog).getByText("Session focus")).toBeInTheDocument();
+    expect(within(dialog).getByText("Demand validation")).toBeInTheDocument();
+    expect(within(dialog).getByText("You will leave with")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"].forEach((output) => {
+      expect(within(dialog).getByText(output)).toBeInTheDocument();
+    });
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
@@ -118,6 +126,46 @@ describe("LandingPage", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("updates the login modal outcome summary when the selected preset changes before submit", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Tighten the promise before I rewrite the homepage." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(within(dialog).getByText("Positioning")).toBeInTheDocument();
+    ["Positioning report", "Market research memo", "Homepage angle to test"].forEach((output) => {
+      expect(within(dialog).getByText(output)).toBeInTheDocument();
+    });
+    expect(within(dialog).queryByText("Demand signal scorecard")).not.toBeInTheDocument();
+  });
+
+  it("keeps the login modal outcome summary tied to the submitted preset even if the live preset changes afterwards", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Tighten the promise before I rewrite the homepage." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    fireEvent.click(screen.getByRole("radio", { name: /Demand validation/i }));
+
+    expect(within(dialog).getByText("Positioning")).toBeInTheDocument();
+    ["Positioning report", "Market research memo", "Homepage angle to test"].forEach((output) => {
+      expect(within(dialog).getByText(output)).toBeInTheDocument();
+    });
+    expect(within(dialog).queryByText("Demand validation")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Demand signal scorecard")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Demand validation/i })).toBeChecked();
   });
 
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
