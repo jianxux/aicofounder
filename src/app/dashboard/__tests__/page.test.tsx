@@ -9,6 +9,7 @@ import type { Project } from "@/lib/types";
 
 async function startOnboarding() {
   fireEvent.click(await screen.findByRole("button", { name: "Get Started" }));
+  await screen.findByRole("heading", { name: "About Your Idea" });
 }
 
 function completeIntake(overrides?: {
@@ -236,6 +237,53 @@ describe("DashboardPage", () => {
       "href",
       "/project/project-42",
     );
+  });
+
+  it("renders a saved draft callout when landingPromptDraft is present and projects already exist", async () => {
+    const project = createProject();
+    vi.mocked(getProjects).mockResolvedValue([project]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      "An AI workspace that keeps founder research, evidence, and next steps connected in one place.",
+    );
+
+    renderPage();
+
+    const callout = await screen.findByRole("region", { name: "Saved landing page draft" });
+    expect(within(callout).getByText(/saved draft came from the landing page/i)).toBeInTheDocument();
+    expect(within(callout).getByText(/An AI workspace that keeps founder research/i)).toBeInTheDocument();
+    expect(
+      within(callout).getByRole("button", { name: "Start a project from this draft" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens onboarding prefilled from the saved draft callout without affecting regular new project actions", async () => {
+    const project = createProject();
+    vi.mocked(getProjects).mockResolvedValue([project]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      "An AI workspace that keeps founder research, evidence, and next steps connected in one place.",
+    );
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Start a project from this draft" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI workspace that keeps founder research, evidence, and next steps connected in one place.",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(await screen.findByRole("button", { name: "New Project" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Saved landing page draft" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue("");
   });
 
   it("clicking the header New Project button opens onboarding", async () => {

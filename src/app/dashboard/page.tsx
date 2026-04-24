@@ -48,9 +48,20 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
     .join("\n\n");
 }
 
+function buildDraftPreview(draft: string) {
+  const normalizedDraft = draft.trim().replace(/\s+/g, " ");
+
+  if (normalizedDraft.length <= 140) {
+    return normalizedDraft;
+  }
+
+  return `${normalizedDraft.slice(0, 137).trimEnd()}...`;
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [landingPromptDraft, setLandingPromptDraft] = useState("");
   const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
 
   useEffect(() => {
@@ -59,11 +70,12 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
-      const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+      const nextLandingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+      const shouldShowDraftHandoff = loadedProjects.length === 0 && nextLandingPromptDraft.length > 0;
 
+      setLandingPromptDraft(nextLandingPromptDraft);
       setPrefilledOnboardingIntake(
-        shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
+        shouldShowDraftHandoff ? parseLandingPromptDraft(nextLandingPromptDraft) : {},
       );
       setProjects(loadedProjects);
       setShowOnboarding(
@@ -79,9 +91,21 @@ export default function DashboardPage() {
     setShowOnboarding(true);
   };
 
+  const handleOpenDraftHandoff = () => {
+    if (!landingPromptDraft) {
+      handleOpenOnboarding();
+      return;
+    }
+
+    window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
+    setPrefilledOnboardingIntake(parseLandingPromptDraft(landingPromptDraft));
+    setShowOnboarding(true);
+  };
+
   const handleSkipOnboarding = () => {
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    setLandingPromptDraft("");
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
   };
@@ -153,6 +177,39 @@ export default function DashboardPage() {
             New Project
           </button>
         </div>
+
+        {projects.length > 0 && landingPromptDraft ? (
+          <section
+            aria-label="Saved landing page draft"
+            className="mb-8 rounded-[28px] border border-amber-200 bg-amber-50/80 p-6 shadow-sm"
+          >
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-800">
+                  Saved draft from the landing page
+                </div>
+                <h2 className="mt-3 text-2xl font-semibold text-stone-950">Keep building from your last idea</h2>
+                <p className="mt-3 text-sm leading-7 text-stone-700">
+                  You already have projects here, but this saved draft came from the landing page and can
+                  become a separate new project whenever you are ready.
+                </p>
+                <p className="mt-4 rounded-[20px] border border-amber-200/80 bg-white/80 px-4 py-3 text-sm leading-7 text-stone-700">
+                  {buildDraftPreview(landingPromptDraft)}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-start">
+                <button
+                  type="button"
+                  onClick={handleOpenDraftHandoff}
+                  className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+                >
+                  Start a project from this draft
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
