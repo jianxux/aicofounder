@@ -334,6 +334,59 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
   });
 
+  it("prefills onboarding from a structured preset-aware landing handoff", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Primary idea: Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+        "Focus: Positioning",
+        "Target user: seed-stage founders",
+        "Main uncertainty: Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+        "First outputs: Positioning report; Market research memo; Homepage angle to test",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+    );
+  });
+
+  it("opens the handoff onboarding even when the dashboard already has projects", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Primary idea: Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+        "Focus: Positioning",
+        "Target user: seed-stage founders",
+        "Main uncertainty: Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+        "First outputs: Positioning report; Market research memo; Homepage angle to test",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+    );
+  });
+
   it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.localStorage.setItem("onboarding-dismissed", "true");

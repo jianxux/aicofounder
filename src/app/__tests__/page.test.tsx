@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import LandingPage from "@/app/page";
@@ -90,18 +90,45 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
-  it("opens a login prompt modal when a visitor submits a hero prompt", () => {
+  it("opens a login prompt modal with a structured preset-aware handoff when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
     fireEvent.change(screen.getByLabelText("I want to"), {
-      target: { value: "Validate an AI workflow before I build it." },
+      target: {
+        value:
+          "Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+      },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
-    expect(screen.getByText("Prompt preview")).toBeInTheDocument();
-    expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
-    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+    const dialog = screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Handoff preview")).toBeInTheDocument();
+    expect(within(dialog).getByText("Focus")).toBeInTheDocument();
+    expect(within(dialog).getByText("Positioning")).toBeInTheDocument();
+    expect(within(dialog).getByText("Target user")).toBeInTheDocument();
+    expect(within(dialog).getByText("seed-stage founders")).toBeInTheDocument();
+    expect(within(dialog).getByText("Main uncertainty")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("First outputs")).toBeInTheDocument();
+    expect(within(dialog).getByText("Positioning report")).toBeInTheDocument();
+    expect(within(dialog).getByText("Market research memo")).toBeInTheDocument();
+    expect(within(dialog).getByText("Homepage angle to test")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(
+      [
+        "Primary idea: Tighten the positioning for an AI research copilot for seed-stage founders before I rewrite the homepage.",
+        "Focus: Positioning",
+        "Target user: seed-stage founders",
+        "Main uncertainty: Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
+        "First outputs: Positioning report; Market research memo; Homepage angle to test",
+      ].join("\n"),
+    );
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
       button: "hero_prompt_submit",

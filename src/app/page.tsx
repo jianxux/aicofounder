@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
+import { parseLandingPromptHandoff, serializeLandingPromptHandoff } from "@/app/prompt-handoff";
 import { trackEvent } from "@/lib/analytics";
 
 const proofMetrics = [
@@ -119,6 +120,7 @@ const focusPresets = [
       "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
     ],
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
+    handoffUncertainty: "Whether the problem is painful, urgent, and worth solving now.",
   },
   {
     id: "positioning",
@@ -135,6 +137,7 @@ const focusPresets = [
       "Your next move is tightening the positioning claim before shipping the homepage.",
     ],
     sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
+    handoffUncertainty: "Whether the positioning claim is specific and credible enough that the right buyer repeats it.",
   },
   {
     id: "next-step-planning",
@@ -151,8 +154,40 @@ const focusPresets = [
       "Name the metric or learning target before you draft the task list.",
     ],
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
+    handoffUncertainty: "Which uncertainty to close first so the next founder move is clear.",
   },
 ] as const;
+
+function inferTargetUserFromPrompt(prompt: string) {
+  const normalizedPrompt = ` ${prompt.trim()} `;
+  const markerIndex = normalizedPrompt.toLowerCase().lastIndexOf(" for ");
+
+  if (markerIndex < 0) {
+    return "";
+  }
+
+  return (
+    normalizedPrompt
+      .slice(markerIndex + 5)
+      .match(/^(.+?)(?=\s+(?:before|after|while|without|with|using|who|that|so)\b|[,.!?]|$)/i)?.[1]
+      ?.trim() ?? ""
+  );
+}
+
+function buildLandingPromptHandoff(
+  prompt: string,
+  preset: (typeof focusPresets)[number],
+) {
+  const primaryIdea = prompt.trim();
+
+  return serializeLandingPromptHandoff({
+    primaryIdea,
+    focus: preset.label,
+    targetUser: inferTargetUserFromPrompt(primaryIdea),
+    mainUncertainty: preset.handoffUncertainty,
+    firstOutputs: preset.sessionOutputs.map((item) => item.trim()),
+  });
+}
 
 function LandingLinkCta({
   button,
@@ -199,6 +234,7 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const promptHandoff = parseLandingPromptHandoff(promptDraft);
 
   useEffect(() => {
     if (!open) {
@@ -249,8 +285,38 @@ function LoginPromptModal({
         </div>
 
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
-          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
-          <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+          <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Handoff preview</div>
+          <div className="mt-4 grid gap-3 text-left sm:grid-cols-2">
+            <div className="rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Focus</div>
+              <p className="mt-2 text-sm font-medium text-stone-800">{promptHandoff.focus || "Guided onboarding"}</p>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Target user</div>
+              <p className="mt-2 text-sm font-medium text-stone-800">{promptHandoff.targetUser || "You can fill this in during onboarding."}</p>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3 sm:col-span-2">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Primary idea</div>
+              <p className="mt-2 text-sm leading-7 text-stone-700">{promptHandoff.primaryIdea || "Start with an idea, problem, or question."}</p>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3 sm:col-span-2">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Main uncertainty</div>
+              <p className="mt-2 text-sm leading-7 text-stone-700">{promptHandoff.mainUncertainty || "We will help turn the question into an onboarding brief."}</p>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-[#faf7f2] px-4 py-3 sm:col-span-2">
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">First outputs</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(promptHandoff.firstOutputs?.length ? promptHandoff.firstOutputs : ["Idea brief", "Target user", "Main uncertainty"]).map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-700"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -276,6 +342,7 @@ export default function LandingPage() {
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const heroPromptHandoff = buildLandingPromptHandoff(heroPrompt, activePreset);
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -293,7 +360,7 @@ export default function LandingPage() {
     }
 
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("landingPromptDraft", nextPrompt);
+      window.sessionStorage.setItem("landingPromptDraft", heroPromptHandoff);
     }
 
     void trackEvent("cta_click", {
@@ -313,7 +380,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPromptHandoff} onClose={() => setShowLoginPrompt(false)} />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
