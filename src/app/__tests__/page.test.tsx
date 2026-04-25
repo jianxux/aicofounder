@@ -155,6 +155,16 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders a validation cadence section that reinforces an ongoing founder loop", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText("Validation cadence")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Run validation like a weekly founder sprint/i })).toBeInTheDocument();
+    expect(screen.getByText("Define the question")).toBeInTheDocument();
+    expect(screen.getByText("Capture evidence in the same workspace")).toBeInTheDocument();
+    expect(screen.getByText("Decide the next move")).toBeInTheDocument();
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
