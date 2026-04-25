@@ -27,6 +27,27 @@ const trustNotes = [
   },
 ];
 
+const benchmarkObservations = [
+  {
+    name: "Lovable",
+    href: "https://lovable.dev",
+    observation: "Leans hard into start-from-idea momentum and template-led exploration.",
+    emphasis: "AI Cofounder keeps that first-step energy, then pushes the founder toward sharper validation questions and a clearer product story before build mode takes over.",
+  },
+  {
+    name: "Bolt",
+    href: "https://bolt.new",
+    observation: "Centers the prompt box while signaling imported context and design-system readiness.",
+    emphasis: "AI Cofounder stays prompt-first too, but uses the input to frame founder clarity, market validation, and trustable decision-making instead of jumping straight to interface output.",
+  },
+  {
+    name: "FounderPal",
+    href: "https://founderpal.ai",
+    observation: "Uses testimonials and concrete outcome framing aimed at founders.",
+    emphasis: "AI Cofounder carries the same founder focus while grounding trust in visible workflow structure, evidence gaps, and reusable messaging outputs.",
+  },
+];
+
 const workflowMoments = [
   {
     number: "01",
@@ -624,6 +645,43 @@ export default function LandingPage() {
                   <p className={`mt-2 text-sm leading-6 ${index === 1 ? "text-stone-100" : "text-stone-700"}`}>{item.output}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.25rem] border border-stone-200 bg-white/78 p-8 shadow-[0_26px_90px_rgba(28,25,23,0.06)] backdrop-blur-sm lg:p-10">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Benchmark observations</div>
+              <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+                What we learned from adjacent AI founder tools
+              </h2>
+            </div>
+            <p className="max-w-xl text-sm leading-7 text-stone-600">
+              This run reinforced a simple positioning choice: AI Cofounder should help founders get clearer on demand, messaging, and trust before they race into polished output.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {benchmarkObservations.map((benchmark) => (
+              <article key={benchmark.name} className="rounded-[1.8rem] border border-stone-200 bg-[#fcfaf7] p-6 shadow-[0_18px_50px_rgba(55,37,12,0.05)]">
+                <a
+                  href={benchmark.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-lg font-semibold tracking-[-0.03em] text-stone-950 transition hover:text-stone-700"
+                >
+                  <span>{benchmark.name}</span>
+                  <span className="sr-only">(opens in a new tab)</span>
+                  <span aria-hidden="true" className="text-sm text-stone-500">
+                    ↗
+                  </span>
+                </a>
+                <p className="mt-4 text-sm leading-7 text-stone-700">{benchmark.observation}</p>
+                <p className="mt-4 text-sm leading-7 text-stone-600">{benchmark.emphasis}</p>
+              </article>
             ))}
           </div>
         </div>
