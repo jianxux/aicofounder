@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ChatPanel from "@/components/ChatPanel";
@@ -677,6 +677,239 @@ describe("ChatPanel", () => {
 
       expect(lastCallProps.collapsed).toBe(true);
       expect(screen.getByText("collapsed: true")).toBeInTheDocument();
+    });
+  });
+
+  describe("auto-scroll", () => {
+    const getMessagesRegion = () => screen.getByTestId("chat-messages-region") as HTMLDivElement;
+
+    const defineScrollHeight = (element: HTMLElement, getValue: () => number) => {
+      Object.defineProperty(element, "scrollHeight", {
+        configurable: true,
+        get: getValue,
+      });
+    };
+
+    it("scrolls the messages region to the latest content when messages change", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const initialMessages = createMessages();
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={initialMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 200;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 500;
+      const nextMessages: ChatMessage[] = [
+        ...initialMessages,
+        {
+          id: "assistant-2",
+          sender: "assistant",
+          content: "Here's a follow-up question to refine the scope.",
+          createdAt: "2024-01-01T00:02:00.000Z",
+        },
+      ];
+
+      rerender(
+        <ChatPanel
+          messages={nextMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByText("Here's a follow-up question to refine the scope.")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalled();
+      });
+    });
+
+    it("scrolls the messages region when the last assistant message streams in place", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const initialMessages: ChatMessage[] = [
+        ...createMessages(),
+        {
+          id: "assistant-streaming",
+          sender: "assistant",
+          content: "Draft",
+          createdAt: "2024-01-01T00:02:00.000Z",
+        },
+      ];
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={initialMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 320;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 560;
+      const streamedMessages: ChatMessage[] = [
+        ...initialMessages.slice(0, -1),
+        {
+          ...initialMessages[initialMessages.length - 1],
+          content: "Draft with more streamed detail",
+        },
+      ];
+
+      rerender(
+        <ChatPanel
+          messages={streamedMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByText("Draft with more streamed detail")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalledWith({ top: 560 });
+      });
+    });
+
+    it("scrolls the messages region to the latest content when the thinking indicator appears", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={createMessages()}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 300;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 420;
+      rerender(
+        <ChatPanel
+          messages={createMessages()}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByLabelText("AI is thinking")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalled();
+      });
     });
   });
 });

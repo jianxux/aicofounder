@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
 import { trackEvent } from "@/lib/analytics";
+import { createBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 
 const proofMetrics = [
   { value: "Prompt-first", label: "start with the founder question before opening a blank project" },
@@ -103,6 +105,13 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const sourceMaterialChips = [
+  "Customer interview notes",
+  "Existing homepage or URL",
+  "Sales or customer call notes",
+  "Competitor screenshots or teardown notes",
+];
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -111,7 +120,26 @@ const focusPresets = [
     description: "Start with customer pain, competing workarounds, and the proof gaps that would change your mind.",
     helper: "Use this when you need clearer evidence that the problem is painful, urgent, and worth solving now.",
     placeholder: "Pressure-test whether this AI workflow solves a painful enough problem to earn budget.",
-    promptIdeas: ["Map the painful workflow", "Find weak demand assumptions", "Spot existing workarounds", "List the proof I still need"],
+    promptIdeas: [
+      {
+        title: "Dispatch follow-up leaks revenue",
+        summary: "Pressure-test whether home-service operators will pay to fix slow estimate callbacks.",
+        prompt:
+          "Pressure-test demand for an AI follow-up assistant for home-service operators. The buyer is an ops lead at a 50 to 200 person HVAC or plumbing company. I need to know whether slow estimate callbacks are painful enough that they would pay to automate follow-up, what workarounds they use today, and which proof gaps I should close before building.",
+      },
+      {
+        title: "Finance teams closing by spreadsheet",
+        summary: "Check if controllers at multi-entity SMBs feel enough urgency to switch.",
+        prompt:
+          "Validate demand for a finance workflow product that helps controllers at multi-entity SMBs close the month without stitching spreadsheets together. Map the hidden tax of the current process, the urgency behind missed close deadlines, the incumbent tools they already tolerate, and the evidence I still need before calling this a real budget line.",
+      },
+      {
+        title: "Clinic intake no-shows",
+        summary: "Find out if clinic managers see intake bottlenecks as a must-fix budget problem.",
+        prompt:
+          "Assess whether outpatient clinic managers have strong enough demand for an intake automation product that reduces referral drop-off and no-shows. Identify the manual workflow they rely on now, the operational pain when intake slips, the tools or agencies they already use as substitutes, and the proof I need to confirm this is urgent enough to buy.",
+      },
+    ],
     insightTitle: "Example insight: demand signal",
     insightBody: "The strongest demand signals show up when the buyer already pays a hidden tax to work around the problem.",
     insightPoints: [
@@ -127,7 +155,26 @@ const focusPresets = [
     description: "Start with the claim, the buyer language it depends on, and where your story sounds generic today.",
     helper: "Use this when the product feels plausible but the homepage promise still reads soft or interchangeable.",
     placeholder: "Tighten the positioning for this AI product before I write another generic homepage.",
-    promptIdeas: ["Rewrite the core claim", "Pressure-test the ICP", "Find generic phrasing", "Draft the homepage angle"],
+    promptIdeas: [
+      {
+        title: "Security review workflow angle",
+        summary: "Sharpen the homepage promise for a founder selling to security leaders.",
+        prompt:
+          "Tighten the positioning for a startup that helps security teams complete vendor security reviews faster. The buyer is a security leader at a mid-market SaaS company. Rewrite the core claim so it sounds specific, show me where the current language feels generic, pressure-test whether the ICP is too broad, and draft a homepage angle a real buyer would repeat to their team.",
+      },
+      {
+        title: "Recruiter scheduling assistant",
+        summary: "Turn a soft AI-assistant story into a credible recruiting workflow promise.",
+        prompt:
+          "Sharpen the positioning for an AI scheduling assistant built for in-house recruiting teams. I want to know how to describe the pain more clearly than 'save time,' which buyer language actually signals urgency, what phrasing sounds interchangeable with every other AI assistant, and what homepage message would make a head of talent believe this is built for their workflow.",
+      },
+      {
+        title: "RevOps forecast hygiene",
+        summary: "Find the strongest claim for a workflow product aimed at revenue operations leaders.",
+        prompt:
+          "Help me position a product for RevOps leaders that flags pipeline hygiene issues before forecast calls. Pressure-test the ICP, rewrite the main claim in sharper buyer language, identify generic feature-led phrasing in the current story, and give me a homepage angle that sounds meaningfully different from standard sales analytics software.",
+      },
+    ],
     insightTitle: "Example insight: positioning",
     insightBody: "The strongest angle usually comes from sharper customer language, not a longer feature list.",
     insightPoints: [
@@ -143,7 +190,26 @@ const focusPresets = [
     description: "Start with what you already know, what still feels uncertain, and the decisions you need to make this week.",
     helper: "Use this when you have signal scattered across notes and need a concrete plan instead of another brainstorm.",
     placeholder: "Turn these scattered validation notes into the next three moves I should make this week.",
-    promptIdeas: ["Prioritize the next 3 moves", "Plan validation interviews", "Choose what to test first", "Turn research into a founder brief"],
+    promptIdeas: [
+      {
+        title: "Post-interview founder plan",
+        summary: "Turn ten messy customer calls into the next three moves for the week.",
+        prompt:
+          "Turn my last ten customer interviews about warehouse inventory errors into the next three founder moves for this week. I need a plan that identifies the biggest remaining uncertainty, which follow-up interviews or experiments should happen first, and what evidence would justify moving from research into a narrow MVP scope.",
+      },
+      {
+        title: "Homepage plus churn notes",
+        summary: "Convert scattered research into a concrete validation sprint for the next seven days.",
+        prompt:
+          "I have a homepage draft, churn notes from five pilot customers, and a list of feature requests for a customer success tool. Turn that into a decision-ready founder brief with the next three actions, the learning goal behind each action, and the order I should tackle them over the next seven days.",
+      },
+      {
+        title: "Pilot decision sequence",
+        summary: "Prioritize what to validate before committing engineering time to the pilot.",
+        prompt:
+          "Create a next-step plan for a founder preparing a pilot for a B2B AI compliance workflow product. I need to know what to validate first, which conversations should happen before writing more code, what success metric each step should target, and how to sequence the work so each move closes a real uncertainty.",
+      },
+    ],
     insightTitle: "Example insight: next steps",
     insightBody: "Momentum improves when each next step closes a specific uncertainty instead of producing more abstract output.",
     insightPoints: [
@@ -191,14 +257,17 @@ function LandingLinkCta({
 function LoginPromptModal({
   open,
   promptDraft,
+  user,
   onClose,
 }: {
   open: boolean;
   promptDraft: string;
+  user: User | null;
   onClose: () => void;
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -212,6 +281,7 @@ function LoginPromptModal({
     };
 
     window.addEventListener("keydown", handleKeyDown);
+    closeButtonRef.current?.focus();
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -221,6 +291,8 @@ function LoginPromptModal({
   if (!open) {
     return null;
   }
+
+  const isSignedIn = Boolean(user);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
@@ -234,14 +306,19 @@ function LoginPromptModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Continue with your prompt</div>
-            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">Sign in to open this inside your workspace.</h2>
+            <h2 id={titleId} className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-stone-950">
+              {isSignedIn ? "Continue this inside your workspace." : "Sign in to open this inside your workspace."}
+            </h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
-              We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought.
+              {isSignedIn
+                ? "We&apos;ll carry this prompt into AI Cofounder so you can keep going from the dashboard without losing the draft."
+                : "We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought."}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
+            ref={closeButtonRef}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
           >
             Close
@@ -254,13 +331,19 @@ function LoginPromptModal({
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <AuthButton
-            redirectTo="/dashboard"
-            label="Continue with Google"
-            analyticsButton="hero_prompt_login"
-            analyticsPage="/"
-            className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
-          />
+          {isSignedIn ? (
+            <LandingLinkCta button="hero_prompt_continue_workspace" href="/dashboard">
+              Continue to workspace
+            </LandingLinkCta>
+          ) : (
+            <AuthButton
+              redirectTo="/dashboard"
+              label="Continue with Google"
+              analyticsButton="hero_prompt_login"
+              analyticsPage="/"
+              className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
+            />
+          )}
           <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
             Explore demo first
           </LandingLinkCta>
@@ -274,6 +357,10 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const heroShortcutHintId = useId();
+  const heroTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const wasLoginPromptOpenRef = useRef(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
 
@@ -282,6 +369,53 @@ export default function LandingPage() {
       page: "/",
       source: "landing",
     });
+  }, []);
+
+  useEffect(() => {
+    if (!showLoginPrompt && wasLoginPromptOpenRef.current) {
+      heroTextareaRef.current?.focus();
+    }
+
+    wasLoginPromptOpenRef.current = showLoginPrompt;
+  }, [showLoginPrompt]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      return;
+    }
+
+    const supabase = createBrowserClient();
+
+    if (!supabase) {
+      return;
+    }
+
+    let active = true;
+
+    const loadUser = async () => {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      if (active) {
+        setUser(currentUser);
+      }
+    };
+
+    void loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) {
+        setUser(session?.user ?? null);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleHeroSubmit = (event?: FormEvent<HTMLFormElement>) => {
@@ -305,7 +439,11 @@ export default function LandingPage() {
   };
 
   const handleHeroKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       handleHeroSubmit();
     }
@@ -313,7 +451,12 @@ export default function LandingPage() {
 
   return (
     <>
-      <LoginPromptModal open={showLoginPrompt} promptDraft={heroPrompt.trim()} onClose={() => setShowLoginPrompt(false)} />
+      <LoginPromptModal
+        open={showLoginPrompt}
+        promptDraft={heroPrompt.trim()}
+        user={user}
+        onClose={() => setShowLoginPrompt(false)}
+      />
       <main className="min-h-screen overflow-x-hidden bg-[#f8f3ea] text-stone-950">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-x-0 top-0 -z-10 h-[42rem] bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_24%),radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.9),transparent_28%),linear-gradient(180deg,#fbf7f0_0%,#f8f3ea_58%,#f8f3ea_100%)]" />
@@ -394,18 +537,35 @@ export default function LandingPage() {
                     I want to
                   </label>
                   <p className="mt-2 text-left text-sm leading-6 text-stone-500">{activePreset.helper}</p>
+                  <div className="mt-4 rounded-[1.35rem] border border-stone-200 bg-[#faf7f2] px-4 py-4 text-left">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Bring whatever you already have</div>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      Rough artifacts are welcome. Start with the notes, links, and scraps you already have instead of polishing a perfect prompt first.
+                    </p>
+                    <ul className="mt-3 flex flex-wrap gap-2" aria-label="Useful starting material examples">
+                      {sourceMaterialChips.map((item) => (
+                        <li key={item} className="list-none rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
+                      ref={heroTextareaRef}
                       value={heroPrompt}
                       onChange={(event) => setHeroPrompt(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
                       rows={4}
+                      aria-describedby={heroShortcutHintId}
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
+                      <span id={heroShortcutHintId} className="text-sm text-stone-500">
+                        Press Enter for a new line, or use ⌘/Ctrl + Enter to open the login prompt.
+                      </span>
                       <button
                         type="submit"
                         disabled={!heroPrompt.trim()}
@@ -415,17 +575,21 @@ export default function LandingPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <div className="mt-4">
+                    <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Founder example starters</div>
+                    <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                     {activePreset.promptIdeas.map((prompt) => (
                       <button
-                        key={prompt}
+                        key={prompt.title}
                         type="button"
-                        onClick={() => setHeroPrompt(prompt)}
-                        className="rounded-full border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-50"
+                        onClick={() => setHeroPrompt(prompt.prompt)}
+                        className="rounded-[1.2rem] border border-stone-200 bg-white px-3.5 py-3 text-left transition hover:border-stone-300 hover:bg-stone-50"
                       >
-                        {prompt}
+                        <div className="text-sm font-semibold tracking-[-0.02em] text-stone-800">{prompt.title}</div>
+                        <p className="mt-1 text-xs leading-5 text-stone-500">{prompt.summary}</p>
                       </button>
                     ))}
+                    </div>
                   </div>
                 </form>
 

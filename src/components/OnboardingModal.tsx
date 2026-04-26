@@ -14,7 +14,7 @@ export type OnboardingIntake = {
 
 type OnboardingModalProps = {
   open: boolean;
-  onComplete: (intake: OnboardingIntake) => void;
+  onComplete: (intake: OnboardingIntake) => void | Promise<void>;
   onSkip: () => void;
   initialIntake?: Partial<OnboardingIntake>;
 };
@@ -53,6 +53,24 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
       "Would operators switch from spreadsheets for better forecasting alone, or only if the tool also recommends concrete reorder actions?",
   },
 ];
+const VALIDATION_WORKFLOW_STAGES = [
+  {
+    label: "Idea",
+    detail: "Frame the founder idea as a testable problem worth investigating.",
+  },
+  {
+    label: "Assumptions",
+    detail: "Surface the riskiest user, demand, and workflow assumptions first.",
+  },
+  {
+    label: "Evidence",
+    detail: "Turn interviews, links, and notes into signals strong enough to trust.",
+  },
+  {
+    label: "Next moves",
+    detail: "Leave with the clearest validation action to run after this session.",
+  },
+] as const;
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
   "[href]",
@@ -61,6 +79,31 @@ const FOCUSABLE_SELECTOR = [
   "textarea:not([disabled])",
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
+const STRONG_IDEA_MIN_WORDS = 6;
+
+function countWords(value: string) {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function buildWorkspaceHandoffCopy(intake: OnboardingIntake) {
+  const targetUser = intake.targetUser.trim();
+  const mainUncertainty = intake.mainUncertainty.trim();
+
+  return {
+    sharperClaim: targetUser
+      ? `Use the workspace to sharpen your claim for ${targetUser}.`
+      : "Use the workspace to sharpen your claim about the customer and problem worth validating.",
+    researchMemo: targetUser
+      ? `Use the workspace to outline a customer research memo for ${targetUser}, including early findings, contradictions, and next questions.`
+      : "Use the workspace to outline a customer research memo that captures early findings, contradictions, and next questions.",
+    validationScorecard: mainUncertainty
+      ? `Use a validation scorecard to pressure-test "${mainUncertainty}" so the next decision is explicit.`
+      : "Use a validation scorecard to pressure-test the biggest open risk so the next decision is explicit.",
+  };
+}
 
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
@@ -69,6 +112,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
   const [selectedStarterIndex, setSelectedStarterIndex] = useState<number | null>(null);
+  const [isLaunching, setIsLaunching] = useState(false);
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -78,8 +122,47 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const stepThreeHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
+  const hasConcreteIdeaSignal = countWords(primaryIdea) >= STRONG_IDEA_MIN_WORDS;
+  const hasTargetUserSignal = targetUser.trim().length > 0;
+  const hasMainUncertaintySignal = mainUncertainty.trim().length > 0;
+  const hasReferenceUrlSignal = url.trim().length > 0;
+  const intakeSignals = [
+    {
+      label: "Concrete idea or workflow",
+      present: hasConcreteIdeaSignal,
+      hint: `More than a few words helps. Aim for at least ${STRONG_IDEA_MIN_WORDS} words.`,
+    },
+    {
+      label: "Target user named",
+      present: hasTargetUserSignal,
+      hint: "Name the customer or operator you want to help.",
+    },
+    {
+      label: "Main uncertainty named",
+      present: hasMainUncertaintySignal,
+      hint: "Call out the risk, assumption, or decision you need to test.",
+    },
+    {
+      label: "Reference URL added",
+      present: hasReferenceUrlSignal,
+      hint: "Optional but helpful for a product, market, or workflow reference.",
+    },
+  ] as const;
+  const presentSignalCount = intakeSignals.filter((signal) => signal.present).length;
+  const intakeGuideSummary =
+    presentSignalCount <= 1
+      ? "Early signal only. Add a sharper idea, target user, or uncertainty so the first brief has more to work from."
+      : presentSignalCount <= 3
+        ? "Promising signal. You have a workable intake; one more detail would make the first brief more specific."
+        : "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.";
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
+  const workspaceHandoff = buildWorkspaceHandoffCopy({
+    primaryIdea,
+    url,
+    targetUser,
+    mainUncertainty,
+  });
 
   const clearSelectedStarter = () => {
     setSelectedStarterIndex(null);
@@ -93,6 +176,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       setUrl(initialIntake?.url?.trim() ?? "");
       setTargetUser(initialIntake?.targetUser?.trim() ?? "");
       setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      setSelectedStarterIndex(null);
       return;
     }
 
@@ -106,6 +190,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     setTargetUser("");
     setMainUncertainty("");
     setSelectedStarterIndex(null);
+    setIsLaunching(false);
   }, [initialIntake, open]);
 
   useEffect(() => {
@@ -180,6 +265,27 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     }
   };
 
+  const handleLaunchProject = async () => {
+    if (isLaunching) {
+      return;
+    }
+
+    setIsLaunching(true);
+
+    try {
+      await onComplete({
+        primaryIdea: primaryIdea.trim(),
+        url: url.trim(),
+        targetUser: targetUser.trim(),
+        mainUncertainty: mainUncertainty.trim(),
+      });
+    } catch {
+      // Re-enable the action if project creation fails and the modal remains open.
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
   if (!open) {
     return null;
   }
@@ -204,8 +310,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
           <button
             ref={skipButtonRef}
             type="button"
+            disabled={isLaunching}
             onClick={onSkip}
-            className="text-sm font-medium text-stone-500 transition hover:text-stone-800"
+            className="text-sm font-medium text-stone-500 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
             Skip
           </button>
@@ -365,6 +472,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               <label className="block">
                 <span className="text-sm font-medium text-stone-700">Relevant URL (optional)</span>
                 <input
+                  type="url"
                   value={url}
                   onChange={(event) => {
                     clearSelectedStarter();
@@ -401,6 +509,61 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                   className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
                 />
               </label>
+
+              <section
+                aria-label="Intake quality guide"
+                className="rounded-[28px] border border-stone-200/90 bg-[#f5efe5] p-5 sm:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div role="status" aria-live="polite" aria-atomic="true">
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                      Intake quality guide
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      Rough completeness signal: {presentSignalCount} of 4 signals present.
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">{intakeGuideSummary}</p>
+                  </div>
+                  <div
+                    aria-hidden="true"
+                    className="rounded-full border border-stone-300 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600"
+                  >
+                    {presentSignalCount <= 1
+                      ? "Early signal"
+                      : presentSignalCount <= 3
+                        ? "Promising signal"
+                        : "Strong signal"}
+                  </div>
+                </div>
+
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-stone-700">
+                  {intakeSignals.map((signal) => (
+                    <li
+                      key={signal.label}
+                      className="flex items-start gap-3 rounded-[20px] border border-stone-200/80 bg-white/80 px-4 py-3"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${
+                          signal.present
+                            ? "bg-stone-900 text-white"
+                            : "border border-stone-300 bg-transparent text-stone-500"
+                        }`}
+                      >
+                        {signal.present ? "✓" : " "}
+                      </span>
+                      <span>
+                        <span className="font-medium text-stone-900">
+                          {signal.label}
+                          <span className="sr-only">: {signal.present ? "present" : "missing"}</span>
+                        </span>
+                        <span className="block text-stone-600">{signal.present ? "Present" : "Missing"}</span>
+                        <span className="block text-stone-600">{signal.hint}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             </div>
 
             <div className="mt-8 flex items-center justify-between gap-3">
@@ -441,9 +604,42 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               Ready to Launch
             </h2>
             <p id={descriptionIdForStep(3)} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
-              Here’s what you’re starting with. Once launched, your AI cofounder will guide you
-              through the discovery, planning, build, and launch phases.
+              Here’s the guidance you’re starting with. Once launched, your AI cofounder will use
+              this intake to steer the discovery, planning, build, and launch workflow.
             </p>
+
+            <section
+              aria-label="Validation workflow preview"
+              className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                    Validation workflow
+                  </div>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+                    Your first project starts as an evidence-driven workflow, not a blank chat. Each
+                    step builds the case for what to validate next.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                {VALIDATION_WORKFLOW_STAGES.map((stage, index) => (
+                  <div
+                    key={stage.label}
+                    className="rounded-[22px] border border-stone-200 bg-[#fcfbf8] p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                        {`0${index + 1}`}
+                      </span>
+                      <div className="text-sm font-semibold text-stone-900">{stage.label}</div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-stone-600">{stage.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <div className="mt-8 rounded-[28px] border border-stone-200 bg-white/90 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
@@ -473,6 +669,48 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               </div>
             </div>
 
+            <section
+              aria-label="What happens next"
+              className="mt-5 rounded-[28px] border border-stone-200 bg-white/90 p-6"
+            >
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                First Workspace Handoff
+              </div>
+              <p className="mt-3 text-sm leading-6 text-stone-700">
+                After launch, AI Cofounder uses this intake to guide the first workspace pass and
+                point you toward the next decision.
+              </p>
+              <ol className="mt-5 space-y-4 text-sm leading-6 text-stone-700">
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    01
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Sharper claim</div>
+                    <p className="mt-1">{workspaceHandoff.sharperClaim}</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    02
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Customer research memo</div>
+                    <p className="mt-1">{workspaceHandoff.researchMemo}</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    03
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Validation scorecard and next decision</div>
+                    <p className="mt-1">{workspaceHandoff.validationScorecard}</p>
+                  </div>
+                </li>
+              </ol>
+            </section>
+
             <section className="mt-5 rounded-[28px] border border-amber-200 bg-amber-50/80 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-800">
                 Attachments Coming Soon
@@ -496,24 +734,19 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             <div className="mt-8 flex items-center justify-between gap-3">
               <button
                 type="button"
+                disabled={isLaunching}
                 onClick={() => setStep(2)}
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
               >
                 Back
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  onComplete({
-                    primaryIdea: primaryIdea.trim(),
-                    url: url.trim(),
-                    targetUser: targetUser.trim(),
-                    mainUncertainty: mainUncertainty.trim(),
-                  })
-                }
-                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+                disabled={isLaunching}
+                onClick={() => void handleLaunchProject()}
+                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
-                Launch Project
+                {isLaunching ? "Launching..." : "Launch Project"}
               </button>
             </div>
           </section>
