@@ -104,6 +104,11 @@ describe("LandingPage", () => {
       expect(screen.getByText(item)).toBeInTheDocument();
     });
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
+    expect(screen.getByText(/What happens next/i)).toBeInTheDocument();
+    expect(screen.getByText(/Turn one founder prompt into a usable decision\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Share the messy draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review the founder output/i)).toBeInTheDocument();
+    expect(screen.getByText(/Choose the next move/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
