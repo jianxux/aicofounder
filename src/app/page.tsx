@@ -83,6 +83,24 @@ const firstSessionTimeline = [
   },
 ];
 
+const validationCadenceSteps = [
+  {
+    number: "01",
+    title: "Define the question",
+    body: "Start each sprint with the assumption, buyer pain, or homepage claim most likely to break. Keep that question attached to the project so the next session starts from the same context.",
+  },
+  {
+    number: "02",
+    title: "Capture evidence in the same workspace",
+    body: "Save interview notes, research artifacts, and rewritten messaging back into the same workspace over time so the proof compounds instead of disappearing into one-off chats.",
+  },
+  {
+    number: "03",
+    title: "Decide the next move",
+    body: "Turn the latest signal into a sharper decision, next experiment, or updated story for that project before the next weekly sprint begins.",
+  },
+];
+
 const sampleArtifactRows = [
   {
     label: "Core buyer",
@@ -674,6 +692,38 @@ export default function LandingPage() {
               <span>{item}</span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="rounded-[2.1rem] border border-stone-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(250,247,242,0.96)_100%)] p-6 shadow-[0_22px_80px_rgba(28,25,23,0.05)] lg:p-8">
+          <div className="max-w-3xl">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Validation cadence</div>
+            <h2 className="mt-4 text-[clamp(1.95rem,4vw,3.15rem)] font-semibold leading-tight tracking-[-0.05em] text-stone-950">
+              Run validation like a weekly founder sprint.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
+              AI Cofounder is built for recurring loops: return to the same project, stack new evidence in the same workspace, and leave each pass with the next
+              decision already tied to that thread.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {validationCadenceSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className={`rounded-[1.6rem] border p-5 shadow-[0_16px_45px_rgba(45,31,12,0.05)] ${
+                  index === 1 ? "border-stone-900 bg-stone-950 text-stone-50" : "border-stone-200 bg-white text-stone-900"
+                }`}
+              >
+                <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.2em] ${index === 1 ? "text-stone-300" : "text-stone-500"}`}>
+                  Step {step.number}
+                </div>
+                <h3 className="mt-3 text-xl font-semibold tracking-[-0.03em]">{step.title}</h3>
+                <p className={`mt-3 text-sm leading-7 ${index === 1 ? "text-stone-200" : "text-stone-600"}`}>{step.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
