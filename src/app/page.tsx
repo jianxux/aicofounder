@@ -98,6 +98,24 @@ const sampleArtifactRows = [
   },
 ];
 
+const firstSessionReceiptItems = [
+  {
+    captured: "Founder goal, buyer, and messy draft",
+    evidence: "The sharpest claim is still an assumption until buyer language repeats it.",
+    action: "Decide which validation task earns the next build step.",
+  },
+  {
+    captured: "Current promise and competing workaround",
+    evidence: "Manual follow-up already costs time, but the urgency needs proof from recent deals.",
+    action: "Interview five target buyers before rewriting the offer.",
+  },
+  {
+    captured: "Homepage angle and proof gap",
+    evidence: "The message is usable when it names the missed outcome, not just the AI feature.",
+    action: "Ship one landing-page test with a single learning target.",
+  },
+];
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -684,6 +702,44 @@ export default function LandingPage() {
                 callback.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="grid gap-6 rounded-[2.25rem] border border-stone-200 bg-stone-950 p-6 text-stone-50 shadow-[0_26px_90px_rgba(28,25,23,0.12)] lg:grid-cols-[0.66fr_1.34fr] lg:p-8">
+          <div>
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-200">First-session receipt</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-white">
+              What you keep after the session
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-7 text-stone-300">
+              A compact checklist shows what was captured, what still depends on evidence, and the next decision to make before momentum turns into waste.
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="hidden grid-cols-3 gap-3 px-4 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-400 md:grid">
+              <div>Captured input</div>
+              <div>Evidence or assumption</div>
+              <div>Next action or decision</div>
+            </div>
+            {firstSessionReceiptItems.map((item) => (
+              <div key={item.captured} className="grid gap-3 rounded-[1.45rem] border border-white/10 bg-white/7 p-4 text-sm leading-6 md:grid-cols-3">
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-amber-200 md:hidden">Captured input</div>
+                  <p className="mt-1 text-stone-100 md:mt-0">{item.captured}</p>
+                </div>
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-amber-200 md:hidden">Evidence or assumption</div>
+                  <p className="mt-1 text-stone-300 md:mt-0">{item.evidence}</p>
+                </div>
+                <div>
+                  <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-amber-200 md:hidden">Next action or decision</div>
+                  <p className="mt-1 text-stone-100 md:mt-0">{item.action}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

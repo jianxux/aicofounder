@@ -363,6 +363,18 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders a first-session receipt checklist with captured inputs, assumptions, and next actions", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/First-session receipt/i)).toBeInTheDocument();
+    expect(screen.getByText(/What you keep after the session/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Captured input/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Evidence or assumption/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Next action or decision/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Founder goal, buyer, and messy draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/Decide which validation task earns the next build step/i)).toBeInTheDocument();
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
