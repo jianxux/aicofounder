@@ -43,6 +43,18 @@ function completeIntake(overrides?: {
   return intake;
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
@@ -125,6 +137,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
+    window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(saveProject).mockResolvedValue();
@@ -210,6 +223,20 @@ describe("DashboardPage", () => {
 
     expect(screen.getByRole("heading", { name: "New Project" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /AI Research Copilot/i })).not.toBeInTheDocument();
+  });
+
+  it("shows a first-project handoff when no projects exist and onboarding is closed", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
+    renderPage();
+
+    expect(await screen.findByText("First project handoff")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Launching a project opens a workspace that guides you through sharpening the claim, outlining a customer research memo, and pressure-testing a validation scorecard so the next decision is clearer.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders project cards showing phase, name, description, note count, and formatted updated date", async () => {
@@ -315,6 +342,7 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+    expect(screen.queryByText("First project handoff")).not.toBeInTheDocument();
   });
 
   it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
@@ -326,6 +354,154 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
+  });
+
+  it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Pressure-test an AI copilot for founder research before writing code.",
+        "",
+        "Existing URL or homepage: https://example.com",
+        "Who the customer is: Seed-stage founders",
+        "Biggest uncertainty: Whether they want one workspace.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test an AI copilot for founder research before writing code.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("https://example.com");
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they want one workspace.",
+    );
+  });
+
+  it("prefills structured landingPromptDraft fields from accepted label variants", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "An AI copilot for founder research that turns scattered notes into a validation plan.",
+        "",
+        "Reference URL: https://example.com/founder-research",
+        "Target user: Seed-stage founders",
+        "Main uncertainty: Whether they trust AI-generated synthesis.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI copilot for founder research that turns scattered notes into a validation plan.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue(
+      "https://example.com/founder-research",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they trust AI-generated synthesis.",
+    );
+  });
+
+  it("prefills onboarding when landingPromptDraft uses a labeled primary idea line", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem(
+      "landingPromptDraft",
+      [
+        "Primary idea: An AI copilot for founder research that turns scattered notes into a validation plan.",
+        "Reference URL: https://example.com/founder-research",
+        "Target user: Seed-stage founders",
+        "Main uncertainty: Whether they trust AI-generated synthesis.",
+      ].join("\n"),
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "An AI copilot for founder research that turns scattered notes into a validation plan.",
+    );
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue(
+      "https://example.com/founder-research",
+    );
+    expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
+    expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
+      "Whether they trust AI-generated synthesis.",
+    );
+  });
+
+  it("prefills onboarding from the stored draft when a returning user with projects clicks New Project", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("keeps a user-opened onboarding draft open when the initial projects load resolves afterward", async () => {
+    const deferredProjects = createDeferredPromise<Project[]>();
+
+    vi.mocked(getProjects).mockReturnValue(deferredProjects.promise);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+
+    deferredProjects.resolve([createProject()]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "About Your Idea" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("does not clear the stored draft when a returning user opens onboarding", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(
       "Pressure-test this founder workflow idea.",
     );
   });
@@ -389,6 +565,40 @@ describe("DashboardPage", () => {
         source: "onboarding",
       }),
     );
+  });
+
+  it("prevents double-submitting Launch Project while project creation is in flight", async () => {
+    let resolveCreateProject: ((project: Project) => void) | undefined;
+    const createdProject = createProject({ id: "guided-project-pending", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockImplementationOnce(
+      () =>
+        new Promise<Project>((resolve) => {
+          resolveCreateProject = resolve;
+        }),
+    );
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    expect(screen.getByRole("button", { name: "Launching..." })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launching..." }));
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+    });
+
+    resolveCreateProject?.(createdProject);
+
+    await waitFor(() => {
+      expect(saveProject).toHaveBeenCalledWith(expect.objectContaining({ id: "guided-project-pending" }));
+      expect(setHref).toHaveBeenCalledWith("/project/guided-project-pending");
+    });
   });
 
   it("tracks optional intake fields as false when they are omitted", async () => {
