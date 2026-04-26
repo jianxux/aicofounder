@@ -237,9 +237,18 @@ describe("OnboardingModal", () => {
     const intake = fillIntakeFields();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
+    const workflowPreview = screen.getByLabelText("Validation workflow preview");
     const summary = screen.getByText("Intake Summary").closest("section");
 
     expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Validation workflow")).toBeInTheDocument();
+    expect(
+      within(workflowPreview).getByText(/evidence-driven workflow, not a blank chat/i),
+    ).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Idea")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Assumptions")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Evidence")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Next moves")).toBeInTheDocument();
     expect(summary).toBeInTheDocument();
     expect(within(summary!).getByText(intake.primaryIdea)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.url)).toBeInTheDocument();
