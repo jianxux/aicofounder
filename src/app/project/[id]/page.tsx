@@ -293,6 +293,42 @@ function deriveProjectSnapshot(
   };
 }
 
+type WorkspaceSaveState = "saved" | "saving" | "failed";
+
+function WorkspaceSaveStatus({
+  state,
+  onRetry,
+}: {
+  state: WorkspaceSaveState;
+  onRetry: () => void;
+}) {
+  const statusLabel = state === "saving" ? "Saving..." : state === "failed" ? "Sync failed" : "Saved";
+  const statusClasses =
+    state === "saving"
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : state === "failed"
+        ? "border-rose-200 bg-rose-50 text-rose-800"
+        : "border-emerald-200 bg-emerald-50 text-emerald-800";
+
+  return (
+    <div className="flex items-center gap-2" aria-live="polite">
+      <span
+        className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${statusClasses}`}
+      >
+        {statusLabel}
+      </span>
+      {state === "failed" ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-full border border-stone-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Retry
+        </button>
+      ) : null}
+    </div>
+  );
+}
 function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardArtifact }) {
   return (
     <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
@@ -518,6 +554,11 @@ export default function ProjectWorkspacePage() {
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
   const savingRef = useRef(false);
+  const saveRequestSequenceRef = useRef(0);
+  const pendingSaveCountRef = useRef(0);
+  const latestFailedSnapshotRef = useRef<Project | null>(null);
+  const pendingRealtimeRefreshRef = useRef(false);
+  const [workspaceSaveState, setWorkspaceSaveState] = useState<WorkspaceSaveState>("saved");
 
   const buildResearchContext = (currentProject: Project, phase: Phase | null) => {
     const latestUserMessage = [...currentProject.messages]
@@ -596,38 +637,79 @@ export default function ProjectWorkspacePage() {
     };
   }, []);
 
-  useRealtimeProject(projectId, () => {
-    if (savingRef.current) {
+  const refreshProjectFromRemote = async () => {
+    const remoteProject = await fetchProjectById(projectId);
+
+    if (!remoteProject) {
       return;
     }
 
-    void (async () => {
-      const remoteProject = await fetchProjectById(projectId);
+    const normalizedProject = withGeneratedDiagram(normalizeProject(remoteProject));
 
-      if (!remoteProject) {
-        return;
-      }
+    projectRef.current = normalizedProject;
+    setProject(normalizedProject);
+    setActivePhaseId((currentPhaseId) =>
+      normalizedProject.phases.some((phase) => phase.id === currentPhaseId)
+        ? currentPhaseId
+        : normalizedProject.phases[0]?.id ?? "getting-started",
+    );
+  };
 
-      const normalizedProject = withGeneratedDiagram(normalizeProject(remoteProject));
+  const replayBufferedRealtimeRefresh = (requestId: number) => {
+    if (saveRequestSequenceRef.current !== requestId || pendingRealtimeRefreshRef.current === false) {
+      return;
+    }
 
-      projectRef.current = normalizedProject;
-      setProject(normalizedProject);
-      setActivePhaseId((currentPhaseId) =>
-        normalizedProject.phases.some((phase) => phase.id === currentPhaseId)
-          ? currentPhaseId
-          : normalizedProject.phases[0]?.id ?? "getting-started",
-      );
-    })();
+    pendingRealtimeRefreshRef.current = false;
+    void refreshProjectFromRemote();
+  };
+
+  useRealtimeProject(projectId, () => {
+    if (savingRef.current) {
+      pendingRealtimeRefreshRef.current = true;
+      return;
+    }
+
+    void refreshProjectFromRemote();
   });
 
   const persistProject = (nextProject: Project) => {
     const updated = withGeneratedDiagram(normalizeProject({ ...nextProject, updatedAt: new Date().toISOString() }));
     projectRef.current = updated;
     setProject(updated);
+    setWorkspaceSaveState("saving");
     savingRef.current = true;
-    void saveProject(updated).finally(() => {
-      savingRef.current = false;
-    });
+    const requestId = saveRequestSequenceRef.current + 1;
+    saveRequestSequenceRef.current = requestId;
+    pendingSaveCountRef.current += 1;
+    void saveProject(updated)
+      .then(() => {
+        if (saveRequestSequenceRef.current === requestId) {
+          latestFailedSnapshotRef.current = null;
+          setWorkspaceSaveState("saved");
+          replayBufferedRealtimeRefresh(requestId);
+        }
+      })
+      .catch(() => {
+        if (saveRequestSequenceRef.current === requestId) {
+          latestFailedSnapshotRef.current = updated;
+          setWorkspaceSaveState("failed");
+        }
+      })
+      .finally(() => {
+        pendingSaveCountRef.current = Math.max(0, pendingSaveCountRef.current - 1);
+        savingRef.current = pendingSaveCountRef.current > 0;
+      });
+  };
+
+  const handleRetrySave = () => {
+    const latestFailedSnapshot = latestFailedSnapshotRef.current;
+
+    if (!latestFailedSnapshot) {
+      return;
+    }
+
+    persistProject(latestFailedSnapshot);
   };
 
   const activePhase = useMemo(
@@ -1234,12 +1316,14 @@ export default function ProjectWorkspacePage() {
               <input
                 value={project.name}
                 onChange={(event) => handleNameChange(event.target.value)}
+                aria-label="Project name"
                 className="mt-1 w-full min-w-0 border-none bg-transparent p-0 text-2xl font-semibold text-stone-950 outline-none sm:min-w-[320px]"
               />
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <WorkspaceSaveStatus state={workspaceSaveState} onRetry={handleRetrySave} />
             <button
               type="button"
               className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
