@@ -103,6 +103,21 @@ const trustStrip = [
   "Privacy mode available",
 ];
 
+const heroReassuranceCues = [
+  {
+    title: "10-15 minute first pass",
+    body: "Get to the core signal quickly before you commit a full sprint.",
+  },
+  {
+    title: "Bring the rough idea, not a polished deck",
+    body: "A messy prompt, scattered notes, or draft homepage is enough to start.",
+  },
+  {
+    title: "Leave with a testable brief and next moves",
+    body: "Walk away with a clearer angle plus the next validation tasks to run.",
+  },
+];
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -478,6 +493,15 @@ export default function LandingPage() {
             <LandingLinkCta button="hero_see_workspace" variant="secondary">
               See the founder workflow
             </LandingLinkCta>
+          </div>
+
+          <div className="mx-auto mt-4 grid max-w-4xl gap-2.5 text-left md:grid-cols-3">
+            {heroReassuranceCues.map((cue) => (
+              <div key={cue.title} className="rounded-[1.35rem] border border-stone-200/80 bg-white/72 px-4 py-3 shadow-[0_10px_30px_rgba(28,25,23,0.05)] backdrop-blur-sm">
+                <div className="text-sm font-semibold tracking-[-0.02em] text-stone-900">{cue.title}</div>
+                <p className="mt-1.5 text-sm leading-6 text-stone-600">{cue.body}</p>
+              </div>
+            ))}
           </div>
         </section>
       </div>

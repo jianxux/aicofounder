@@ -71,6 +71,9 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(screen.getByText(/10-15 minute first pass/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bring the rough idea, not a polished deck/i)).toBeInTheDocument();
+    expect(screen.getByText(/Leave with a testable brief and next moves/i)).toBeInTheDocument();
   });
 
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
