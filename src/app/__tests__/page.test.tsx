@@ -93,6 +93,16 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Check if the demand is real before you commit\./i)).toBeInTheDocument();
     expect(screen.getByLabelText("I want to")).toBeInTheDocument();
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bring whatever you already have/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rough artifacts are welcome\./i)).toBeInTheDocument();
+    [
+      "Customer interview notes",
+      "Existing homepage or URL",
+      "Sales or customer call notes",
+      "Competitor screenshots or teardown notes",
+    ].forEach((item) => {
+      expect(screen.getByText(item)).toBeInTheDocument();
+    });
     expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
