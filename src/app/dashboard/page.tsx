@@ -52,6 +52,35 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
     .join("\n\n");
 }
 
+function getProjectTaskProgress(project: Project) {
+  const tasks = project.phases.flatMap((phase) => phase.tasks);
+  const completedTaskCount = tasks.filter((task) => task.done).length;
+  const totalTaskCount = tasks.length;
+  const percentComplete = totalTaskCount === 0 ? 0 : Math.round((completedTaskCount / totalTaskCount) * 100);
+  const nextTask = tasks.find((task) => !task.done) ?? null;
+  const hasTasks = totalTaskCount > 0;
+  const isComplete = hasTasks && nextTask === null;
+
+  return {
+    completedTaskCount,
+    totalTaskCount,
+    percentComplete,
+    nextTask,
+    hasTasks,
+    isComplete,
+  };
+}
+
+function formatProgressSummary(progress: ReturnType<typeof getProjectTaskProgress>) {
+  const { completedTaskCount, totalTaskCount, percentComplete, hasTasks } = progress;
+
+  if (!hasTasks) {
+    return "No tasks yet";
+  }
+
+  return `${completedTaskCount} of ${totalTaskCount} tasks complete • ${percentComplete}% complete`;
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -192,25 +221,40 @@ export default function DashboardPage() {
             </div>
           </button>
 
-          {projects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/project/${project.id}`}
-              className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div>
-                <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
-                  {project.phase}
+          {projects.map((project) => {
+            const taskProgress = getProjectTaskProgress(project);
+            const progressSummary = formatProgressSummary(taskProgress);
+
+            return (
+              <Link
+                key={project.id}
+                href={`/project/${project.id}`}
+                className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div>
+                  <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
+                    {project.phase}
+                  </div>
+                  <h2 className="mt-5 text-2xl font-semibold text-stone-950">{project.name}</h2>
+                  <p className="mt-3 text-sm leading-7 text-stone-600">{project.description}</p>
+                  <div className="mt-5 space-y-2 text-sm text-stone-600">
+                    <p>{progressSummary}</p>
+                    {taskProgress.nextTask ? (
+                      <p>
+                        <span className="font-semibold text-stone-800">Next action:</span> {taskProgress.nextTask.label}
+                      </p>
+                    ) : taskProgress.isComplete ? (
+                      <p className="text-stone-500">All tasks complete.</p>
+                    ) : null}
+                  </div>
                 </div>
-                <h2 className="mt-5 text-2xl font-semibold text-stone-950">{project.name}</h2>
-                <p className="mt-3 text-sm leading-7 text-stone-600">{project.description}</p>
-              </div>
-              <div className="flex items-center justify-between text-sm text-stone-500">
-                <span>{project.notes.length} notes</span>
-                <span>Updated {formatDate(project.updatedAt)}</span>
-              </div>
-            </Link>
-          ))}
+                <div className="flex items-center justify-between text-sm text-stone-500">
+                  <span>{project.notes.length} notes</span>
+                  <span>Updated {formatDate(project.updatedAt)}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
 
         {projects.length === 0 && !showOnboarding ? (
