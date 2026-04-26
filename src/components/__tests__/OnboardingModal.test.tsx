@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OnboardingModal from "@/components/OnboardingModal";
@@ -129,7 +129,7 @@ describe("OnboardingModal", () => {
     const launchDescription = document.getElementById(launchDialog.getAttribute("aria-describedby") ?? "");
     const stepTwoSection = screen.getByText("About Your Idea").closest("section");
 
-    expect(launchDescription).toHaveTextContent("Here’s what you’re starting with.");
+    expect(launchDescription).toHaveTextContent("Here’s the guidance you’re starting with.");
     expect(stepTwoSection).toHaveAttribute("hidden");
   });
 
@@ -139,6 +139,7 @@ describe("OnboardingModal", () => {
     moveToIdeaStep();
 
     expect(screen.getByRole("region", { name: "Starter briefs" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Intake quality guide" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Customer research copilot/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ops assistant for clinics/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Retail demand planner/i })).toBeInTheDocument();
@@ -146,6 +147,88 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
+  });
+
+  it("shows the intake quality guide with missing signals by default", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+    const status = within(guide).getByRole("status");
+
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(status).toHaveTextContent("Early signal only.");
+    expect(
+      within(guide).getByText("More than a few words helps. Aim for at least 6 words."),
+    ).toBeInTheDocument();
+    expect(
+      within(guide).getByText("Optional but helpful for a product, market, or workflow reference."),
+    ).toBeInTheDocument();
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+  });
+
+  it("updates intake quality signals live through intermediate and complete states", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+    const status = within(guide).getByRole("status");
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "Founder research copilot" },
+    });
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research workflows" },
+    });
+    fireEvent.change(screen.getByLabelText("Target user (optional)"), {
+      target: { value: "Seed-stage founders" },
+    });
+
+    expect(status).toHaveTextContent("Rough completeness signal: 2 of 4 signals present.");
+    expect(status).toHaveTextContent("Promising signal.");
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: present",
+    );
+    expect(within(guide).getByText("Target user named", { exact: false })).toHaveTextContent(
+      "Target user named: present",
+    );
+
+    fillIntakeFields();
+
+    expect(status).toHaveTextContent("Rough completeness signal: 4 of 4 signals present.");
+    expect(status).toHaveTextContent("Strong signal.");
+    expect(status).toHaveTextContent(
+      "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.",
+    );
+  });
+
+  it("requires at least 6 words for the concrete idea signal", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const guide = screen.getByRole("region", { name: "Intake quality guide" });
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research" },
+    });
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: missing",
+    );
+
+    fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
+      target: { value: "AI copilot for founder research planning" },
+    });
+    expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
+      "Concrete idea or workflow: present",
+    );
   });
 
   it("prefills the intake fields when a starter brief is selected", () => {
@@ -237,14 +320,77 @@ describe("OnboardingModal", () => {
     const intake = fillIntakeFields();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
+    const workflowPreview = screen.getByLabelText("Validation workflow preview");
     const summary = screen.getByText("Intake Summary").closest("section");
 
     expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Validation workflow")).toBeInTheDocument();
+    expect(
+      within(workflowPreview).getByText(/evidence-driven workflow, not a blank chat/i),
+    ).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Idea")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Assumptions")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Evidence")).toBeInTheDocument();
+    expect(within(workflowPreview).getByText("Next moves")).toBeInTheDocument();
     expect(summary).toBeInTheDocument();
     expect(within(summary!).getByText(intake.primaryIdea)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.url)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.targetUser)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
+  });
+
+  it("previews the first workspace handoff with personalized artifact copy", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({
+      targetUser: "Seed-stage founders",
+      mainUncertainty: "Whether they want one workspace.",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const handoff = screen.getByLabelText("What happens next");
+
+    expect(within(handoff).getByText("First Workspace Handoff")).toBeInTheDocument();
+    expect(
+      within(handoff).getByText("Use the workspace to sharpen your claim for Seed-stage founders."),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to outline a customer research memo for Seed-stage founders, including early findings, contradictions, and next questions.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        'Use a validation scorecard to pressure-test "Whether they want one workspace." so the next decision is explicit.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to generic handoff copy when optional personalization fields are blank", () => {
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const handoff = screen.getByLabelText("What happens next");
+
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to sharpen your claim about the customer and problem worth validating.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use the workspace to outline a customer research memo that captures early findings, contradictions, and next questions.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(handoff).getByText(
+        "Use a validation scorecard to pressure-test the biggest open risk so the next decision is explicit.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows the attachments coming soon policy before launch without implying uploads are live", () => {
@@ -287,12 +433,72 @@ describe("OnboardingModal", () => {
     });
   });
 
+  it("disables Launch Project while submission is in flight and prevents double submit", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    const launchButton = screen.getByRole("button", { name: "Launch Project" });
+    fireEvent.click(launchButton);
+
+    expect(screen.getByRole("button", { name: "Launching..." })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launching..." }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+
+    resolveLaunch?.();
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Launch Project" })).toBeEnabled();
+    });
+  });
+
   it("calls onSkip on skip link click", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Skip" }));
 
     expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not allow Skip to dismiss the modal while launch is in flight", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    const skipButton = screen.getByRole("button", { name: "Skip" });
+
+    expect(skipButton).toBeDisabled();
+
+    fireEvent.click(skipButton);
+
+    expect(onSkip).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveLaunch?.();
+    });
   });
 
   it("traps keyboard focus within the dialog while open", () => {
@@ -345,6 +551,36 @@ describe("OnboardingModal", () => {
     expect(screen.getByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
   });
 
+  it("does not allow step 3 Back to rewind while launch is in flight", async () => {
+    let resolveLaunch: (() => void) | undefined;
+    onComplete.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLaunch = resolve;
+        }),
+    );
+
+    render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    const backButton = screen.getByRole("button", { name: "Back" });
+
+    expect(backButton).toBeDisabled();
+
+    fireEvent.click(backButton);
+
+    expect(screen.getByRole("heading", { name: "Ready to Launch" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "About Your Idea" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveLaunch?.();
+    });
+  });
+
   it("shows not provided for optional summary fields when they are empty", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
@@ -386,6 +622,35 @@ describe("OnboardingModal", () => {
       "Carry this prompt into onboarding.",
     );
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Founders");
+  });
+
+  it("uses a url input and clears selected starter state when initialIntake changes while open", () => {
+    const { rerender } = render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
+
+    moveToIdeaStep();
+    const clinicStarter = screen.getByRole("button", { name: /Ops assistant for clinics/i });
+
+    fireEvent.click(clinicStarter);
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Relevant URL (optional)")).toHaveAttribute("type", "url");
+
+    rerender(
+      <OnboardingModal
+        open
+        onComplete={onComplete}
+        onSkip={onSkip}
+        initialIntake={{
+          primaryIdea: "Carry this prompt into onboarding.",
+          url: "https://example.com/new",
+          targetUser: "Founders",
+        }}
+      />,
+    );
+
+    expect(clinicStarter).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Carry this prompt into onboarding.",
+    );
   });
 
   it("restores focus to the previously active element when closed", () => {
