@@ -14,7 +14,7 @@ export type OnboardingIntake = {
 
 type OnboardingModalProps = {
   open: boolean;
-  onComplete: (intake: OnboardingIntake) => void;
+  onComplete: (intake: OnboardingIntake) => void | Promise<void>;
   onSkip: () => void;
   initialIntake?: Partial<OnboardingIntake>;
 };
@@ -80,6 +80,23 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+function buildWorkspaceHandoffCopy(intake: OnboardingIntake) {
+  const targetUser = intake.targetUser.trim();
+  const mainUncertainty = intake.mainUncertainty.trim();
+
+  return {
+    sharperClaim: targetUser
+      ? `Use the workspace to sharpen your claim for ${targetUser}.`
+      : "Use the workspace to sharpen your claim about the customer and problem worth validating.",
+    researchMemo: targetUser
+      ? `Use the workspace to outline a customer research memo for ${targetUser}, including early findings, contradictions, and next questions.`
+      : "Use the workspace to outline a customer research memo that captures early findings, contradictions, and next questions.",
+    validationScorecard: mainUncertainty
+      ? `Use a validation scorecard to pressure-test "${mainUncertainty}" so the next decision is explicit.`
+      : "Use a validation scorecard to pressure-test the biggest open risk so the next decision is explicit.",
+  };
+}
+
 export default function OnboardingModal({ open, onComplete, onSkip, initialIntake }: OnboardingModalProps) {
   const [step, setStep] = useState<OnboardingStep>(1);
   const [primaryIdea, setPrimaryIdea] = useState("");
@@ -87,6 +104,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
   const [selectedStarterIndex, setSelectedStarterIndex] = useState<number | null>(null);
+  const [isLaunching, setIsLaunching] = useState(false);
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
   const dialogId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -98,6 +116,12 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const isPrimaryIdeaValid = primaryIdea.trim().length > 0;
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
   const descriptionIdForStep = (stepNumber: number) => `${dialogId}-description-${stepNumber}`;
+  const workspaceHandoff = buildWorkspaceHandoffCopy({
+    primaryIdea,
+    url,
+    targetUser,
+    mainUncertainty,
+  });
 
   const clearSelectedStarter = () => {
     setSelectedStarterIndex(null);
@@ -124,6 +148,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     setTargetUser("");
     setMainUncertainty("");
     setSelectedStarterIndex(null);
+    setIsLaunching(false);
   }, [initialIntake, open]);
 
   useEffect(() => {
@@ -198,6 +223,27 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     }
   };
 
+  const handleLaunchProject = async () => {
+    if (isLaunching) {
+      return;
+    }
+
+    setIsLaunching(true);
+
+    try {
+      await onComplete({
+        primaryIdea: primaryIdea.trim(),
+        url: url.trim(),
+        targetUser: targetUser.trim(),
+        mainUncertainty: mainUncertainty.trim(),
+      });
+    } catch {
+      // Re-enable the action if project creation fails and the modal remains open.
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
   if (!open) {
     return null;
   }
@@ -222,8 +268,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
           <button
             ref={skipButtonRef}
             type="button"
+            disabled={isLaunching}
             onClick={onSkip}
-            className="text-sm font-medium text-stone-500 transition hover:text-stone-800"
+            className="text-sm font-medium text-stone-500 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
           >
             Skip
           </button>
@@ -459,8 +506,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               Ready to Launch
             </h2>
             <p id={descriptionIdForStep(3)} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
-              Here’s what you’re starting with. Once launched, your AI cofounder will guide you
-              through the discovery, planning, build, and launch phases.
+              Here’s the guidance you’re starting with. Once launched, your AI cofounder will use
+              this intake to steer the discovery, planning, build, and launch workflow.
             </p>
 
             <section
@@ -524,6 +571,48 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               </div>
             </div>
 
+            <section
+              aria-label="What happens next"
+              className="mt-5 rounded-[28px] border border-stone-200 bg-white/90 p-6"
+            >
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                First Workspace Handoff
+              </div>
+              <p className="mt-3 text-sm leading-6 text-stone-700">
+                After launch, AI Cofounder uses this intake to guide the first workspace pass and
+                point you toward the next decision.
+              </p>
+              <ol className="mt-5 space-y-4 text-sm leading-6 text-stone-700">
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    01
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Sharper claim</div>
+                    <p className="mt-1">{workspaceHandoff.sharperClaim}</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    02
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Customer research memo</div>
+                    <p className="mt-1">{workspaceHandoff.researchMemo}</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 text-stone-400">
+                    03
+                  </span>
+                  <div>
+                    <div className="font-semibold text-stone-900">Validation scorecard and next decision</div>
+                    <p className="mt-1">{workspaceHandoff.validationScorecard}</p>
+                  </div>
+                </li>
+              </ol>
+            </section>
+
             <section className="mt-5 rounded-[28px] border border-amber-200 bg-amber-50/80 p-6">
               <div className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-800">
                 Attachments Coming Soon
@@ -547,24 +636,19 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
             <div className="mt-8 flex items-center justify-between gap-3">
               <button
                 type="button"
+                disabled={isLaunching}
                 onClick={() => setStep(2)}
-                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950"
+                className="rounded-full border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:border-stone-500 hover:text-stone-950 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
               >
                 Back
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  onComplete({
-                    primaryIdea: primaryIdea.trim(),
-                    url: url.trim(),
-                    targetUser: targetUser.trim(),
-                    mainUncertainty: mainUncertainty.trim(),
-                  })
-                }
-                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+                disabled={isLaunching}
+                onClick={() => void handleLaunchProject()}
+                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
-                Launch Project
+                {isLaunching ? "Launching..." : "Launch Project"}
               </button>
             </div>
           </section>

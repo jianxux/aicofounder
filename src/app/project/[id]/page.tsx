@@ -22,6 +22,7 @@ import { generateProjectDiagram } from "@/lib/diagram-generation";
 import { getNextPhaseId, getPhaseAdvanceMessage, shouldAdvancePhase } from "@/lib/phases";
 import { resolveProjectResearchResponse, type ResearchApiFailure, type ResearchApiSuccess } from "@/lib/project-research";
 import { createProjectRecord, getProject, saveProject, upsertProject } from "@/lib/projects";
+import type { ResearchReport } from "@/lib/research";
 import { fetchProjectById } from "@/lib/supabase-projects";
 import { UltraplanResult } from "@/lib/ultraplan";
 import {
@@ -89,7 +90,7 @@ function isArtifactPopulated(artifact: ProjectArtifact | null) {
     return Boolean(artifact.summary?.trim()) || artifact.criteria.length > 0;
   }
 
-  return Boolean(artifact.research?.report || artifact.research?.artifact);
+  return hasUsableResearchReport(artifact.research?.report) || hasUsableResearchReport(artifact.research?.artifact?.report);
 }
 
 function getResearchPanelStatus(research: Project["research"], isResearchLoading: boolean) {
@@ -112,6 +113,203 @@ function getCustomerResearchMemoArtifactId(project: Project) {
   return getProjectArtifactByType(project, "customer-research-memo")?.id ?? "artifact-customer-research-memo";
 }
 
+function formatCompactCount(completed: number, total: number) {
+  if (total <= 0) {
+    return "No tasks";
+  }
+
+  return `${completed}/${total} done`;
+}
+
+function getSafeReferenceUrl(rawValue: string) {
+  const value = rawValue.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return "";
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return "";
+  }
+}
+
+function hasUsableResearchReport(report: ResearchReport | Partial<ResearchReport> | undefined) {
+  if (!report) {
+    return false;
+  }
+
+  return Boolean(
+    report.executiveSummary?.trim() ||
+      report.sections?.length ||
+      report.keyFindings?.length ||
+      report.contradictions?.length ||
+      report.unansweredQuestions?.length ||
+      report.sources?.length,
+  );
+}
+
+function parseDescriptionMetadata(description: string) {
+  const metadata = {
+    targetUser: "",
+    mainUncertainty: "",
+    referenceUrl: "",
+  };
+  const narrativeLines: string[] = [];
+
+  for (const rawLine of description.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    const targetUserMatch = line.match(/^target user\s*:\s*(.+)$/i);
+    if (targetUserMatch) {
+      metadata.targetUser = targetUserMatch[1].trim();
+      continue;
+    }
+
+    const uncertaintyMatch = line.match(/^main uncertainty\s*:\s*(.+)$/i);
+    if (uncertaintyMatch) {
+      metadata.mainUncertainty = uncertaintyMatch[1].trim();
+      continue;
+    }
+
+    const referenceUrlMatch = line.match(/^(reference url|existing url or homepage)\s*:\s*(.+)$/i);
+    if (referenceUrlMatch) {
+      metadata.referenceUrl = referenceUrlMatch[2].trim();
+      continue;
+    }
+
+    narrativeLines.push(line);
+  }
+
+  return { ...metadata, narrativeLines };
+}
+
+function deriveConciseBrief(project: Pick<Project, "name" | "description">) {
+  const { narrativeLines } = parseDescriptionMetadata(project.description ?? "");
+  const narrative = narrativeLines.join(" ").replace(/\s+/g, " ").trim();
+
+  if (narrative) {
+    return narrative.length <= 140 ? narrative : `${narrative.slice(0, 137).trimEnd()}...`;
+  }
+
+  if (project.name.trim()) {
+    return `${project.name.trim()} project workspace`;
+  }
+
+  return "Project workspace";
+}
+
+function getArtifactStateNextMove(activeArtifact: ProjectArtifact | null, hasOutput: boolean) {
+  if (!activeArtifact) {
+    return "Choose the artifact to update next.";
+  }
+
+  if (activeArtifact.type === "customer-research-memo") {
+    if (!hasOutput) {
+      return "Run research to generate the first customer research memo.";
+    }
+
+    if (activeArtifact.research?.status === "error") {
+      return "Repair the customer research memo by rerunning research or tightening the brief in chat.";
+    }
+
+    return "Review the memo and tighten the strongest finding, contradiction, or evidence gap.";
+  }
+
+  if (!hasOutput) {
+    return "Start the validation scorecard with the strongest signal and the biggest open risk.";
+  }
+
+  return "Refine the validation scorecard by challenging weak evidence and updating the next check.";
+}
+
+function getArtifactStateFocus(activeArtifact: ProjectArtifact | null, hasOutput: boolean) {
+  if (!activeArtifact) {
+    return "Choose artifact";
+  }
+
+  if (activeArtifact.type === "customer-research-memo") {
+    return hasOutput ? "Refine customer research memo" : "Create customer research memo";
+  }
+
+  return hasOutput ? "Refine validation scorecard" : "Create validation scorecard";
+}
+
+function deriveProjectSnapshot(
+  project: Pick<Project, "name" | "description">,
+  activePhase: Phase | null,
+  activeArtifact: ProjectArtifact | null,
+  activeArtifactHasOutput: boolean,
+) {
+  const metadata = parseDescriptionMetadata(project.description ?? "");
+  const brief = deriveConciseBrief(project);
+  const totalTasks = activePhase?.tasks.length ?? 0;
+  const completedTasks = activePhase?.tasks.filter((task) => task.done).length ?? 0;
+  const firstIncompleteTask = activePhase?.tasks.find((task) => !task.done) ?? null;
+  const currentPhase = activePhase?.title ?? "Getting started";
+  const currentFocus = firstIncompleteTask?.label ?? getArtifactStateFocus(activeArtifact, activeArtifactHasOutput);
+  const progress = formatCompactCount(completedTasks, totalTasks);
+  const nextMove = firstIncompleteTask
+    ? `Complete task: ${firstIncompleteTask.label}.`
+    : getArtifactStateNextMove(activeArtifact, activeArtifactHasOutput);
+
+  return {
+    brief,
+    metadata,
+    currentPhase,
+    currentFocus,
+    progress,
+    nextMove,
+  };
+}
+
+type WorkspaceSaveState = "saved" | "saving" | "failed";
+
+function WorkspaceSaveStatus({
+  state,
+  onRetry,
+}: {
+  state: WorkspaceSaveState;
+  onRetry: () => void;
+}) {
+  const statusLabel = state === "saving" ? "Saving..." : state === "failed" ? "Sync failed" : "Saved";
+  const statusClasses =
+    state === "saving"
+      ? "border-amber-200 bg-amber-50 text-amber-800"
+      : state === "failed"
+        ? "border-rose-200 bg-rose-50 text-rose-800"
+        : "border-emerald-200 bg-emerald-50 text-emerald-800";
+
+  return (
+    <div className="flex items-center gap-2" aria-live="polite">
+      <span
+        className={`inline-flex min-h-9 items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${statusClasses}`}
+      >
+        {statusLabel}
+      </span>
+      {state === "failed" ? (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-full border border-stone-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
+        >
+          Retry
+        </button>
+      ) : null}
+    </div>
+  );
+}
 function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardArtifact }) {
   return (
     <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
@@ -219,6 +417,92 @@ function ArtifactWorkspaceHeader({
   );
 }
 
+function ProjectSnapshotPanel({
+  brief,
+  targetUser,
+  mainUncertainty,
+  referenceUrl,
+  currentPhase,
+  currentFocus,
+  progress,
+  nextMove,
+}: {
+  brief: string;
+  targetUser: string;
+  mainUncertainty: string;
+  referenceUrl: string;
+  currentPhase: string;
+  currentFocus: string;
+  progress: string;
+  nextMove: string;
+}) {
+  const safeReferenceUrl = getSafeReferenceUrl(referenceUrl);
+
+  return (
+    <section
+      aria-label="Project snapshot"
+      className="rounded-[32px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5"
+    >
+      <div className="rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">Project snapshot</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{brief}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
+              {currentPhase}
+            </span>
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+              {progress}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3 xl:col-span-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Recommended next move</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{nextMove}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Current focus</div>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{currentFocus}</p>
+          </div>
+          {targetUser ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Target user</div>
+              <p className="mt-2 text-sm leading-6 text-stone-700">{targetUser}</p>
+            </div>
+          ) : null}
+          {mainUncertainty ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Main uncertainty</div>
+              <p className="mt-2 text-sm leading-6 text-stone-700">{mainUncertainty}</p>
+            </div>
+          ) : null}
+          {referenceUrl ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3 md:col-span-2 xl:col-span-5">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Reference URL</div>
+              {safeReferenceUrl ? (
+                <a
+                  href={safeReferenceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 block text-sm leading-6 text-stone-700 underline decoration-stone-300 underline-offset-4"
+                >
+                  {referenceUrl}
+                </a>
+              ) : (
+                <p className="mt-2 text-sm leading-6 text-stone-700">{referenceUrl}</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function ProjectWorkspacePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -233,6 +517,11 @@ export default function ProjectWorkspacePage() {
   const requestControllerRef = useRef<AbortController | null>(null);
   const projectRef = useRef<Project | null>(null);
   const savingRef = useRef(false);
+  const saveRequestSequenceRef = useRef(0);
+  const pendingSaveCountRef = useRef(0);
+  const latestFailedSnapshotRef = useRef<Project | null>(null);
+  const pendingRealtimeRefreshRef = useRef(false);
+  const [workspaceSaveState, setWorkspaceSaveState] = useState<WorkspaceSaveState>("saved");
 
   const buildResearchContext = (currentProject: Project, phase: Phase | null) => {
     const latestUserMessage = [...currentProject.messages]
@@ -311,38 +600,79 @@ export default function ProjectWorkspacePage() {
     };
   }, []);
 
-  useRealtimeProject(projectId, () => {
-    if (savingRef.current) {
+  const refreshProjectFromRemote = async () => {
+    const remoteProject = await fetchProjectById(projectId);
+
+    if (!remoteProject) {
       return;
     }
 
-    void (async () => {
-      const remoteProject = await fetchProjectById(projectId);
+    const normalizedProject = withGeneratedDiagram(normalizeProject(remoteProject));
 
-      if (!remoteProject) {
-        return;
-      }
+    projectRef.current = normalizedProject;
+    setProject(normalizedProject);
+    setActivePhaseId((currentPhaseId) =>
+      normalizedProject.phases.some((phase) => phase.id === currentPhaseId)
+        ? currentPhaseId
+        : normalizedProject.phases[0]?.id ?? "getting-started",
+    );
+  };
 
-      const normalizedProject = withGeneratedDiagram(normalizeProject(remoteProject));
+  const replayBufferedRealtimeRefresh = (requestId: number) => {
+    if (saveRequestSequenceRef.current !== requestId || pendingRealtimeRefreshRef.current === false) {
+      return;
+    }
 
-      projectRef.current = normalizedProject;
-      setProject(normalizedProject);
-      setActivePhaseId((currentPhaseId) =>
-        normalizedProject.phases.some((phase) => phase.id === currentPhaseId)
-          ? currentPhaseId
-          : normalizedProject.phases[0]?.id ?? "getting-started",
-      );
-    })();
+    pendingRealtimeRefreshRef.current = false;
+    void refreshProjectFromRemote();
+  };
+
+  useRealtimeProject(projectId, () => {
+    if (savingRef.current) {
+      pendingRealtimeRefreshRef.current = true;
+      return;
+    }
+
+    void refreshProjectFromRemote();
   });
 
   const persistProject = (nextProject: Project) => {
     const updated = withGeneratedDiagram(normalizeProject({ ...nextProject, updatedAt: new Date().toISOString() }));
     projectRef.current = updated;
     setProject(updated);
+    setWorkspaceSaveState("saving");
     savingRef.current = true;
-    void saveProject(updated).finally(() => {
-      savingRef.current = false;
-    });
+    const requestId = saveRequestSequenceRef.current + 1;
+    saveRequestSequenceRef.current = requestId;
+    pendingSaveCountRef.current += 1;
+    void saveProject(updated)
+      .then(() => {
+        if (saveRequestSequenceRef.current === requestId) {
+          latestFailedSnapshotRef.current = null;
+          setWorkspaceSaveState("saved");
+          replayBufferedRealtimeRefresh(requestId);
+        }
+      })
+      .catch(() => {
+        if (saveRequestSequenceRef.current === requestId) {
+          latestFailedSnapshotRef.current = updated;
+          setWorkspaceSaveState("failed");
+        }
+      })
+      .finally(() => {
+        pendingSaveCountRef.current = Math.max(0, pendingSaveCountRef.current - 1);
+        savingRef.current = pendingSaveCountRef.current > 0;
+      });
+  };
+
+  const handleRetrySave = () => {
+    const latestFailedSnapshot = latestFailedSnapshotRef.current;
+
+    if (!latestFailedSnapshot) {
+      return;
+    }
+
+    persistProject(latestFailedSnapshot);
   };
 
   const activePhase = useMemo(
@@ -357,6 +687,13 @@ export default function ProjectWorkspacePage() {
   const activeResearchMemo = activeArtifact?.type === "customer-research-memo" ? activeArtifact : null;
   const activeArtifactHasOutput = useMemo(() => isArtifactPopulated(activeArtifact), [activeArtifact]);
   const activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create";
+  const projectSnapshot = useMemo(
+    () =>
+      project
+        ? deriveProjectSnapshot(project, activePhase, activeArtifact, activeArtifactHasOutput)
+        : null,
+    [activeArtifact, activeArtifactHasOutput, activePhase, project],
+  );
 
   const handleNameChange = (name: string) => {
     if (!project) {
@@ -868,8 +1205,6 @@ export default function ProjectWorkspacePage() {
   };
 
   const handleSetActivePhase = (phaseId: string) => {
-    setActivePhaseId(phaseId);
-
     /* v8 ignore next -- defensive guard during transient load states */
     if (!project) {
       return;
@@ -880,6 +1215,8 @@ export default function ProjectWorkspacePage() {
     if (!currentPhase) {
       return;
     }
+
+    setActivePhaseId(phaseId);
 
     persistProject({
       ...project,
@@ -942,12 +1279,14 @@ export default function ProjectWorkspacePage() {
               <input
                 value={project.name}
                 onChange={(event) => handleNameChange(event.target.value)}
+                aria-label="Project name"
                 className="mt-1 w-full min-w-0 border-none bg-transparent p-0 text-2xl font-semibold text-stone-950 outline-none sm:min-w-[320px]"
               />
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <WorkspaceSaveStatus state={workspaceSaveState} onRetry={handleRetrySave} />
             <button
               type="button"
               className="rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-50"
@@ -995,6 +1334,19 @@ export default function ProjectWorkspacePage() {
             </button>
           </div>
         </div>
+
+        {projectSnapshot ? (
+          <ProjectSnapshotPanel
+            brief={projectSnapshot.brief}
+            targetUser={projectSnapshot.metadata.targetUser}
+            mainUncertainty={projectSnapshot.metadata.mainUncertainty}
+            referenceUrl={projectSnapshot.metadata.referenceUrl}
+            currentPhase={projectSnapshot.currentPhase}
+            currentFocus={projectSnapshot.currentFocus}
+            progress={projectSnapshot.progress}
+            nextMove={projectSnapshot.nextMove}
+          />
+        ) : null}
 
         <ArtifactWorkspaceHeader
           artifacts={project.artifacts ?? []}
