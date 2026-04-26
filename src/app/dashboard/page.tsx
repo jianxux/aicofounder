@@ -12,17 +12,28 @@ import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
 const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
+const UNKNOWN_UPDATED_AT_LABEL = "Unknown date";
 
 function getLandingPromptDraft() {
   return window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
 }
 
 function formatDate(value: string) {
+  const timestamp = parseUpdatedAtTimestamp(value);
+  if (timestamp === null) {
+    return UNKNOWN_UPDATED_AT_LABEL;
+  }
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(new Date(timestamp));
+}
+
+function parseUpdatedAtTimestamp(value: string) {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
 }
 
 function deriveProjectName(primaryIdea: string) {
@@ -50,6 +61,64 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
   ]
     .filter((value): value is string => Boolean(value))
     .join("\n\n");
+}
+
+type ProjectSummary = {
+  project: Project;
+  totalTasks: number;
+  completedTasks: number;
+  hasOpenTasks: boolean;
+  hasCompletedCurrentMilestone: boolean;
+  progressLabel: string;
+  statusLabel: "In progress" | "Milestone complete" | "No tasks yet";
+  triageRank: number;
+};
+
+function getCurrentPhaseTasks(project: Project) {
+  const normalizedCurrentPhase = project.phase.trim().toLowerCase();
+  const currentPhase = project.phases.find((phase) => {
+    const normalizedTitle = phase.title.trim().toLowerCase();
+    const normalizedId = phase.id.trim().toLowerCase();
+    return normalizedTitle === normalizedCurrentPhase || normalizedId === normalizedCurrentPhase;
+  });
+
+  return currentPhase?.tasks ?? [];
+}
+
+function summarizeProject(project: Project): ProjectSummary {
+  const currentPhaseTasks = getCurrentPhaseTasks(project);
+  const totalTasks = currentPhaseTasks.length;
+  const completedTasks = currentPhaseTasks.filter((task) => task.done).length;
+  const hasOpenTasks = totalTasks > 0 && completedTasks < totalTasks;
+  const hasCompletedCurrentMilestone = totalTasks > 0 && completedTasks === totalTasks;
+  const statusLabel = hasOpenTasks
+    ? "In progress"
+    : hasCompletedCurrentMilestone
+      ? "Milestone complete"
+      : "No tasks yet";
+  const progressLabel = totalTasks > 0 ? `${completedTasks}/${totalTasks} tasks complete` : "No tasks yet";
+  const triageRank = hasOpenTasks ? 0 : hasCompletedCurrentMilestone ? 2 : 1;
+
+  return {
+    project,
+    totalTasks,
+    completedTasks,
+    hasOpenTasks,
+    hasCompletedCurrentMilestone,
+    progressLabel,
+    statusLabel,
+    triageRank,
+  };
+}
+
+function compareProjectsForTriage(left: ProjectSummary, right: ProjectSummary) {
+  if (left.triageRank !== right.triageRank) {
+    return left.triageRank - right.triageRank;
+  }
+
+  const leftUpdatedAt = parseUpdatedAtTimestamp(left.project.updatedAt) ?? Number.NEGATIVE_INFINITY;
+  const rightUpdatedAt = parseUpdatedAtTimestamp(right.project.updatedAt) ?? Number.NEGATIVE_INFINITY;
+  return rightUpdatedAt - leftUpdatedAt;
 }
 
 export default function DashboardPage() {
@@ -137,6 +206,15 @@ export default function DashboardPage() {
     window.location.href = `/project/${project.id}`;
   };
 
+  const projectSummaries = [...projects].map(summarizeProject).sort(compareProjectsForTriage);
+  const portfolioTotals = {
+    totalProjects: projectSummaries.length,
+    projectsWithOpenTasks: projectSummaries.filter((summary) => summary.hasOpenTasks).length,
+    projectsWithCompletedCurrentMilestones: projectSummaries.filter(
+      (summary) => summary.hasCompletedCurrentMilestone,
+    ).length,
+  };
+
   return (
     <main className="min-h-screen bg-[#faf7f2]">
       <OnboardingModal
@@ -175,6 +253,34 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        <div className="mb-6 grid gap-3 rounded-2xl border border-stone-200 bg-white/80 p-4 sm:grid-cols-3">
+          <div className="rounded-xl bg-stone-100/60 px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">Total projects</div>
+            <div data-testid="portfolio-total-projects" className="mt-1 text-2xl font-semibold text-stone-900">
+              {portfolioTotals.totalProjects}
+            </div>
+          </div>
+          <div className="rounded-xl bg-stone-100/60 px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Projects with open tasks
+            </div>
+            <div data-testid="portfolio-open-tasks" className="mt-1 text-2xl font-semibold text-stone-900">
+              {portfolioTotals.projectsWithOpenTasks}
+            </div>
+          </div>
+          <div className="rounded-xl bg-stone-100/60 px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Projects with completed current milestones
+            </div>
+            <div
+              data-testid="portfolio-completed-milestones"
+              className="mt-1 text-2xl font-semibold text-stone-900"
+            >
+              {portfolioTotals.projectsWithCompletedCurrentMilestones}
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <button
             type="button"
@@ -192,22 +298,32 @@ export default function DashboardPage() {
             </div>
           </button>
 
-          {projects.map((project) => (
+          {projectSummaries.map((summary) => (
             <Link
-              key={project.id}
-              href={`/project/${project.id}`}
+              key={summary.project.id}
+              href={`/project/${summary.project.id}`}
               className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div>
                 <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
-                  {project.phase}
+                  {summary.project.phase}
                 </div>
-                <h2 className="mt-5 text-2xl font-semibold text-stone-950">{project.name}</h2>
-                <p className="mt-3 text-sm leading-7 text-stone-600">{project.description}</p>
+                <div className="mt-4 flex items-center justify-between gap-3 text-xs font-medium text-stone-600">
+                  <span
+                    className={`rounded-full px-2.5 py-1 ${
+                      summary.statusLabel === "Milestone complete" ? "bg-emerald-100 text-emerald-800" : "bg-stone-100"
+                    }`}
+                  >
+                    {summary.statusLabel}
+                  </span>
+                  <span>{summary.progressLabel}</span>
+                </div>
+                <h2 className="mt-5 text-2xl font-semibold text-stone-950">{summary.project.name}</h2>
+                <p className="mt-3 text-sm leading-7 text-stone-600">{summary.project.description}</p>
               </div>
               <div className="flex items-center justify-between text-sm text-stone-500">
-                <span>{project.notes.length} notes</span>
-                <span>Updated {formatDate(project.updatedAt)}</span>
+                <span>{summary.project.notes.length} notes</span>
+                <span>Updated {formatDate(summary.project.updatedAt)}</span>
               </div>
             </Link>
           ))}
