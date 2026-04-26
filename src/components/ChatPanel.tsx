@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
@@ -44,6 +44,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const messagesRegionRef = useRef<HTMLDivElement | null>(null);
 
   const activePhase = useMemo(
     () => phases.find((phase) => phase.id === activePhaseId) ?? phases[0],
@@ -93,6 +94,23 @@ export default function ChatPanel({
     setDraft("");
   };
 
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageId = lastMessage?.id;
+  const lastMessageContent = lastMessage?.content;
+
+  useEffect(() => {
+    const region = messagesRegionRef.current;
+    if (!region) {
+      return;
+    }
+
+    if (typeof region.scrollTo === "function") {
+      region.scrollTo({ top: region.scrollHeight });
+    } else {
+      region.scrollTop = region.scrollHeight;
+    }
+  }, [messages.length, lastMessageId, lastMessageContent, isLoading]);
+
   return (
     <div
       className={`flex h-full min-h-[720px] w-full flex-col rounded-[28px] border border-stone-200 bg-white shadow-sm ${
@@ -116,7 +134,11 @@ export default function ChatPanel({
         </p>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+      <div
+        ref={messagesRegionRef}
+        data-testid="chat-messages-region"
+        className="flex-1 space-y-4 overflow-y-auto px-6 py-5"
+      >
         {messages.map((message) => {
           const isUser = message.sender === "user";
 
