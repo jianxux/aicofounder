@@ -96,6 +96,24 @@ const sampleArtifactRows = [
   },
 ];
 
+const signalWatchlistRows = [
+  {
+    label: "Buyer pain phrases",
+    prompt: "Watch for Reddit, HN, and Lobsters-style threads where operators describe slow follow-up, missed estimates, or customers ghosting after quotes.",
+    nextStep: "Save the phrases buyers repeat so the next homepage test uses market language instead of founder shorthand.",
+  },
+  {
+    label: "Competitor movement",
+    prompt: "Track keyword and semantic prompts around dispatch automation, lead recovery, and service CRM launches without treating them as live alerts.",
+    nextStep: "Compare each new claim against the positioning brief and note what sounds generic, copied, or meaningfully different.",
+  },
+  {
+    label: "Validation trigger/questions",
+    prompt: "Turn proof gaps into recurring questions: who paid for the workaround, what broke this week, and what would make the switch urgent?",
+    nextStep: "Use the answers to choose the next customer interview, pricing test, or landing-page claim to validate.",
+  },
+];
+
 const trustStrip = [
   "Prompt-first onboarding",
   "Built for market validation",
@@ -520,6 +538,36 @@ export default function LandingPage() {
                 callback.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-4 lg:px-8">
+        <div className="grid gap-6 rounded-[2.25rem] border border-stone-200 bg-white/78 p-6 shadow-[0_24px_80px_rgba(66,46,17,0.07)] backdrop-blur-sm lg:grid-cols-[0.78fr_1.22fr] lg:p-7">
+          <div className="max-w-md">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Next-step prompt watchlist</div>
+            <h2 className="mt-4 text-[clamp(2rem,4vw,3.2rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-stone-950">
+              Signal watchlist after the first brief.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              AI Cofounder turns the initial artifact into three ongoing market-monitoring prompts founders can reuse. This is a static next-step watchlist,
+              not live alerting or automated surveillance.
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            {signalWatchlistRows.map((row) => (
+              <div key={row.label} className="rounded-[1.45rem] border border-stone-200 bg-[#fcfaf7] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">{row.label}</div>
+                    <p className="mt-2 text-sm leading-7 text-stone-700">{row.prompt}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">Prompt, not alert</span>
+                </div>
+                <div className="mt-3 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm leading-6 text-stone-600">{row.nextStep}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
