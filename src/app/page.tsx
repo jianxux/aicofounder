@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
@@ -267,6 +267,7 @@ function LoginPromptModal({
 }) {
   const titleId = useId();
   const descriptionId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -280,6 +281,7 @@ function LoginPromptModal({
     };
 
     window.addEventListener("keydown", handleKeyDown);
+    closeButtonRef.current?.focus();
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
@@ -316,6 +318,7 @@ function LoginPromptModal({
           <button
             type="button"
             onClick={onClose}
+            ref={closeButtonRef}
             className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium text-stone-600 transition hover:border-stone-300 hover:text-stone-900"
           >
             Close
@@ -354,6 +357,9 @@ export default function LandingPage() {
   const [heroPrompt, setHeroPrompt] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePresetId, setActivePresetId] = useState<(typeof focusPresets)[number]["id"]>(focusPresets[0].id);
+  const heroShortcutHintId = useId();
+  const heroTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const wasLoginPromptOpenRef = useRef(false);
   const [user, setUser] = useState<User | null>(null);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
@@ -364,6 +370,14 @@ export default function LandingPage() {
       source: "landing",
     });
   }, []);
+
+  useEffect(() => {
+    if (!showLoginPrompt && wasLoginPromptOpenRef.current) {
+      heroTextareaRef.current?.focus();
+    }
+
+    wasLoginPromptOpenRef.current = showLoginPrompt;
+  }, [showLoginPrompt]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -425,7 +439,11 @@ export default function LandingPage() {
   };
 
   const handleHeroKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
       handleHeroSubmit();
     }
@@ -535,15 +553,19 @@ export default function LandingPage() {
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
                       id="hero-prompt"
+                      ref={heroTextareaRef}
                       value={heroPrompt}
                       onChange={(event) => setHeroPrompt(event.target.value)}
                       onKeyDown={handleHeroKeyDown}
                       rows={4}
+                      aria-describedby={heroShortcutHintId}
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="text-sm text-stone-500">Press Enter to continue, or click Send to open the login prompt.</span>
+                      <span id={heroShortcutHintId} className="text-sm text-stone-500">
+                        Press Enter for a new line, or use ⌘/Ctrl + Enter to open the login prompt.
+                      </span>
                       <button
                         type="submit"
                         disabled={!heroPrompt.trim()}

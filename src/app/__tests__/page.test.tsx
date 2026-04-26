@@ -103,9 +103,13 @@ describe("LandingPage", () => {
     ].forEach((item) => {
       expect(screen.getByText(item)).toBeInTheDocument();
     });
-    expect(screen.getByText(/Press Enter to continue/i)).toBeInTheDocument();
+    expect(screen.getByText(/Press Enter for a new line, or use ⌘\/Ctrl \+ Enter to open the login prompt\./i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+
+    const promptField = screen.getByLabelText("I want to");
+    const shortcutHint = screen.getByText(/Press Enter for a new line, or use ⌘\/Ctrl \+ Enter to open the login prompt\./i);
+    expect(promptField).toHaveAttribute("aria-describedby", shortcutHint.getAttribute("id"));
   });
 
   it("updates hero guidance when a different focus preset is selected without overwriting typed input", () => {
@@ -213,6 +217,73 @@ describe("LandingPage", () => {
     });
   });
 
+  it("does not submit the hero prompt on plain Enter so founders can draft across multiple lines", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate this idea" },
+    });
+    fireEvent.keyDown(promptField, { key: "Enter", code: "Enter", charCode: 13 });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(trackEvent).not.toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("does not submit the hero prompt on Cmd/Ctrl+Enter while composing with IME", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate this idea" },
+    });
+    fireEvent.keyDown(promptField, { key: "Enter", code: "Enter", charCode: 13, metaKey: true, isComposing: true });
+    fireEvent.keyDown(promptField, { key: "Enter", code: "Enter", charCode: 13, ctrlKey: true, isComposing: true });
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(trackEvent).not.toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
+  it("submits the hero prompt on Cmd+Enter and Ctrl+Enter", async () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to");
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate this idea" },
+    });
+    fireEvent.keyDown(promptField, { key: "Enter", code: "Enter", charCode: 13, metaKey: true });
+
+    expect(await screen.findByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(promptField).toHaveFocus();
+
+    vi.mocked(trackEvent).mockClear();
+
+    fireEvent.keyDown(promptField, { key: "Enter", code: "Enter", charCode: 13, ctrlKey: true });
+
+    expect(await screen.findByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_submit",
+    });
+  });
+
   it("shows continue-to-workspace copy for signed-in users in the hero submit modal", async () => {
     getUser.mockResolvedValue({
       data: {
@@ -242,6 +313,7 @@ describe("LandingPage", () => {
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+
   });
 
   it("closes the login prompt modal on Escape", () => {
