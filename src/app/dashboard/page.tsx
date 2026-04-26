@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
@@ -12,6 +12,10 @@ import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
 const LANDING_PROMPT_DRAFT_KEY = "landingPromptDraft";
+
+function getLandingPromptDraft() {
+  return window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -48,10 +52,40 @@ function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty
     .join("\n\n");
 }
 
+function getProjectTaskProgress(project: Project) {
+  const tasks = project.phases.flatMap((phase) => phase.tasks);
+  const completedTaskCount = tasks.filter((task) => task.done).length;
+  const totalTaskCount = tasks.length;
+  const percentComplete = totalTaskCount === 0 ? 0 : Math.round((completedTaskCount / totalTaskCount) * 100);
+  const nextTask = tasks.find((task) => !task.done) ?? null;
+  const hasTasks = totalTaskCount > 0;
+  const isComplete = hasTasks && nextTask === null;
+
+  return {
+    completedTaskCount,
+    totalTaskCount,
+    percentComplete,
+    nextTask,
+    hasTasks,
+    isComplete,
+  };
+}
+
+function formatProgressSummary(progress: ReturnType<typeof getProjectTaskProgress>) {
+  const { completedTaskCount, totalTaskCount, percentComplete, hasTasks } = progress;
+
+  if (!hasTasks) {
+    return "No tasks yet";
+  }
+
+  return `${completedTaskCount} of ${totalTaskCount} tasks complete • ${percentComplete}% complete`;
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [prefilledOnboardingIntake, setPrefilledOnboardingIntake] = useState<Partial<OnboardingIntake>>({});
+  const onboardingOpenedManuallyRef = useRef(false);
 
   useEffect(() => {
     void trackEvent("dashboard_view", {
@@ -59,13 +93,18 @@ export default function DashboardPage() {
     });
 
     getProjects().then((loadedProjects) => {
-      const landingPromptDraft = window.sessionStorage.getItem(LANDING_PROMPT_DRAFT_KEY)?.trim() ?? "";
+      const landingPromptDraft = getLandingPromptDraft();
       const shouldShowDraftHandoff = loadedProjects.length === 0 && landingPromptDraft.length > 0;
+
+      setProjects(loadedProjects);
+
+      if (onboardingOpenedManuallyRef.current) {
+        return;
+      }
 
       setPrefilledOnboardingIntake(
         shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
       );
-      setProjects(loadedProjects);
       setShowOnboarding(
         loadedProjects.length === 0 &&
           (shouldShowDraftHandoff || window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== "true"),
@@ -74,12 +113,22 @@ export default function DashboardPage() {
   }, []);
 
   const handleOpenOnboarding = () => {
+    const landingPromptDraft = getLandingPromptDraft();
+
+    onboardingOpenedManuallyRef.current = true;
     window.localStorage.removeItem(ONBOARDING_DISMISSED_KEY);
-    setPrefilledOnboardingIntake({});
+    setPrefilledOnboardingIntake(
+      landingPromptDraft
+        ? {
+            primaryIdea: landingPromptDraft,
+          }
+        : {},
+    );
     setShowOnboarding(true);
   };
 
   const handleSkipOnboarding = () => {
+    onboardingOpenedManuallyRef.current = false;
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
     setPrefilledOnboardingIntake({});
@@ -111,6 +160,7 @@ export default function DashboardPage() {
       source: "onboarding",
     });
     window.sessionStorage.removeItem(LANDING_PROMPT_DRAFT_KEY);
+    onboardingOpenedManuallyRef.current = false;
     setPrefilledOnboardingIntake({});
     setShowOnboarding(false);
     window.location.href = `/project/${project.id}`;
@@ -121,7 +171,7 @@ export default function DashboardPage() {
       <OnboardingModal
         open={showOnboarding}
         initialIntake={prefilledOnboardingIntake}
-        onComplete={(intake) => void handleCompleteOnboarding(intake)}
+        onComplete={handleCompleteOnboarding}
         onSkip={handleSkipOnboarding}
       />
 
@@ -171,26 +221,54 @@ export default function DashboardPage() {
             </div>
           </button>
 
-          {projects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/project/${project.id}`}
-              className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div>
-                <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
-                  {project.phase}
+          {projects.map((project) => {
+            const taskProgress = getProjectTaskProgress(project);
+            const progressSummary = formatProgressSummary(taskProgress);
+
+            return (
+              <Link
+                key={project.id}
+                href={`/project/${project.id}`}
+                className="group flex min-h-64 flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div>
+                  <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
+                    {project.phase}
+                  </div>
+                  <h2 className="mt-5 text-2xl font-semibold text-stone-950">{project.name}</h2>
+                  <p className="mt-3 text-sm leading-7 text-stone-600">{project.description}</p>
+                  <div className="mt-5 space-y-2 text-sm text-stone-600">
+                    <p>{progressSummary}</p>
+                    {taskProgress.nextTask ? (
+                      <p>
+                        <span className="font-semibold text-stone-800">Next action:</span> {taskProgress.nextTask.label}
+                      </p>
+                    ) : taskProgress.isComplete ? (
+                      <p className="text-stone-500">All tasks complete.</p>
+                    ) : null}
+                  </div>
                 </div>
-                <h2 className="mt-5 text-2xl font-semibold text-stone-950">{project.name}</h2>
-                <p className="mt-3 text-sm leading-7 text-stone-600">{project.description}</p>
-              </div>
-              <div className="flex items-center justify-between text-sm text-stone-500">
-                <span>{project.notes.length} notes</span>
-                <span>Updated {formatDate(project.updatedAt)}</span>
-              </div>
-            </Link>
-          ))}
+                <div className="flex items-center justify-between text-sm text-stone-500">
+                  <span>{project.notes.length} notes</span>
+                  <span>Updated {formatDate(project.updatedAt)}</span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
+
+        {projects.length === 0 && !showOnboarding ? (
+          <section className="mt-6 rounded-[28px] border border-stone-200 bg-white/80 p-6">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              First project handoff
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-600">
+              Launching a project opens a workspace that guides you through sharpening the claim,
+              outlining a customer research memo, and pressure-testing a validation scorecard so the
+              next decision is clearer.
+            </p>
+          </section>
+        ) : null}
       </section>
     </main>
   );

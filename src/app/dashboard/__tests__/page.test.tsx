@@ -43,6 +43,18 @@ function completeIntake(overrides?: {
   return intake;
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: any) => (
     <a href={href} {...props}>
@@ -213,6 +225,20 @@ describe("DashboardPage", () => {
     expect(screen.queryByRole("link", { name: /AI Research Copilot/i })).not.toBeInTheDocument();
   });
 
+  it("shows a first-project handoff when no projects exist and onboarding is closed", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
+    renderPage();
+
+    expect(await screen.findByText("First project handoff")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Launching a project opens a workspace that guides you through sharpening the claim, outlining a customer research memo, and pressure-testing a validation scorecard so the next decision is clearer.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("renders project cards showing phase, name, description, note count, and formatted updated date", async () => {
     const project = createProject();
     vi.mocked(getProjects).mockResolvedValue([project]);
@@ -224,6 +250,81 @@ describe("DashboardPage", () => {
     expect(screen.getByText(project.description)).toBeInTheDocument();
     expect(screen.getByText("2 notes")).toBeInTheDocument();
     expect(screen.getByText("Updated Mar 10, 2024")).toBeInTheDocument();
+  });
+
+  it("renders a compact progress summary and next action cue for incomplete project cards", async () => {
+    const project = createProject();
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText(/1 of 2 tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/50% complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/next action/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/prototype the workflow/i)).toBeInTheDocument();
+  });
+
+  it("renders a completed state without a next action prompt when all tasks are done", async () => {
+    const project = createProject({
+      id: "project-complete",
+      name: "Completed Project",
+      phases: [
+        {
+          id: "discovery",
+          title: "Discovery",
+          tasks: [{ id: "task-1", label: "Interview target users", done: true }],
+        },
+        {
+          id: "build",
+          title: "Build",
+          tasks: [{ id: "task-2", label: "Prototype the workflow", done: true }],
+        },
+      ],
+    });
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText(/2 of 2 tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/100% complete/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/all tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).queryByText(/next action/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/prototype the workflow/i)).not.toBeInTheDocument();
+  });
+
+  it("renders a coherent zero-task state without a next action or completed prompt", async () => {
+    const project = createProject({
+      id: "project-zero-tasks",
+      name: "Zero Task Project",
+      phases: [
+        {
+          id: "discovery",
+          title: "Discovery",
+          tasks: [],
+        },
+      ],
+    });
+    vi.mocked(getProjects).mockResolvedValue([project]);
+
+    renderPage();
+
+    const cardHeading = await screen.findByRole("heading", { name: project.name });
+    const card = cardHeading.closest("a");
+
+    expect(card).toBeInTheDocument();
+    expect(within(card!).getByText("No tasks yet")).toBeInTheDocument();
+    expect(within(card!).queryByText(/next action/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/all tasks complete/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/0 of 0 tasks complete/i)).not.toBeInTheDocument();
+    expect(within(card!).queryByText(/0% complete/i)).not.toBeInTheDocument();
   });
 
   it("renders project cards as links to the project detail page", async () => {
@@ -316,6 +417,7 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+    expect(screen.queryByText("First project handoff")).not.toBeInTheDocument();
   });
 
   it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
@@ -418,6 +520,67 @@ describe("DashboardPage", () => {
     );
   });
 
+  it("prefills onboarding from the stored draft when a returning user with projects clicks New Project", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("keeps a user-opened onboarding draft open when the initial projects load resolves afterward", async () => {
+    const deferredProjects = createDeferredPromise<Project[]>();
+
+    vi.mocked(getProjects).mockReturnValue(deferredProjects.promise);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+
+    deferredProjects.resolve([createProject()]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "About Your Idea" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText("What are you thinking about building?")).toHaveValue(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
+  it("does not clear the stored draft when a returning user opens onboarding", async () => {
+    vi.mocked(getProjects).mockResolvedValue([createProject()]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+    window.sessionStorage.setItem("landingPromptDraft", "Pressure-test this founder workflow idea.");
+
+    renderPage();
+
+    expect(await screen.findByRole("link", { name: /AI Research Copilot/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+
+    expect(await screen.findByRole("heading", { name: "About Your Idea" })).toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe(
+      "Pressure-test this founder workflow idea.",
+    );
+  });
+
   it("skips onboarding by setting localStorage and closing the modal", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
     window.sessionStorage.setItem("landingPromptDraft", "Validate the draft idea.");
@@ -477,6 +640,40 @@ describe("DashboardPage", () => {
         source: "onboarding",
       }),
     );
+  });
+
+  it("prevents double-submitting Launch Project while project creation is in flight", async () => {
+    let resolveCreateProject: ((project: Project) => void) | undefined;
+    const createdProject = createProject({ id: "guided-project-pending", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockImplementationOnce(
+      () =>
+        new Promise<Project>((resolve) => {
+          resolveCreateProject = resolve;
+        }),
+    );
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    expect(screen.getByRole("button", { name: "Launching..." })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launching..." }));
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+    });
+
+    resolveCreateProject?.(createdProject);
+
+    await waitFor(() => {
+      expect(saveProject).toHaveBeenCalledWith(expect.objectContaining({ id: "guided-project-pending" }));
+      expect(setHref).toHaveBeenCalledWith("/project/guided-project-pending");
+    });
   });
 
   it("tracks optional intake fields as false when they are omitted", async () => {

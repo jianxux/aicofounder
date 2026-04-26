@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ChatPanel from "@/components/ChatPanel";
@@ -59,6 +59,18 @@ const createPhases = (): Phase[] => [
   },
 ];
 
+const validationCreateModeStarters = [
+  "Summarize the strongest evidence we already have for this scorecard.",
+  "What assumptions should we validate before locking any scores?",
+  "Draft the next validation step that would most reduce risk.",
+];
+
+const memoFollowUpStarters = [
+  "What contradictions in this memo need to be resolved first?",
+  "Which missing evidence would most improve this memo?",
+  "Turn these findings into the next customer interview plan.",
+];
+
 type RenderOptions = {
   messages?: ChatMessage[];
   phases?: Phase[];
@@ -68,22 +80,27 @@ type RenderOptions = {
   activeArtifactType?: "validation-scorecard" | "customer-research-memo";
   activeArtifactHasOutput?: boolean;
   activeArtifactChatMode?: "create" | "artifact-follow-up";
+  onResearch?: (() => void) | undefined;
+  onUltraplan?: (() => void) | undefined;
 };
 
-const renderChatPanel = ({
-  messages = createMessages(),
-  phases = createPhases(),
-  activePhaseId = "build",
-  isLoading = false,
-  activeArtifactLabel = "Validation scorecard",
-  activeArtifactType = "validation-scorecard",
-  activeArtifactHasOutput = false,
-  activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create",
-}: RenderOptions = {}) => {
+const renderChatPanel = (options: RenderOptions = {}) => {
+  const {
+    messages = createMessages(),
+    phases = createPhases(),
+    activePhaseId = "build",
+    isLoading = false,
+    activeArtifactLabel = "Validation scorecard",
+    activeArtifactType = "validation-scorecard",
+    activeArtifactHasOutput = false,
+    activeArtifactChatMode = activeArtifactHasOutput ? "artifact-follow-up" : "create",
+  } = options;
+  const onResearch = Object.prototype.hasOwnProperty.call(options, "onResearch") ? options.onResearch : vi.fn();
+  const onUltraplan = Object.prototype.hasOwnProperty.call(options, "onUltraplan") ? options.onUltraplan : vi.fn();
+
   const onSendMessage = vi.fn();
   const onRemind = vi.fn();
   const onBrainstorm = vi.fn();
-  const onResearch = vi.fn();
   const onToggleTask = vi.fn();
   const onSetActivePhase = vi.fn();
 
@@ -101,12 +118,13 @@ const renderChatPanel = ({
       onRemind={onRemind}
       onBrainstorm={onBrainstorm}
       onResearch={onResearch}
+      onUltraplan={onUltraplan}
       onToggleTask={onToggleTask}
       onSetActivePhase={onSetActivePhase}
     />,
   );
 
-  return { onSendMessage, onRemind, onBrainstorm, onResearch, onToggleTask, onSetActivePhase };
+  return { onSendMessage, onRemind, onBrainstorm, onResearch, onUltraplan, onToggleTask, onSetActivePhase };
 };
 
 describe("ChatPanel", () => {
@@ -230,6 +248,53 @@ describe("ChatPanel", () => {
       expect(screen.getByLabelText("Missing evidence")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ask about memo" })).toBeInTheDocument();
     });
+
+    it("shows validation-scorecard starter prompts that are specific to create mode", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      for (const starter of validationCreateModeStarters) {
+        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      }
+
+      expect(
+        screen.queryByRole("button", { name: memoFollowUpStarters[0] }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("omits optional action controls when research callbacks are not provided", () => {
+      renderChatPanel({
+        onResearch: undefined,
+        onUltraplan: undefined,
+      });
+
+      for (const starter of validationCreateModeStarters) {
+        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      }
+
+      expect(screen.queryByRole("button", { name: /update customer research memo/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /ultraplan/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeInTheDocument();
+    });
+
+    it("shows different starter prompts when following up on a customer research memo", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+
+      for (const starter of memoFollowUpStarters) {
+        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      }
+
+      expect(
+        screen.queryByRole("button", { name: validationCreateModeStarters[0] }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe("message form", () => {
@@ -243,6 +308,12 @@ describe("ChatPanel", () => {
       fireEvent.change(textarea, { target: { value: "New idea" } });
 
       expect(textarea).toHaveValue("New idea");
+    });
+
+    it("gives the freeform chat textarea an accessible name", () => {
+      renderChatPanel();
+
+      expect(screen.getByRole("textbox", { name: /freeform chat/i })).toBeInTheDocument();
     });
 
     it("submits trimmed text, calls onSendMessage, and clears the textarea", () => {
@@ -274,6 +345,23 @@ describe("ChatPanel", () => {
       expect(textarea).toHaveValue("   ");
     });
 
+    it("disables freeform submit for empty or whitespace-only drafts and enables it for non-whitespace input", () => {
+      renderChatPanel();
+
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const submitButton = screen.getByRole("button", { name: "Update scorecard" });
+
+      expect(submitButton).toBeDisabled();
+
+      fireEvent.change(textarea, { target: { value: "   " } });
+      expect(submitButton).toBeDisabled();
+
+      fireEvent.change(textarea, { target: { value: "Refine the evidence summary" } });
+      expect(submitButton).toBeEnabled();
+    });
+
     it("calls onRemind when the remind button is clicked", () => {
       const { onRemind } = renderChatPanel();
 
@@ -298,6 +386,18 @@ describe("ChatPanel", () => {
       expect(onResearch).toHaveBeenCalledTimes(1);
     });
 
+    it("clicking a starter prompt populates the textarea without sending immediately", () => {
+      const { onSendMessage } = renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: validationCreateModeStarters[1] }));
+
+      expect(textarea).toHaveValue(validationCreateModeStarters[1]);
+      expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
     it("shows the typing indicator when isLoading is true", () => {
       renderChatPanel({ isLoading: true });
 
@@ -315,6 +415,21 @@ describe("ChatPanel", () => {
       expect(screen.getByLabelText("Strongest signal")).toBeDisabled();
       expect(screen.getByRole("button", { name: /brainstorm pain points/i })).toBeDisabled();
       expect(screen.getByRole("button", { name: /update customer research memo/i })).toBeDisabled();
+    });
+
+    it("disables starter prompt interactions while loading", () => {
+      const { onSendMessage } = renderChatPanel({ isLoading: true });
+
+      const starter = screen.getByRole("button", { name: validationCreateModeStarters[0] });
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+
+      expect(starter).toBeDisabled();
+      fireEvent.click(starter);
+
+      expect(textarea).toHaveValue("");
+      expect(onSendMessage).not.toHaveBeenCalled();
     });
 
     it("does not show the typing indicator when isLoading is false", () => {
@@ -562,6 +677,239 @@ describe("ChatPanel", () => {
 
       expect(lastCallProps.collapsed).toBe(true);
       expect(screen.getByText("collapsed: true")).toBeInTheDocument();
+    });
+  });
+
+  describe("auto-scroll", () => {
+    const getMessagesRegion = () => screen.getByTestId("chat-messages-region") as HTMLDivElement;
+
+    const defineScrollHeight = (element: HTMLElement, getValue: () => number) => {
+      Object.defineProperty(element, "scrollHeight", {
+        configurable: true,
+        get: getValue,
+      });
+    };
+
+    it("scrolls the messages region to the latest content when messages change", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const initialMessages = createMessages();
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={initialMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 200;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 500;
+      const nextMessages: ChatMessage[] = [
+        ...initialMessages,
+        {
+          id: "assistant-2",
+          sender: "assistant",
+          content: "Here's a follow-up question to refine the scope.",
+          createdAt: "2024-01-01T00:02:00.000Z",
+        },
+      ];
+
+      rerender(
+        <ChatPanel
+          messages={nextMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByText("Here's a follow-up question to refine the scope.")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalled();
+      });
+    });
+
+    it("scrolls the messages region when the last assistant message streams in place", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const initialMessages: ChatMessage[] = [
+        ...createMessages(),
+        {
+          id: "assistant-streaming",
+          sender: "assistant",
+          content: "Draft",
+          createdAt: "2024-01-01T00:02:00.000Z",
+        },
+      ];
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={initialMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 320;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 560;
+      const streamedMessages: ChatMessage[] = [
+        ...initialMessages.slice(0, -1),
+        {
+          ...initialMessages[initialMessages.length - 1],
+          content: "Draft with more streamed detail",
+        },
+      ];
+
+      rerender(
+        <ChatPanel
+          messages={streamedMessages}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByText("Draft with more streamed detail")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalledWith({ top: 560 });
+      });
+    });
+
+    it("scrolls the messages region to the latest content when the thinking indicator appears", async () => {
+      const phases = createPhases();
+      const onSendMessage = vi.fn();
+      const onRemind = vi.fn();
+      const onBrainstorm = vi.fn();
+      const onResearch = vi.fn();
+      const onToggleTask = vi.fn();
+      const onSetActivePhase = vi.fn();
+
+      const { rerender } = render(
+        <ChatPanel
+          messages={createMessages()}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={false}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      const messagesRegion = getMessagesRegion();
+      const scrollTo = vi.fn();
+      Object.defineProperty(messagesRegion, "scrollTo", { configurable: true, value: scrollTo });
+
+      let scrollHeight = 300;
+      defineScrollHeight(messagesRegion, () => scrollHeight);
+
+      scrollTo.mockClear();
+
+      scrollHeight = 420;
+      rerender(
+        <ChatPanel
+          messages={createMessages()}
+          phases={phases}
+          activePhaseId="build"
+          activeArtifactLabel="Validation scorecard"
+          activeArtifactType="validation-scorecard"
+          activeArtifactHasOutput={false}
+          activeArtifactChatMode="create"
+          onSendMessage={onSendMessage}
+          isLoading={true}
+          onRemind={onRemind}
+          onBrainstorm={onBrainstorm}
+          onResearch={onResearch}
+          onToggleTask={onToggleTask}
+          onSetActivePhase={onSetActivePhase}
+        />,
+      );
+
+      expect(screen.getByLabelText("AI is thinking")).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenCalled();
+      });
     });
   });
 });

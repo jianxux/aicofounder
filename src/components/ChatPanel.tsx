@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
@@ -44,6 +44,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const messagesRegionRef = useRef<HTMLDivElement | null>(null);
 
   const activePhase = useMemo(
     () => phases.find((phase) => phase.id === activePhaseId) ?? phases[0],
@@ -81,17 +82,62 @@ export default function ChatPanel({
       ? "Ask about scorecard"
       : "Update scorecard";
   const modeLabel = isFollowUpMode ? "Artifact follow-up" : "Create mode";
+  const starterPrompts = useMemo(() => {
+    if (isResearchMemoActive) {
+      return isFollowUpMode
+        ? [
+            "What contradictions in this memo need to be resolved first?",
+            "Which missing evidence would most improve this memo?",
+            "Turn these findings into the next customer interview plan.",
+          ]
+        : [
+            "Summarize the strongest customer signals we should capture in this memo.",
+            "What open questions should guide the next round of interviews?",
+            "Draft the next research move that would sharpen this memo fastest.",
+          ];
+    }
+
+    return isFollowUpMode
+      ? [
+          "What score in this scorecard needs the strongest challenge right now?",
+          "Which evidence gap is keeping this scorecard from being decision-ready?",
+          "Turn this scorecard into the next validation experiment plan.",
+        ]
+      : [
+          "Summarize the strongest evidence we already have for this scorecard.",
+          "What assumptions should we validate before locking any scores?",
+          "Draft the next validation step that would most reduce risk.",
+        ];
+  }, [isFollowUpMode, isResearchMemoActive]);
+  const isDraftEmpty = !draft.trim();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!draft.trim()) {
+    if (isDraftEmpty) {
       return;
     }
 
     onSendMessage(draft.trim());
     setDraft("");
   };
+
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageId = lastMessage?.id;
+  const lastMessageContent = lastMessage?.content;
+
+  useEffect(() => {
+    const region = messagesRegionRef.current;
+    if (!region) {
+      return;
+    }
+
+    if (typeof region.scrollTo === "function") {
+      region.scrollTo({ top: region.scrollHeight });
+    } else {
+      region.scrollTop = region.scrollHeight;
+    }
+  }, [messages.length, lastMessageId, lastMessageContent, isLoading]);
 
   return (
     <div
@@ -116,7 +162,11 @@ export default function ChatPanel({
         </p>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+      <div
+        ref={messagesRegionRef}
+        data-testid="chat-messages-region"
+        className="flex-1 space-y-4 overflow-y-auto px-6 py-5"
+      >
         {messages.map((message) => {
           const isUser = message.sender === "user";
 
@@ -159,6 +209,27 @@ export default function ChatPanel({
             Freeform chat is grounded in the active artifact and its latest revision.
           </p>
         ) : null}
+        <div className="mb-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Starter prompts for {activeArtifactLabel}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-stone-600">
+            Use one to seed the freeform composer without sending immediately.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {starterPrompts.map((starter) => (
+              <button
+                key={starter}
+                type="button"
+                onClick={() => setDraft(starter)}
+                disabled={isLoading}
+                className="rounded-full border border-stone-200 bg-white px-3 py-2 text-left text-sm leading-5 text-stone-700 transition hover:border-stone-300 hover:text-stone-900 disabled:cursor-not-allowed disabled:text-stone-400"
+              >
+                {starter}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="mb-3 flex flex-wrap items-center gap-4">
           <button
             type="button"
@@ -175,35 +246,45 @@ export default function ChatPanel({
           >
             🔎 Brainstorm pain points
           </button>
-          <button
-            type="button"
-            onClick={onResearch}
-            disabled={isLoading}
-            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
-          >
-            📄 Update customer research memo
-          </button>
-          <button
-            type="button"
-            onClick={onUltraplan}
-            disabled={isLoading}
-            className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
-          >
-            ⚡ Ultraplan
-          </button>
+          {onResearch ? (
+            <button
+              type="button"
+              onClick={onResearch}
+              disabled={isLoading}
+              className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
+            >
+              📄 Update customer research memo
+            </button>
+          ) : null}
+          {onUltraplan ? (
+            <button
+              type="button"
+              onClick={onUltraplan}
+              disabled={isLoading}
+              className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-4 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:text-stone-400"
+            >
+              ⚡ Ultraplan
+            </button>
+          ) : null}
         </div>
 
         <form onSubmit={handleSubmit} className="flex items-end gap-3" aria-label="Freeform chat">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder={placeholder}
-            disabled={isLoading}
-            className="min-h-24 flex-1 resize-none rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
-          />
+          <div className="flex-1">
+            <label htmlFor="freeform-chat-input" className="mb-2 block text-sm font-medium text-stone-700">
+              Freeform chat
+            </label>
+            <textarea
+              id="freeform-chat-input"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder={placeholder}
+              disabled={isLoading}
+              className="min-h-24 w-full resize-none rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
+            />
+          </div>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isDraftEmpty}
             className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
           >
             {sendLabel}
