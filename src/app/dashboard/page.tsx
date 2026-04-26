@@ -121,7 +121,7 @@ export default function DashboardPage() {
       <OnboardingModal
         open={showOnboarding}
         initialIntake={prefilledOnboardingIntake}
-        onComplete={(intake) => void handleCompleteOnboarding(intake)}
+        onComplete={handleCompleteOnboarding}
         onSkip={handleSkipOnboarding}
       />
 
@@ -191,6 +191,19 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {projects.length === 0 && !showOnboarding ? (
+          <section className="mt-6 rounded-[28px] border border-stone-200 bg-white/80 p-6">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              First project handoff
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-600">
+              Launching a project opens a workspace that guides you through sharpening the claim,
+              outlining a customer research memo, and pressure-testing a validation scorecard so the
+              next decision is clearer.
+            </p>
+          </section>
+        ) : null}
       </section>
     </main>
   );

@@ -213,6 +213,20 @@ describe("DashboardPage", () => {
     expect(screen.queryByRole("link", { name: /AI Research Copilot/i })).not.toBeInTheDocument();
   });
 
+  it("shows a first-project handoff when no projects exist and onboarding is closed", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    window.localStorage.setItem("onboarding-dismissed", "true");
+
+    renderPage();
+
+    expect(await screen.findByText("First project handoff")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Launching a project opens a workspace that guides you through sharpening the claim, outlining a customer research memo, and pressure-testing a validation scorecard so the next decision is clearer.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("renders project cards showing phase, name, description, note count, and formatted updated date", async () => {
     const project = createProject();
     vi.mocked(getProjects).mockResolvedValue([project]);
@@ -316,6 +330,7 @@ describe("DashboardPage", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
+    expect(screen.queryByText("First project handoff")).not.toBeInTheDocument();
   });
 
   it("prefills onboarding from landingPromptDraft and skips the welcome step", async () => {
@@ -477,6 +492,40 @@ describe("DashboardPage", () => {
         source: "onboarding",
       }),
     );
+  });
+
+  it("prevents double-submitting Launch Project while project creation is in flight", async () => {
+    let resolveCreateProject: ((project: Project) => void) | undefined;
+    const createdProject = createProject({ id: "guided-project-pending", name: "Untitled Project" });
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockImplementationOnce(
+      () =>
+        new Promise<Project>((resolve) => {
+          resolveCreateProject = resolve;
+        }),
+    );
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    expect(screen.getByRole("button", { name: "Launching..." })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Launching..." }));
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+    });
+
+    resolveCreateProject?.(createdProject);
+
+    await waitFor(() => {
+      expect(saveProject).toHaveBeenCalledWith(expect.objectContaining({ id: "guided-project-pending" }));
+      expect(setHref).toHaveBeenCalledWith("/project/guided-project-pending");
+    });
   });
 
   it("tracks optional intake fields as false when they are omitted", async () => {
