@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
+import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
 import { createProject, getProjects, saveProject } from "@/lib/projects";
 import { Project } from "@/lib/types";
@@ -73,11 +74,7 @@ export default function DashboardPage() {
       }
 
       setPrefilledOnboardingIntake(
-        shouldShowDraftHandoff
-          ? {
-              primaryIdea: landingPromptDraft,
-            }
-          : {},
+        shouldShowDraftHandoff ? parseLandingPromptDraft(landingPromptDraft) : {},
       );
       setShowOnboarding(
         loadedProjects.length === 0 &&
@@ -145,7 +142,7 @@ export default function DashboardPage() {
       <OnboardingModal
         open={showOnboarding}
         initialIntake={prefilledOnboardingIntake}
-        onComplete={(intake) => void handleCompleteOnboarding(intake)}
+        onComplete={handleCompleteOnboarding}
         onSkip={handleSkipOnboarding}
       />
 
@@ -215,6 +212,19 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {projects.length === 0 && !showOnboarding ? (
+          <section className="mt-6 rounded-[28px] border border-stone-200 bg-white/80 p-6">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+              First project handoff
+            </div>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-600">
+              Launching a project opens a workspace that guides you through sharpening the claim,
+              outlining a customer research memo, and pressure-testing a validation scorecard so the
+              next decision is clearer.
+            </p>
+          </section>
+        ) : null}
       </section>
     </main>
   );
