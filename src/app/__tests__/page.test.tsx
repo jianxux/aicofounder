@@ -155,6 +155,22 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders a static signal watchlist for next-step market-monitoring prompts", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Next-step prompt watchlist/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Signal watchlist after the first brief/i })).toBeInTheDocument();
+    expect(screen.getByText(/three ongoing market-monitoring prompts/i)).toBeInTheDocument();
+    expect(screen.getByText(/not live alerting or automated surveillance/i)).toBeInTheDocument();
+    expect(screen.getByText("Buyer pain phrases")).toBeInTheDocument();
+    expect(screen.getByText(/Reddit, HN, and Lobsters-style threads/i)).toBeInTheDocument();
+    expect(screen.getByText("Competitor movement")).toBeInTheDocument();
+    expect(screen.getByText(/keyword and semantic prompts/i)).toBeInTheDocument();
+    expect(screen.getByText("Validation trigger/questions")).toBeInTheDocument();
+    expect(screen.getByText(/who paid for the workaround/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Prompt, not alert")).toHaveLength(3);
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
