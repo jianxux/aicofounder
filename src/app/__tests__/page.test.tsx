@@ -291,6 +291,45 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders benchmark observations with accessible copy and safe external source links", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByRole("heading", { name: /What we learned from adjacent AI founder tools/i })).toBeInTheDocument();
+
+    [
+      {
+        name: "Lovable",
+        href: "https://lovable.dev",
+        observation: "Leans hard into start-from-idea momentum and template-led exploration.",
+        emphasis:
+          "AI Cofounder keeps that first-step energy, then pushes the founder toward sharper validation questions and a clearer product story before build mode takes over.",
+      },
+      {
+        name: "Bolt",
+        href: "https://bolt.new",
+        observation: "Centers the prompt box while signaling imported context and design-system readiness.",
+        emphasis:
+          "AI Cofounder stays prompt-first too, but uses the input to frame founder clarity, market validation, and trustable decision-making instead of jumping straight to interface output.",
+      },
+      {
+        name: "FounderPal",
+        href: "https://founderpal.ai",
+        observation: "Uses testimonials and concrete outcome framing aimed at founders.",
+        emphasis:
+          "AI Cofounder carries the same founder focus while grounding trust in visible workflow structure, evidence gaps, and reusable messaging outputs.",
+      },
+    ].forEach(({ name, href, observation, emphasis }) => {
+      const link = screen.getByRole("link", { name: new RegExp(`${name}\\s*\\(opens in a new tab\\)`, "i") });
+
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+      expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+      expect(screen.getByText(observation)).toBeInTheDocument();
+      expect(screen.getByText(emphasis)).toBeInTheDocument();
+    });
+  });
+
   it("tracks all primary CTA clicks", async () => {
     render(<LandingPage />);
 
