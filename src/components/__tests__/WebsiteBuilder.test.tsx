@@ -43,6 +43,13 @@ const createWebsiteBuilder = (
       buttonText: "Join waitlist",
     }),
     createBlock({
+      id: "proof-1",
+      type: "proof",
+      heading: "Trusted proof that reduces buyer hesitation",
+      body: "Backed by 120+ paying teams\nFeatured by Product Hunt\n4.9/5 average onboarding rating",
+      buttonText: undefined,
+    }),
+    createBlock({
       id: "text-1",
       type: "text",
       heading: "Built for lean teams",
@@ -74,7 +81,8 @@ describe("WebsiteBuilder", () => {
     expect(screen.getByText("1. hero")).toBeInTheDocument();
     expect(screen.getByText("2. features")).toBeInTheDocument();
     expect(screen.getByText("3. cta")).toBeInTheDocument();
-    expect(screen.getByText("4. text")).toBeInTheDocument();
+    expect(screen.getByText("4. proof")).toBeInTheDocument();
+    expect(screen.getByText("5. text")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Turn visitors into signups")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Position the product clearly and keep the next step obvious.")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Start free")).toBeInTheDocument();
@@ -90,12 +98,12 @@ describe("WebsiteBuilder", () => {
       />,
     );
 
-    expect(screen.getAllByPlaceholderText("Heading")).toHaveLength(4);
-    expect(screen.getAllByPlaceholderText("Body copy")).toHaveLength(4);
-    expect(screen.getAllByPlaceholderText("Button text (optional)")).toHaveLength(4);
+    expect(screen.getAllByPlaceholderText("Heading")).toHaveLength(5);
+    expect(screen.getAllByPlaceholderText("Body copy")).toHaveLength(5);
+    expect(screen.getAllByPlaceholderText("Button text (optional)")).toHaveLength(5);
   });
 
-  it("toggles to preview mode and renders hero, features, cta, and text sections", async () => {
+  it("toggles to preview mode and renders hero, features, cta, proof, and text sections", async () => {
     const user = userEvent.setup();
 
     render(
@@ -116,6 +124,8 @@ describe("WebsiteBuilder", () => {
     expect(screen.getByText("Clear workflow")).toBeInTheDocument();
     expect(screen.getByText("Actionable outputs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ready to ship faster?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trusted proof that reduces buyer hesitation" })).toBeInTheDocument();
+    expect(screen.getByText("Backed by 120+ paying teams")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Built for lean teams" })).toBeInTheDocument();
   });
 
@@ -231,6 +241,7 @@ describe("WebsiteBuilder", () => {
     ["Add Hero", "hero", "Turn your startup idea into a clear promise"],
     ["Add Features", "features", "Why customers care"],
     ["Add CTA", "cta", "Ready to validate demand?"],
+    ["Add Proof", "proof", "Trusted proof that reduces buyer hesitation"],
     ["Add Text", "text", "Tell the story"],
   ] as const)("calls onChange to append a %s block", async (buttonName, type, heading) => {
     const user = userEvent.setup();
@@ -391,7 +402,7 @@ describe("WebsiteBuilder", () => {
 
     render(
       <WebsiteBuilder
-        websiteBuilder={createWebsiteBuilder({ blocks: [createWebsiteBuilder().blocks[3]!] })}
+        websiteBuilder={createWebsiteBuilder({ blocks: [createWebsiteBuilder().blocks[4]!] })}
         onChange={vi.fn()}
         onDelete={vi.fn()}
         onDragStart={vi.fn()}
@@ -402,6 +413,37 @@ describe("WebsiteBuilder", () => {
 
     expect(screen.getByRole("heading", { name: "Built for lean teams" })).toBeInTheDocument();
     expect(screen.getByText("Use this section to add supporting proof and context.")).toBeInTheDocument();
+  });
+
+  it("renders proof preview items split from newline-separated body text", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder({
+          blocks: [
+            createBlock({
+              id: "proof-1",
+              type: "proof",
+              heading: "Trusted proof that reduces buyer hesitation",
+              body: "Trusted by 400+ teams\n \nSOC 2 Type II certified\nFeatured in TechCrunch",
+              buttonText: undefined,
+            }),
+          ],
+        })}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(screen.getByRole("heading", { name: "Trusted proof that reduces buyer hesitation" })).toBeInTheDocument();
+    expect(screen.getByText("Trusted by 400+ teams")).toBeInTheDocument();
+    expect(screen.getByText("SOC 2 Type II certified")).toBeInTheDocument();
+    expect(screen.getByText("Featured in TechCrunch")).toBeInTheDocument();
+    expect(screen.queryByText(" ")).not.toBeInTheDocument();
   });
 
   it("renders without errors when blocks is empty", async () => {
