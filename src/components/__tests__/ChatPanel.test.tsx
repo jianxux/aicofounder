@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import ChatPanel from "@/components/ChatPanel";
@@ -316,6 +316,17 @@ describe("ChatPanel", () => {
       expect(screen.getByRole("textbox", { name: /freeform chat/i })).toBeInTheDocument();
     });
 
+    it("shows a helper hint that Enter adds a newline and Cmd/Ctrl+Enter sends", () => {
+      renderChatPanel();
+
+      const hint = screen.getByText("Enter adds a new line. Cmd/Ctrl+Enter sends.");
+      const textarea = screen.getByRole("textbox", { name: /freeform chat/i });
+
+      expect(hint).toBeInTheDocument();
+      expect(hint).toHaveAttribute("id", "freeform-chat-helper-hint");
+      expect(textarea).toHaveAttribute("aria-describedby", "freeform-chat-helper-hint");
+    });
+
     it("submits trimmed text, calls onSendMessage, and clears the textarea", () => {
       const { onSendMessage } = renderChatPanel();
       const textarea = screen.getByPlaceholderText(
@@ -329,6 +340,81 @@ describe("ChatPanel", () => {
       expect(onSendMessage).toHaveBeenCalledTimes(1);
       expect(onSendMessage).toHaveBeenCalledWith("Validate this market");
       expect(textarea).toHaveValue("");
+    });
+
+    it("submits on Cmd+Enter when not composing", () => {
+      const { onSendMessage } = renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const cmdEnterEvent = createEvent.keyDown(textarea, { key: "Enter", code: "Enter", metaKey: true });
+
+      fireEvent.change(textarea, { target: { value: "  Ship this update  " } });
+      fireEvent(textarea, cmdEnterEvent);
+
+      expect(cmdEnterEvent.defaultPrevented).toBe(true);
+      expect(onSendMessage).toHaveBeenCalledTimes(1);
+      expect(onSendMessage).toHaveBeenCalledWith("Ship this update");
+      expect(textarea).toHaveValue("");
+    });
+
+    it("submits on Ctrl+Enter when not composing", () => {
+      const { onSendMessage } = renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const ctrlEnterEvent = createEvent.keyDown(textarea, { key: "Enter", code: "Enter", ctrlKey: true });
+
+      fireEvent.change(textarea, { target: { value: "  Confirm this path  " } });
+      fireEvent(textarea, ctrlEnterEvent);
+
+      expect(ctrlEnterEvent.defaultPrevented).toBe(true);
+      expect(onSendMessage).toHaveBeenCalledTimes(1);
+      expect(onSendMessage).toHaveBeenCalledWith("Confirm this path");
+      expect(textarea).toHaveValue("");
+    });
+
+    it("does not submit on plain Enter so newline behavior is preserved", () => {
+      const { onSendMessage } = renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const plainEnterEvent = createEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+
+      fireEvent.change(textarea, { target: { value: "Keep typing" } });
+      fireEvent(textarea, plainEnterEvent);
+
+      expect(plainEnterEvent.defaultPrevented).toBe(false);
+      expect(onSendMessage).not.toHaveBeenCalled();
+      expect(textarea).toHaveValue("Keep typing");
+    });
+
+    it("does not submit on Cmd/Ctrl+Enter while IME composition is active", () => {
+      const { onSendMessage } = renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const composingCmdEnterEvent = createEvent.keyDown(textarea, {
+        key: "Enter",
+        code: "Enter",
+        metaKey: true,
+        isComposing: true,
+      });
+      const composingCtrlEnterEvent = createEvent.keyDown(textarea, {
+        key: "Enter",
+        code: "Enter",
+        ctrlKey: true,
+        isComposing: true,
+      });
+
+      fireEvent.change(textarea, { target: { value: "かな" } });
+      fireEvent(textarea, composingCmdEnterEvent);
+      fireEvent(textarea, composingCtrlEnterEvent);
+
+      expect(composingCmdEnterEvent.defaultPrevented).toBe(false);
+      expect(composingCtrlEnterEvent.defaultPrevented).toBe(false);
+      expect(onSendMessage).not.toHaveBeenCalled();
+      expect(textarea).toHaveValue("かな");
     });
 
     it("does not submit empty or whitespace-only drafts", () => {

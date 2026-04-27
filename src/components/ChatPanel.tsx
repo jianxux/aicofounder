@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
@@ -82,6 +82,7 @@ export default function ChatPanel({
       ? "Ask about scorecard"
       : "Update scorecard";
   const modeLabel = isFollowUpMode ? "Artifact follow-up" : "Create mode";
+  const composerHintId = "freeform-chat-helper-hint";
   const starterPrompts = useMemo(() => {
     if (isResearchMemoActive) {
       return isFollowUpMode
@@ -111,15 +112,31 @@ export default function ChatPanel({
   }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (isDraftEmpty) {
+  const submitDraft = () => {
+    const trimmedDraft = draft.trim();
+    if (!trimmedDraft) {
       return;
     }
 
-    onSendMessage(draft.trim());
+    onSendMessage(trimmedDraft);
     setDraft("");
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    submitDraft();
+  };
+
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const isSubmitShortcut = event.metaKey || event.ctrlKey;
+    const isComposing = event.nativeEvent.isComposing;
+
+    if (event.key !== "Enter" || !isSubmitShortcut || isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    submitDraft();
   };
 
   const lastMessage = messages[messages.length - 1];
@@ -270,13 +287,20 @@ export default function ChatPanel({
 
         <form onSubmit={handleSubmit} className="flex items-end gap-3" aria-label="Freeform chat">
           <div className="flex-1">
-            <label htmlFor="freeform-chat-input" className="mb-2 block text-sm font-medium text-stone-700">
-              Freeform chat
-            </label>
+            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <label htmlFor="freeform-chat-input" className="text-sm font-medium text-stone-700">
+                Freeform chat
+              </label>
+              <span id={composerHintId} className="text-xs text-stone-500">
+                Enter adds a new line. Cmd/Ctrl+Enter sends.
+              </span>
+            </div>
             <textarea
               id="freeform-chat-input"
+              aria-describedby={composerHintId}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleComposerKeyDown}
               placeholder={placeholder}
               disabled={isLoading}
               className="min-h-24 w-full resize-none rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
