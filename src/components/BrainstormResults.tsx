@@ -22,6 +22,22 @@ function getSeverityColor(severity: number) {
   return "bg-rose-500";
 }
 
+function getSeveritySignal(severity: number) {
+  if (severity <= 2) {
+    return "low urgency";
+  }
+
+  if (severity === 3) {
+    return "moderate urgency";
+  }
+
+  if (severity === 4) {
+    return "high urgency";
+  }
+
+  return "critical urgency";
+}
+
 export default function BrainstormResults({ result }: BrainstormResultsProps) {
   return (
     <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
@@ -60,6 +76,29 @@ export default function BrainstormResults({ result }: BrainstormResultsProps) {
             </div>
 
             <p className="mt-4 text-sm leading-6 text-stone-700">{painPoint.description}</p>
+
+            <section
+              role="region"
+              aria-labelledby={`validation-sprint-cue-${painPoint.id}`}
+              className="mt-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-3"
+            >
+              <h4 id={`validation-sprint-cue-${painPoint.id}`} className="text-sm font-semibold text-stone-800">
+                Validation sprint cue for {painPoint.title}
+              </h4>
+              <ul className="mt-2 space-y-1 text-sm leading-6 text-stone-700">
+                <li>
+                  Interview 3 users found via {painPoint.source} who report "{painPoint.title}" and capture the exact
+                  failing workflow.
+                </li>
+                <li>
+                  Track how often this appears ({painPoint.frequency}) and treat severity {painPoint.severity}/5 as a{" "}
+                  {getSeveritySignal(painPoint.severity)} signal.
+                </li>
+                <li>
+                  Draft a one-page offer for "{painPoint.title}" with a first solution concept tailored to {painPoint.source}.
+                </li>
+              </ul>
+            </section>
 
             <details className="mt-4 rounded-3xl bg-[#fcfaf6] px-4 py-3">
               <summary className="cursor-pointer list-none text-sm font-medium text-stone-700">

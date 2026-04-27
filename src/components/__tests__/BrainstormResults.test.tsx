@@ -80,6 +80,22 @@ const renderBrainstormResults = (result: BrainstormResult = createResult()) => {
   render(<BrainstormResults result={result} />);
 };
 
+function getSeveritySignal(severity: number) {
+  if (severity <= 2) {
+    return "low urgency";
+  }
+
+  if (severity === 3) {
+    return "moderate urgency";
+  }
+
+  if (severity === 4) {
+    return "high urgency";
+  }
+
+  return "critical urgency";
+}
+
 describe("BrainstormResults", () => {
   describe("render basics", () => {
     it("renders the summary text", () => {
@@ -226,6 +242,66 @@ describe("BrainstormResults", () => {
           expect(dot).toHaveClass(expectedClasses[painPoint.severity]);
         });
       });
+    });
+  });
+
+  describe("validation sprint cues", () => {
+    it("renders one validation sprint cue region per pain point", () => {
+      const result = createResult();
+      renderBrainstormResults(result);
+
+      const cueRegions = screen.getAllByRole("region", { name: /validation sprint cue/i });
+
+      expect(cueRegions).toHaveLength(result.painPoints.length);
+    });
+
+    it("semantically groups and labels each cue with its pain point title", () => {
+      const result = createResult();
+      renderBrainstormResults(result);
+
+      result.painPoints.forEach((painPoint) => {
+        const cueRegion = screen.getByRole("region", {
+          name: `Validation sprint cue for ${painPoint.title}`,
+        });
+
+        expect(cueRegion).toBeInTheDocument();
+        expect(
+          within(cueRegion).getByRole("heading", { name: `Validation sprint cue for ${painPoint.title}` }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("renders cue body guidance content for each pain point", () => {
+      const result = createResult();
+      renderBrainstormResults(result);
+
+      result.painPoints.forEach((painPoint) => {
+        const cueRegion = screen.getByRole("region", {
+          name: `Validation sprint cue for ${painPoint.title}`,
+        });
+
+        expect(
+          within(cueRegion).getByText(
+            `Interview 3 users found via ${painPoint.source} who report "${painPoint.title}" and capture the exact failing workflow.`,
+          ),
+        ).toBeInTheDocument();
+        expect(
+          within(cueRegion).getByText(
+            `Track how often this appears (${painPoint.frequency}) and treat severity ${painPoint.severity}/5 as a ${getSeveritySignal(painPoint.severity)} signal.`,
+          ),
+        ).toBeInTheDocument();
+        expect(
+          within(cueRegion).getByText(
+            `Draft a one-page offer for "${painPoint.title}" with a first solution concept tailored to ${painPoint.source}.`,
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("does not render validation sprint cue sections when pain points are empty", () => {
+      renderBrainstormResults(createResult([]));
+
+      expect(screen.queryByRole("region", { name: /validation sprint cue/i })).not.toBeInTheDocument();
     });
   });
 });
