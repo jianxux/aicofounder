@@ -184,6 +184,83 @@ describe("BrainstormResults", () => {
     });
   });
 
+  describe("validation next step panel", () => {
+    it("renders an accessible panel with the highest-severity pain point and ordered workflow steps", () => {
+      renderBrainstormResults();
+
+      const panel = screen.getByRole("region", { name: "Validation next step" });
+      const list = within(panel).getByRole("list");
+      const steps = within(list).getAllByRole("listitem");
+
+      expect(within(panel).getByText("Highest-priority pain point: No visibility into broken automations")).toBeInTheDocument();
+      expect(list.tagName).toBe("OL");
+      expect(steps).toHaveLength(3);
+      expect(steps[0]).toHaveTextContent("severity 5/5");
+      expect(steps[0]).toHaveTextContent("daily");
+      expect(steps[0]).toHaveTextContent("r/startups");
+      expect(steps[0]).toHaveTextContent("ValidatorAI-style score and grade");
+      expect(steps[0]).toHaveTextContent("next-step prompt");
+      expect(steps[1]).toHaveTextContent("customer feedback simulation");
+      expect(steps[1]).toHaveTextContent("market sizing and viability brief");
+      expect(steps[2]).toHaveTextContent("Venturekit-style connected planning");
+      expect(steps[2]).toHaveTextContent("market research, pitch, and forecast outputs");
+      expect(steps[2]).toHaveTextContent("Mixo-style lead-generating page");
+      expect(steps[2]).toHaveTextContent("contact and enquiry capture");
+    });
+
+    it("keeps the earlier pain point when severities tie for highest", () => {
+      const tiedPainPoints = createPainPoints().map((painPoint, index) =>
+        index < 2 ? { ...painPoint, severity: 5 } : { ...painPoint, severity: 3 },
+      );
+      renderBrainstormResults(createResult(tiedPainPoints));
+
+      expect(
+        screen.getByText("Highest-priority pain point: Manual onboarding setup takes too long"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Highest-priority pain point: Templates still require too much editing"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders a neutral empty state when there are no pain points", () => {
+      renderBrainstormResults(createResult([]));
+
+      const panel = screen.getByRole("region", { name: "Validation next step" });
+
+      expect(within(panel).getByText(/No pain points are prioritized yet\./i)).toBeInTheDocument();
+      expect(within(panel).queryByText(/Highest-priority pain point:/i)).not.toBeInTheDocument();
+      expect(within(panel).queryByRole("list")).not.toBeInTheDocument();
+    });
+
+    it("keeps validation panels independently accessible when rendering two instances", () => {
+      render(
+        <>
+          <BrainstormResults result={createResult()} />
+          <BrainstormResults result={createResult(createPainPoints().slice(0, 3))} />
+        </>,
+      );
+
+      const panels = screen.getAllByRole("region", { name: "Validation next step" });
+      expect(panels).toHaveLength(2);
+
+      const labelledByValues = panels.map((panel) => panel.getAttribute("aria-labelledby"));
+      const [firstLabelledBy, secondLabelledBy] = labelledByValues;
+
+      expect(firstLabelledBy).toBeTruthy();
+      expect(secondLabelledBy).toBeTruthy();
+      expect(firstLabelledBy).not.toEqual(secondLabelledBy);
+
+      panels.forEach((panel) => {
+        const titleId = panel.getAttribute("aria-labelledby");
+        expect(titleId).toBeTruthy();
+
+        const heading = panel.querySelector(`h3#${titleId}`);
+        expect(heading).not.toBeNull();
+        expect(heading).toHaveTextContent("Validation next step");
+      });
+    });
+  });
+
   describe("severity indicators", () => {
     it("renders filled and empty severity dots correctly for different severity levels", () => {
       const result = createResult();

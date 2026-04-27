@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { BrainstormResult } from "@/lib/brainstorm";
 
 type BrainstormResultsProps = {
@@ -23,6 +25,18 @@ function getSeverityColor(severity: number) {
 }
 
 export default function BrainstormResults({ result }: BrainstormResultsProps) {
+  const validationNextStepTitleId = useId();
+  const highestPriorityPainPoint = result.painPoints.reduce<BrainstormResult["painPoints"][number] | null>(
+    (currentHighest, candidate) => {
+      if (!currentHighest || candidate.severity > currentHighest.severity) {
+        return candidate;
+      }
+
+      return currentHighest;
+    },
+    null,
+  );
+
   return (
     <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
       <div className="rounded-3xl bg-[#fcfaf6] p-5">
@@ -32,6 +46,44 @@ export default function BrainstormResults({ result }: BrainstormResultsProps) {
         <p className="mt-3 text-sm leading-6 text-stone-700">{result.summary}</p>
         <p className="mt-3 text-xs leading-5 text-stone-500">{result.searchContext}</p>
       </div>
+
+      <section
+        aria-labelledby={validationNextStepTitleId}
+        className="mt-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] p-5"
+      >
+        <h3 id={validationNextStepTitleId} className="text-sm font-semibold uppercase tracking-[0.16em] text-stone-600">
+          Validation next step
+        </h3>
+        {highestPriorityPainPoint ? (
+          <>
+            <p className="mt-3 text-sm font-semibold text-stone-900">
+              Highest-priority pain point: {highestPriorityPainPoint.title}
+            </p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-stone-700">
+              <li>
+                Run a ValidatorAI-style score and grade pass from existing evidence: severity{" "}
+                {highestPriorityPainPoint.severity}/5 with {highestPriorityPainPoint.frequency.toLowerCase()} frequency from{" "}
+                {highestPriorityPainPoint.source}, then write a concrete next-step prompt that names the riskiest
+                assumption to validate next.
+              </li>
+              <li>
+                Run a customer feedback simulation using this pain point&apos;s description and complaint quotes, then
+                convert the signal into a market sizing and viability brief before committing build scope.
+              </li>
+              <li>
+                Use Venturekit-style connected planning to link the validated insight into market research, pitch, and
+                forecast outputs, then publish a Mixo-style lead-generating page with contact and enquiry capture tied
+                to this promise.
+              </li>
+            </ol>
+          </>
+        ) : (
+          <p className="mt-3 text-sm leading-6 text-stone-700">
+            No pain points are prioritized yet. Capture pain points first, then this panel will suggest a concrete
+            validation workflow.
+          </p>
+        )}
+      </section>
 
       <div className="mt-4 space-y-4">
         {result.painPoints.map((painPoint) => (
