@@ -199,6 +199,35 @@ describe("LandingPage", () => {
     expect(heroTextarea.value).toMatch(/security teams complete vendor security reviews faster/i);
   });
 
+  it("renders the landing-page market-sizing preset and applies its examples to the textarea", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByRole("radio", { name: /Landing-page market sizing/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Landing-page market sizing/i }));
+
+    expect(screen.getByRole("radio", { name: /Landing-page market sizing/i })).toBeChecked();
+    expect(screen.getByText(/Estimate whether this landing-page wedge has enough headroom\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Market size estimate/i)).toBeInTheDocument();
+    expect(screen.getByText(/One-year forecast model/i)).toBeInTheDocument();
+    expect(screen.getByText(/Validation metrics checklist/i)).toBeInTheDocument();
+
+    const { textarea, exampleButtons } = getHeroStarterButtons();
+    const marketSizingExampleLabels = getHeroStarterButtonLabels(exampleButtons);
+
+    expect(marketSizingExampleLabels).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Vertical AI intake automation page/i),
+        expect.stringMatching(/Home-service estimate follow-up page/i),
+        expect.stringMatching(/B2B finance close workflow page/i),
+      ]),
+    );
+
+    fireEvent.click(exampleButtons[0]);
+
+    expect((textarea as HTMLTextAreaElement).value).toMatch(/TAM, SAM, and a beachhead SOM/i);
+  });
+
   it("opens a login prompt modal when a visitor submits a hero prompt", () => {
     render(<LandingPage />);
 
