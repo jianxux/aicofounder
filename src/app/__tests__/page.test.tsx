@@ -105,6 +105,10 @@ describe("LandingPage", () => {
     });
     expect(screen.getByText(/Press Enter for a new line, or use ⌘\/Ctrl \+ Enter to open the login prompt\./i)).toBeInTheDocument();
     expect(screen.getByText(/Session outputs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness scorecard before we continue/i)).toBeInTheDocument();
+    ["Customer clarity", "Painful problem", "Current workaround", "Proof gap / next learning target"].forEach((item) => {
+      expect(screen.getByText(item)).toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
 
     const promptField = screen.getByLabelText("I want to");

@@ -130,6 +130,13 @@ const sourceMaterialChips = [
   "Competitor screenshots or teardown notes",
 ];
 
+const readinessScorecardItems = [
+  "Customer clarity",
+  "Painful problem",
+  "Current workaround",
+  "Proof gap / next learning target",
+];
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -633,6 +640,16 @@ export default function LandingPage() {
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Ready</span>
                         </div>
                       ))}
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-stone-200 bg-[#f8f5ef] px-4 py-4">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Readiness scorecard before we continue</div>
+                      <ul className="mt-3 space-y-2 text-sm text-stone-700">
+                        {readinessScorecardItems.map((item) => (
+                          <li key={item} className="rounded-xl border border-stone-200 bg-white px-3 py-2">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
