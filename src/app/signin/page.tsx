@@ -54,21 +54,39 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             />
           </div>
           <p className="mt-4 text-sm text-stone-600">
-            Want to look around first?{" "}
+            Not ready to sign in yet?{" "}
             <Link href="/dashboard" className="font-medium text-stone-900 underline decoration-stone-300 underline-offset-4 transition hover:decoration-stone-900">
-              Explore the demo dashboard
+              Return to the demo dashboard
             </Link>
-            .
+            {" "}and come back anytime.
           </p>
         </div>
 
         <aside className="rounded-[28px] border border-stone-200 bg-white/80 p-8 shadow-sm sm:p-10">
-          <h2 className="text-lg font-semibold text-stone-900">What you get after sign-in</h2>
-          <ul className="mt-4 space-y-3 text-sm leading-7 text-stone-600">
-            <li>Saved projects, notes, and phase-by-phase build plans.</li>
-            <li>Prompt handoff from the landing page into your workspace.</li>
-            <li>A single place for research, messaging, and founder decisions.</li>
-          </ul>
+          <h2 className="text-lg font-semibold text-stone-900">What continues after sign-in</h2>
+          <p className="mt-3 text-sm leading-7 text-stone-600">
+            Your workspace reopens with project memory, reusable assets, and the next move already queued.
+          </p>
+          <div className="mt-5 space-y-3" aria-label="Sign-in continuity details">
+            <article className="rounded-2xl border border-stone-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-stone-900">Saved project context</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600">
+                Goals, assumptions, and phase progress stay in place so you can pick up mid-stream.
+              </p>
+            </article>
+            <article className="rounded-2xl border border-stone-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-stone-900">Reusable research and messaging</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600">
+                Interview notes, competitor scans, and positioning drafts remain ready to refine.
+              </p>
+            </article>
+            <article className="rounded-2xl border border-stone-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-stone-900">Next action readiness</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-600">
+                Pending decisions and suggested prompts are waiting so you can continue without setup.
+              </p>
+            </article>
+          </div>
         </aside>
       </section>
     </main>
