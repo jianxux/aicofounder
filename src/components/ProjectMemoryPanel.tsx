@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { Project, ProjectArtifactType, ProjectMemoryEntry, ProjectMemoryField, ProjectMemorySource } from "@/lib/types";
 
 const MEMORY_BUCKETS: Array<{
@@ -128,8 +129,12 @@ function MemoryEntryCard({ entry, project }: { entry: ProjectMemoryEntry; projec
 }
 
 export default function ProjectMemoryPanel({ project }: { project: Project }) {
+  const advisorHandoffPromptsHeadingId = useId();
   const memory = project.projectMemory;
   const hasAnyMemory = MEMORY_BUCKETS.some((bucket) => (memory?.[bucket.field] ?? []).length > 0);
+  const validatedFindingsCount = memory?.validatedFindings?.length ?? 0;
+  const hypothesesCount = memory?.hypotheses?.length ?? 0;
+  const experimentsCount = memory?.experiments?.length ?? 0;
 
   return (
     <section className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm" data-testid="project-memory-panel">
@@ -147,6 +152,36 @@ export default function ProjectMemoryPanel({ project }: { project: Project }) {
           No workspace memory has been promoted yet. Generate or refine artifacts like the validation scorecard and
           customer research memo, and reusable facts will appear here with their source references across future runs.
         </div>
+      ) : null}
+
+      {hasAnyMemory ? (
+        <section
+          aria-labelledby={advisorHandoffPromptsHeadingId}
+          className="mt-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4"
+          data-testid="advisor-handoff-prompts"
+          role="region"
+        >
+          <h3
+            className="text-sm font-semibold uppercase tracking-[0.16em] text-stone-700"
+            id={advisorHandoffPromptsHeadingId}
+          >
+            Advisor handoff prompts
+          </h3>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-stone-700">
+            <li>
+              Which validated evidence from {validatedFindingsCount} finding
+              {validatedFindingsCount === 1 ? "" : "s"} should a collaborator cite first?
+            </li>
+            <li>
+              Which assumption from {hypothesesCount} hypothes{hypothesesCount === 1 ? "is" : "es"} should the next
+              advisor challenge?
+            </li>
+            <li>
+              Which next experiment from {experimentsCount} experiment{experimentsCount === 1 ? "" : "s"} should the
+              team prioritize?
+            </li>
+          </ul>
+        </section>
       ) : null}
 
       <div className="mt-4 space-y-4">
