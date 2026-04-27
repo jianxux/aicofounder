@@ -49,6 +49,13 @@ const createWebsiteBuilder = (
       body: "Use this section to add supporting proof and context.",
       buttonText: undefined,
     }),
+    createBlock({
+      id: "lead-capture-1",
+      type: "lead_capture",
+      heading: "Get early access to our first launch",
+      body: "Share your email and what you're looking for so we can prioritize the right features.",
+      buttonText: "Join waitlist",
+    }),
   ],
   x: 180,
   y: 220,
@@ -75,6 +82,7 @@ describe("WebsiteBuilder", () => {
     expect(screen.getByText("2. features")).toBeInTheDocument();
     expect(screen.getByText("3. cta")).toBeInTheDocument();
     expect(screen.getByText("4. text")).toBeInTheDocument();
+    expect(screen.getByText("5. lead_capture")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Turn visitors into signups")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Position the product clearly and keep the next step obvious.")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Start free")).toBeInTheDocument();
@@ -90,12 +98,12 @@ describe("WebsiteBuilder", () => {
       />,
     );
 
-    expect(screen.getAllByPlaceholderText("Heading")).toHaveLength(4);
-    expect(screen.getAllByPlaceholderText("Body copy")).toHaveLength(4);
-    expect(screen.getAllByPlaceholderText("Button text (optional)")).toHaveLength(4);
+    expect(screen.getAllByPlaceholderText("Heading")).toHaveLength(5);
+    expect(screen.getAllByPlaceholderText("Body copy")).toHaveLength(5);
+    expect(screen.getAllByPlaceholderText("Button text (optional)")).toHaveLength(5);
   });
 
-  it("toggles to preview mode and renders hero, features, cta, and text sections", async () => {
+  it("toggles to preview mode and renders hero, features, cta, text, and lead capture sections", async () => {
     const user = userEvent.setup();
 
     render(
@@ -117,6 +125,7 @@ describe("WebsiteBuilder", () => {
     expect(screen.getByText("Actionable outputs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ready to ship faster?" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Built for lean teams" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Get early access to our first launch" })).toBeInTheDocument();
   });
 
   it("toggles back to edit mode from preview mode", async () => {
@@ -232,6 +241,7 @@ describe("WebsiteBuilder", () => {
     ["Add Features", "features", "Why customers care"],
     ["Add CTA", "cta", "Ready to validate demand?"],
     ["Add Text", "text", "Tell the story"],
+    ["Add Lead capture", "lead_capture", "Get early access to our first launch"],
   ] as const)("calls onChange to append a %s block", async (buttonName, type, heading) => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -402,6 +412,31 @@ describe("WebsiteBuilder", () => {
 
     expect(screen.getByRole("heading", { name: "Built for lean teams" })).toBeInTheDocument();
     expect(screen.getByText("Use this section to add supporting proof and context.")).toBeInTheDocument();
+  });
+
+  it("renders lead capture preview with placeholders and CTA button", async () => {
+    const user = userEvent.setup();
+    const leadCaptureBlock = createWebsiteBuilder().blocks.find(
+      (block) => block.type === "lead_capture",
+    );
+
+    expect(leadCaptureBlock).toBeDefined();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder({ blocks: [leadCaptureBlock!] })}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(screen.getByRole("heading", { name: "Get early access to our first launch" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("type", "email");
+    expect(screen.getByRole("button", { name: "Join waitlist" })).toBeInTheDocument();
   });
 
   it("renders without errors when blocks is empty", async () => {

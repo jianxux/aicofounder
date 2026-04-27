@@ -48,7 +48,7 @@ export type DocumentCardData = {
   y: number;
 };
 
-export type WebsiteBlockType = "hero" | "features" | "cta" | "text";
+export type WebsiteBlockType = "hero" | "features" | "cta" | "text" | "lead_capture";
 
 export type WebsiteBlock = {
   id: string;
@@ -1065,7 +1065,7 @@ export const isDocumentCardData = (value: unknown): value is DocumentCardData =>
 };
 
 export const isWebsiteBlockType = (value: unknown): value is WebsiteBlockType =>
-  value === "hero" || value === "features" || value === "cta" || value === "text";
+  value === "hero" || value === "features" || value === "cta" || value === "text" || value === "lead_capture";
 
 export const isWebsiteBlock = (value: unknown): value is WebsiteBlock => {
   if (!isRecord(value)) {

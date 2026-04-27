@@ -16,6 +16,7 @@ const BLOCK_OPTIONS: Array<{ type: WebsiteBlockType; label: string }> = [
   { type: "features", label: "Features" },
   { type: "cta", label: "CTA" },
   { type: "text", label: "Text" },
+  { type: "lead_capture", label: "Lead capture" },
 ];
 
 function createBlock(type: WebsiteBlockType): WebsiteBlock {
@@ -46,6 +47,16 @@ function createBlock(type: WebsiteBlockType): WebsiteBlock {
       type,
       heading: "Ready to validate demand?",
       body: "Invite visitors to book a call, join a waitlist, or try the product.",
+      buttonText: "Join waitlist",
+    };
+  }
+
+  if (type === "lead_capture") {
+    return {
+      id,
+      type,
+      heading: "Get early access to our first launch",
+      body: "Share your email and what you're looking for so we can prioritize the right features.",
       buttonText: "Join waitlist",
     };
   }
@@ -232,6 +243,41 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
                         <button
                           type="button"
                           className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900"
+                        >
+                          {block.buttonText}
+                        </button>
+                      ) : null}
+                    </section>
+                  );
+                }
+
+                if (block.type === "lead_capture") {
+                  return (
+                    <section key={block.id} className="mt-5 rounded-[24px] border border-stone-200 bg-stone-50 px-6 py-6">
+                      <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
+                      <p className="mt-2 text-sm leading-7 text-stone-600">{block.body}</p>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <input
+                          readOnly
+                          value=""
+                          placeholder="Name"
+                          aria-label="Name"
+                          className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700"
+                        />
+                        <input
+                          readOnly
+                          value=""
+                          placeholder="Email"
+                          aria-label="Email"
+                          type="email"
+                          inputMode="email"
+                          className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700"
+                        />
+                      </div>
+                      {block.buttonText ? (
+                        <button
+                          type="button"
+                          className="mt-3 rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white"
                         >
                           {block.buttonText}
                         </button>
