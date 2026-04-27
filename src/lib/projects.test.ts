@@ -121,6 +121,76 @@ describe("lib/projects", () => {
       ]);
     });
 
+    it("builds a personalized starter project when intake is provided", () => {
+      const intake = {
+        primaryIdea:
+          "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
+        targetUser: "Seed-stage founders",
+        mainUncertainty: "Whether they want one workspace.",
+        url: "https://example.com/founder-research",
+      };
+
+      const project = createProjectRecord(intake);
+
+      expect(project.name).toBe("An AI copilot for founder research that turns scattered n...");
+      expect(project.description).toBe(
+        [
+          intake.primaryIdea,
+          `Target user: ${intake.targetUser}`,
+          `Main uncertainty: ${intake.mainUncertainty}`,
+          `Reference URL: ${intake.url}`,
+        ].join("\n\n"),
+      );
+      expect(project.notes).toHaveLength(2);
+      expect(project.notes[0]).toMatchObject({
+        title: "Idea",
+        content: intake.primaryIdea,
+      });
+      expect(project.notes[1]).toMatchObject({
+        title: "Validation focus",
+      });
+      expect(project.notes[1]?.content).toContain(`Target user: ${intake.targetUser}`);
+      expect(project.notes[1]?.content).toContain(`Main uncertainty: ${intake.mainUncertainty}`);
+      expect(project.notes[1]?.content).toContain(`Reference URL: ${intake.url}`);
+      expect(project.messages[0]?.content).toContain(`I captured your intake: ${intake.primaryIdea}.`);
+      expect(project.messages[0]?.content).toContain(`We will focus on ${intake.targetUser}.`);
+      expect(project.messages[0]?.content).toContain(`First uncertainty to test: ${intake.mainUncertainty}.`);
+      expect(project.messages[0]?.content).toContain(`Reference URL: ${intake.url}.`);
+      expect(project.phases.find((phase) => phase.id === "getting-started")?.tasks.map((task) => task.label)).toEqual([
+        expect.stringContaining("Clarify idea:"),
+        expect.stringContaining(`Define target user: ${intake.targetUser}`),
+      ]);
+      expect(
+        project.phases.find((phase) => phase.id === "understand-project")?.tasks.map((task) => task.label),
+      ).toEqual([
+        expect.stringContaining(`Pressure-test uncertainty: ${intake.mainUncertainty}`),
+        expect.stringContaining(`Review source: ${intake.url}`),
+      ]);
+    });
+
+    it("uses fallback personalized labels when optional intake fields are missing", () => {
+      const project = createProjectRecord({
+        primaryIdea: "A tool for founder research synthesis.",
+      });
+
+      expect(project.name).toBe("A tool for founder research synthesis");
+      expect(project.description).toBe("A tool for founder research synthesis.");
+      expect(project.notes[1]).toMatchObject({
+        title: "Validation focus",
+      });
+      expect(project.notes[1]?.content).toContain("Target user: define who feels this pain most.");
+      expect(project.notes[1]?.content).toContain("Main uncertainty: call out the biggest risk to test.");
+      expect(project.notes[1]?.content).toContain("Reference URL: optional context link.");
+      expect(project.messages[0]?.content).toBe("I captured your intake: A tool for founder research synthesis..");
+      expect(project.phases.find((phase) => phase.id === "getting-started")?.tasks.map((task) => task.label)).toEqual([
+        "Clarify idea: A tool for founder research synthesis.",
+        "Define the target user",
+      ]);
+      expect(
+        project.phases.find((phase) => phase.id === "understand-project")?.tasks.map((task) => task.label),
+      ).toEqual(["Pressure-test the biggest uncertainty", "Collect supporting source material"]);
+    });
+
     it("creates unique project ids across calls", () => {
       const first = createProjectRecord();
       const second = createProjectRecord();

@@ -977,6 +977,38 @@ describe("lib/supabase-projects", () => {
     expect(operations.some((operation) => operation.table === "messages" && operation.method === "insert")).toBe(true);
   });
 
+  it("createSupabaseProject preserves a provided initial project", async () => {
+    const initialProject = makeProject({
+      id: "supabase-initial-project",
+      name: "Onboarding-initialized project",
+      description: "Created from intake before persistence",
+    });
+    const createProjectRecord = vi.fn(() => {
+      throw new Error("createProjectRecord should not be called when initial project is provided");
+    });
+    const operations: Operation[] = [];
+    const mockSupabase = createMockSupabase({}, operations);
+    const { module } = await loadModule({
+      createBrowserClient: vi.fn(() => mockSupabase),
+      createProjectRecord,
+    });
+
+    const result = await module.createSupabaseProject(initialProject);
+
+    expect(result).toEqual(initialProject);
+    expect(operations).toContainEqual({
+      table: "projects",
+      method: "upsert",
+      args: [
+        expect.objectContaining({
+          id: "supabase-initial-project",
+          name: "Onboarding-initialized project",
+          description: "Created from intake before persistence",
+        }),
+      ],
+    });
+  });
+
   it("deleteProjectFromSupabase deletes remotely and falls back to localStorage on error", async () => {
     const fallbackProjects = [makeProject({ id: "keep" }), makeProject({ id: "remove" })];
     localStorage.setItem("aicofounder.projects", JSON.stringify(fallbackProjects));

@@ -4,7 +4,7 @@ import type { Mock } from "vitest";
 
 import DashboardPage from "@/app/dashboard/page";
 import { trackEvent } from "@/lib/analytics";
-import { createProject as createProjectMock, getProjects, saveProject } from "@/lib/projects";
+import { createProject as createProjectMock, createProjectRecord, getProjects } from "@/lib/projects";
 import type { Project } from "@/lib/types";
 
 async function startOnboarding() {
@@ -69,10 +69,15 @@ vi.mock("@/components/AuthButton", () => ({
   ),
 }));
 
+const { saveProjectMock } = vi.hoisted(() => ({
+  saveProjectMock: vi.fn(),
+}));
+
 vi.mock("@/lib/projects", () => ({
   getProjects: vi.fn(),
+  createProjectRecord: vi.fn(),
   createProject: vi.fn(),
-  saveProject: vi.fn(),
+  saveProject: saveProjectMock,
 }));
 
 vi.mock("@/lib/analytics", () => ({
@@ -140,8 +145,59 @@ describe("DashboardPage", () => {
     window.sessionStorage.clear();
 
     vi.mocked(getProjects).mockResolvedValue([]);
-    vi.mocked(saveProject).mockResolvedValue();
     vi.mocked(trackEvent).mockResolvedValue(undefined);
+    vi.mocked(createProjectRecord).mockImplementation(() =>
+      createProject({
+        id: "starter-project",
+        name: "Untitled Project",
+        description: "A new concept taking shape with your AI cofounder.",
+        phase: "Getting started",
+        messages: [
+          {
+            id: "message-1",
+            sender: "assistant",
+            content: "I’m analyzing your idea. Let me research this and turn it into a sharper plan.",
+            createdAt: "2024-03-10T15:00:00.000Z",
+          },
+        ],
+        notes: [
+          {
+            id: "note-1",
+            title: "Idea",
+            content: "Describe the product idea in one sentence.",
+            color: "yellow",
+            x: 80,
+            y: 120,
+          },
+          {
+            id: "note-2",
+            title: "Problem statement",
+            content: "Who has the problem?",
+            color: "yellow",
+            x: 220,
+            y: 180,
+          },
+        ],
+        phases: [
+          {
+            id: "getting-started",
+            title: "Getting started",
+            tasks: [
+              { id: "task-1", label: "Write down the idea", done: false },
+              { id: "task-2", label: "Define the problem statement", done: false },
+            ],
+          },
+          {
+            id: "understand-project",
+            title: "Understand the project",
+            tasks: [
+              { id: "task-3", label: "Collect market signals", done: false },
+              { id: "task-4", label: "Identify the target customer", done: false },
+            ],
+          },
+        ],
+      }),
+    );
 
     setHref = vi.fn((value: string) => {
       locationHref = value;
@@ -596,10 +652,18 @@ describe("DashboardPage", () => {
     });
   });
 
-  it("completes onboarding by creating, saving, and redirecting to the new project", async () => {
-    const createdProject = createProject({ id: "guided-project", name: "Untitled Project" });
+  it("completes onboarding by creating a personalized project and redirecting to the new project", async () => {
     vi.mocked(getProjects).mockResolvedValue([]);
-    vi.mocked(createProjectMock).mockResolvedValue(createdProject);
+    const personalizedProject = createProject({
+      id: "starter-personalized",
+      name: "Personalized Starter",
+      description: "Personalized description",
+    });
+    vi.mocked(createProjectRecord).mockReturnValueOnce(personalizedProject);
+    vi.mocked(createProjectMock).mockImplementation(async (initialProject?: Project) => ({
+      ...(initialProject ?? createProject()),
+      id: "guided-project",
+    }));
     window.sessionStorage.setItem("landingPromptDraft", "An AI copilot for founder research.");
 
     renderPage();
@@ -609,15 +673,10 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
+      expect(createProjectRecord).toHaveBeenCalledTimes(1);
+      expect(createProjectRecord).toHaveBeenCalledWith(intake);
       expect(createProjectMock).toHaveBeenCalledTimes(1);
-      expect(saveProject).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "guided-project",
-          name: expect.stringMatching(/^An AI copilot for founder research/),
-          description:
-            `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
-        }),
-      );
+      expect(createProjectMock).toHaveBeenCalledWith(personalizedProject);
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
       expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
     });
@@ -640,6 +699,57 @@ describe("DashboardPage", () => {
         source: "onboarding",
       }),
     );
+  });
+
+  it("does not call saveProject in the onboarding create path", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    vi.mocked(createProjectMock).mockImplementation(async (initialProject?: Project) => ({
+      ...(initialProject ?? createProject()),
+      id: "guided-project-no-save",
+    }));
+
+    renderPage();
+
+    await startOnboarding();
+    completeIntake();
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect((createProjectMock as unknown as { mock: { calls: unknown[][] } }).mock.calls).toHaveLength(1);
+    expect((createProjectRecord as unknown as { mock: { calls: unknown[][] } }).mock.calls).toHaveLength(1);
+    expect(saveProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("uses createProjectRecord(intake) before createProject(personalizedProject)", async () => {
+    vi.mocked(getProjects).mockResolvedValue([]);
+    const personalizedProject = createProject({ id: "starter-sequence" });
+    vi.mocked(createProjectRecord).mockReturnValueOnce(personalizedProject);
+    vi.mocked(createProjectMock).mockResolvedValue(createProject({ id: "guided-project-sequence" }));
+
+    renderPage();
+
+    await startOnboarding();
+    const intake = completeIntake({
+      primaryIdea: "A tool for founder research synthesis.",
+      url: "https://example.com/founder-research",
+      targetUser: "Seed-stage founders",
+      mainUncertainty: "Whether they want one workspace.",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
+
+    await waitFor(() => {
+      expect(createProjectRecord).toHaveBeenCalledTimes(1);
+      expect(createProjectMock).toHaveBeenCalledTimes(1);
+      expect(createProjectRecord).toHaveBeenCalledWith(intake);
+      expect(createProjectMock).toHaveBeenCalledWith(personalizedProject);
+    });
+
+    const createProjectRecordOrder = vi.mocked(createProjectRecord).mock.invocationCallOrder[0];
+    const createProjectOrder = vi.mocked(createProjectMock).mock.invocationCallOrder[0];
+    expect(createProjectRecordOrder).toBeLessThan(createProjectOrder);
   });
 
   it("prevents double-submitting Launch Project while project creation is in flight", async () => {
@@ -671,7 +781,7 @@ describe("DashboardPage", () => {
     resolveCreateProject?.(createdProject);
 
     await waitFor(() => {
-      expect(saveProject).toHaveBeenCalledWith(expect.objectContaining({ id: "guided-project-pending" }));
+      expect(createProjectMock).toHaveBeenCalledWith(expect.objectContaining({ id: "starter-project" }));
       expect(setHref).toHaveBeenCalledWith("/project/guided-project-pending");
     });
   });
@@ -684,7 +794,7 @@ describe("DashboardPage", () => {
     renderPage();
 
     await startOnboarding();
-    completeIntake({
+    const intake = completeIntake({
       primaryIdea: "A tool for founder research synthesis.",
       url: "",
       targetUser: "",
@@ -693,13 +803,8 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
-      expect(saveProject).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "guided-project-minimal",
-          name: "A tool for founder research synthesis",
-          description: "A tool for founder research synthesis.",
-        }),
-      );
+      expect(createProjectRecord).toHaveBeenCalledWith(intake);
+      expect(createProjectMock).toHaveBeenCalledWith(expect.objectContaining({ id: "starter-project" }));
     });
 
     expect(trackEvent).toHaveBeenCalledWith(
@@ -715,7 +820,7 @@ describe("DashboardPage", () => {
     );
   });
 
-  it("truncates the derived project name when the first sentence exceeds sixty characters", async () => {
+  it("passes long primary ideas through createProjectRecord intake", async () => {
     const createdProject = createProject({ id: "guided-project-long-name", name: "Untitled Project" });
     vi.mocked(getProjects).mockResolvedValue([]);
     vi.mocked(createProjectMock).mockResolvedValue(createdProject);
@@ -723,7 +828,7 @@ describe("DashboardPage", () => {
     renderPage();
 
     await startOnboarding();
-    completeIntake({
+    const intake = completeIntake({
       primaryIdea:
         "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
       url: "",
@@ -733,14 +838,8 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
     await waitFor(() => {
-      expect(saveProject).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "guided-project-long-name",
-          name: "An AI copilot for founder research that turns scattered n...",
-          description:
-            "An AI copilot for founder research that turns scattered notes into a concrete validation plan with shared evidence trails for every decision. Extra context stays in the description.",
-        }),
-      );
+      expect(createProjectRecord).toHaveBeenCalledWith(intake);
+      expect(createProjectMock).toHaveBeenCalledWith(expect.objectContaining({ id: "starter-project" }));
     });
   });
 });

@@ -7,7 +7,7 @@ import BrandMark from "@/components/BrandMark";
 import OnboardingModal, { type OnboardingIntake } from "@/components/OnboardingModal";
 import { parseLandingPromptDraft } from "@/app/prompt-handoff";
 import { ARTIFACT_INTAKE_SUBMITTED_EVENT, trackEvent } from "@/lib/analytics";
-import { createProject, getProjects, saveProject } from "@/lib/projects";
+import { createProject, createProjectRecord, getProjects } from "@/lib/projects";
 import { Project } from "@/lib/types";
 
 const ONBOARDING_DISMISSED_KEY = "onboarding-dismissed";
@@ -23,33 +23,6 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function deriveProjectName(primaryIdea: string) {
-  const normalizedIdea = primaryIdea.trim().replace(/\s+/g, " ");
-
-  if (!normalizedIdea) {
-    return "Untitled Project";
-  }
-
-  const firstSentence = normalizedIdea.split(/[.!?]/)[0]?.trim() || normalizedIdea;
-
-  if (firstSentence.length <= 60) {
-    return firstSentence;
-  }
-
-  return `${firstSentence.slice(0, 57).trimEnd()}...`;
-}
-
-function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty }: OnboardingIntake) {
-  return [
-    primaryIdea.trim(),
-    targetUser.trim() ? `Target user: ${targetUser.trim()}` : null,
-    mainUncertainty.trim() ? `Main uncertainty: ${mainUncertainty.trim()}` : null,
-    url.trim() ? `Reference URL: ${url.trim()}` : null,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join("\n\n");
 }
 
 function getProjectTaskProgress(project: Project) {
@@ -136,15 +109,7 @@ export default function DashboardPage() {
   };
 
   const handleCompleteOnboarding = async (intake: OnboardingIntake) => {
-    const project = await createProject();
-    const nextProject = {
-      ...project,
-      name: deriveProjectName(intake.primaryIdea),
-      description: buildProjectDescription(intake),
-      updatedAt: new Date().toISOString(),
-    };
-
-    await saveProject(nextProject);
+    const project = await createProject(createProjectRecord(intake));
     void trackEvent(ARTIFACT_INTAKE_SUBMITTED_EVENT, {
       page: "/dashboard",
       project_id: project.id,

@@ -328,6 +328,28 @@ describe("LandingPage", () => {
     expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
   });
 
+  it("explore demo in the prompt modal links to proof, closes the modal, and clears the draft", async () => {
+    render(<LandingPage />);
+
+    fireEvent.change(screen.getByLabelText("I want to"), {
+      target: { value: "Validate an AI workflow before I build it." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const exploreDemoLink = await screen.findByRole("link", { name: "Explore demo first" });
+    expect(exploreDemoLink).toHaveAttribute("href", "#proof");
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
+
+    fireEvent.click(exploreDemoLink);
+
+    expect(screen.queryByRole("dialog", { name: /Sign in to open this inside your workspace/i })).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("landingPromptDraft")).toBeNull();
+    expect(trackEvent).toHaveBeenCalledWith("cta_click", {
+      page: "/",
+      button: "hero_prompt_explore_demo",
+    });
+  });
+
   it("renders prompt-first proof, workflow moments, trust framing, and the first-session timeline", () => {
     render(<LandingPage />);
 
@@ -379,9 +401,11 @@ describe("LandingPage", () => {
     render(<LandingPage />);
 
     const authButtons = await screen.findAllByRole("button", { name: "Continue with Google" });
+    const workflowLink = screen.getByRole("link", { name: "See the founder workflow" });
+    expect(workflowLink).toHaveAttribute("href", "#workflow");
 
     fireEvent.click(authButtons[0]);
-    fireEvent.click(screen.getByRole("link", { name: "See the founder workflow" }));
+    fireEvent.click(workflowLink);
     fireEvent.click(authButtons[1]);
 
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
@@ -396,5 +420,13 @@ describe("LandingPage", () => {
       page: "/",
       button: "footer_get_started",
     });
+  });
+
+  it("marks the sample deliverable section as proof with a scroll margin", () => {
+    render(<LandingPage />);
+
+    const proofSection = screen.getByText(/Sample first deliverable/i).closest("section");
+    expect(proofSection).toHaveAttribute("id", "proof");
+    expect(proofSection?.className).toContain("scroll-mt-24");
   });
 });
