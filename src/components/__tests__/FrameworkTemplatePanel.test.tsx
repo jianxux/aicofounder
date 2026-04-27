@@ -1,9 +1,84 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import FrameworkTemplatePanel from "@/components/FrameworkTemplatePanel";
 
 describe("FrameworkTemplatePanel", () => {
+  it("renders an accessible guidance strip", () => {
+    render(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "swot",
+          strengths: [{ id: "s1", title: "High urgency" }],
+          weaknesses: [{ id: "w1", title: "Budget owner unclear" }],
+          opportunities: [{ id: "o1", title: "Cross-sell into support workflows" }],
+          threats: [{ id: "t1", title: "Incumbent bundling" }],
+        }}
+      />,
+    );
+
+    const guidanceRegion = screen.getByRole("region", { name: "How to use this template" });
+    expect(guidanceRegion).toBeInTheDocument();
+    expect(within(guidanceRegion).getByRole("list")).toBeInTheDocument();
+  });
+
+  it("uses framework-specific guidance copy", () => {
+    const { rerender } = render(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "swot",
+          strengths: [{ id: "s1", title: "High urgency" }],
+          weaknesses: [{ id: "w1", title: "Budget owner unclear" }],
+          opportunities: [{ id: "o1", title: "Cross-sell into support workflows" }],
+          threats: [{ id: "t1", title: "Incumbent bundling" }],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Pick one strength to leverage and one weakness to reduce this quarter.")).toBeInTheDocument();
+
+    rerender(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "validation-experiment-planning",
+          experiments: [
+            {
+              id: "e1",
+              name: "Price discovery calls",
+              hypothesis: "Operators will pay to cut renewal triage time.",
+              method: "Run 5 pricing interviews with the target segment.",
+              successMetric: "3 out of 5 commit to a paid pilot conversation.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Write one falsifiable hypothesis per experiment.")).toBeInTheDocument();
+    expect(screen.queryByText("Pick one strength to leverage and one weakness to reduce this quarter.")).not.toBeInTheDocument();
+  });
+
+  it("renders exactly three semantic guidance list items for a framework", () => {
+    render(
+      <FrameworkTemplatePanel
+        framework={{
+          type: "five-forces",
+          forces: [
+            {
+              id: "f1",
+              force: "buyer-power",
+              label: "Buyer power",
+              intensity: "high",
+            },
+          ],
+        }}
+      />,
+    );
+
+    const guidanceRegion = screen.getByRole("region", { name: "How to use this template" });
+    expect(within(guidanceRegion).getAllByRole("listitem")).toHaveLength(3);
+  });
+
   it("renders a SWOT framework", () => {
     render(
       <FrameworkTemplatePanel
@@ -152,7 +227,7 @@ describe("FrameworkTemplatePanel", () => {
     expect(screen.getByText("medium")).toHaveClass("bg-amber-100", "text-amber-800");
     expect(screen.getByText("high")).toHaveClass("bg-rose-100", "text-rose-800");
     expect(screen.getByText("Threat of new entrants")).toBeInTheDocument();
-    expect(screen.queryAllByText(/low|medium|high/i)).toHaveLength(3);
+    expect(screen.queryAllByText(/^(low|medium|high)$/i)).toHaveLength(3);
   });
 
   it("renders empty-state copy and a custom heading for sparse problem-solution fit sections", () => {
