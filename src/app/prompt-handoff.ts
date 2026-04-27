@@ -10,6 +10,10 @@ const LABEL_TO_FIELD = new Map<string, keyof OnboardingIntake>([
   ["target user", "targetUser"],
   ["biggest uncertainty", "mainUncertainty"],
   ["main uncertainty", "mainUncertainty"],
+  ["problem solved", "problemSolved"],
+  ["problem", "problemSolved"],
+  ["what problem does it solve", "problemSolved"],
+  ["what problem does it solve?", "problemSolved"],
 ]);
 
 export function parseLandingPromptDraft(draft: string): Partial<OnboardingIntake> {

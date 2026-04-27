@@ -405,6 +405,7 @@ describe("ProjectWorkspacePage", () => {
           "Helps solo lawyers validate whether AI note capture saves enough time to justify workflow change.",
           "Target user: Solo immigration lawyers",
           "Main uncertainty: Whether firms will trust automated matter summaries",
+          "What problem does it solve?: Solo lawyers lose billable hours manually turning call notes into case updates.",
           "Reference URL: https://example.com/research",
         ].join("\n"),
       }),
@@ -422,6 +423,9 @@ describe("ProjectWorkspacePage", () => {
     ).toBeInTheDocument();
     expect(within(snapshot).getByText("Solo immigration lawyers")).toBeInTheDocument();
     expect(within(snapshot).getByText("Whether firms will trust automated matter summaries")).toBeInTheDocument();
+    expect(
+      within(snapshot).getByText("Solo lawyers lose billable hours manually turning call notes into case updates."),
+    ).toBeInTheDocument();
     expect(within(snapshot).getByRole("link", { name: "https://example.com/research" })).toHaveAttribute(
       "href",
       "https://example.com/research",

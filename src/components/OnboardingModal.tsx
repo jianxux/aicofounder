@@ -10,6 +10,7 @@ export type OnboardingIntake = {
   url: string;
   targetUser: string;
   mainUncertainty: string;
+  problemSolved: string;
 };
 
 type OnboardingModalProps = {
@@ -31,6 +32,7 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
     url: "",
     targetUser: "Pre-seed founders validating a new B2B SaaS idea",
     mainUncertainty: "Will founders trust an AI-generated brief enough to use it before talking to more customers?",
+    problemSolved: "Founders lose time stitching scattered research into a clear next validation decision.",
   },
   {
     title: "Ops assistant for clinics",
@@ -41,6 +43,7 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
     targetUser: "Practice managers at independent primary care clinics",
     mainUncertainty:
       "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+    problemSolved: "Clinic staff spend hours each week on manual scheduling follow-ups and no-show recovery.",
   },
   {
     title: "Retail demand planner",
@@ -51,6 +54,7 @@ const STARTER_BRIEFS: Array<OnboardingIntake & { title: string; summary: string 
     targetUser: "Operators at small e-commerce brands doing $1M-$10M in annual revenue",
     mainUncertainty:
       "Would operators switch from spreadsheets for better forecasting alone, or only if the tool also recommends concrete reorder actions?",
+    problemSolved: "Small brand operators over-order or stock out because spreadsheet forecasts miss demand swings.",
   },
 ];
 const VALIDATION_WORKFLOW_STAGES = [
@@ -91,13 +95,18 @@ function countWords(value: string) {
 function buildWorkspaceHandoffCopy(intake: OnboardingIntake) {
   const targetUser = intake.targetUser.trim();
   const mainUncertainty = intake.mainUncertainty.trim();
+  const problemSolved = intake.problemSolved.trim();
 
   return {
-    sharperClaim: targetUser
-      ? `Use the workspace to sharpen your claim for ${targetUser}.`
+    sharperClaim: targetUser && problemSolved
+      ? `Use the workspace to sharpen your claim for ${targetUser} around "${problemSolved}".`
+      : targetUser
+        ? `Use the workspace to sharpen your claim for ${targetUser}.`
       : "Use the workspace to sharpen your claim about the customer and problem worth validating.",
-    researchMemo: targetUser
-      ? `Use the workspace to outline a customer research memo for ${targetUser}, including early findings, contradictions, and next questions.`
+    researchMemo: targetUser && problemSolved
+      ? `Use the workspace to outline a customer research memo for ${targetUser}, focused on evidence that this problem is real and urgent: "${problemSolved}".`
+      : targetUser
+        ? `Use the workspace to outline a customer research memo for ${targetUser}, including early findings, contradictions, and next questions.`
       : "Use the workspace to outline a customer research memo that captures early findings, contradictions, and next questions.",
     validationScorecard: mainUncertainty
       ? `Use a validation scorecard to pressure-test "${mainUncertainty}" so the next decision is explicit.`
@@ -111,6 +120,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const [url, setUrl] = useState("");
   const [targetUser, setTargetUser] = useState("");
   const [mainUncertainty, setMainUncertainty] = useState("");
+  const [problemSolved, setProblemSolved] = useState("");
   const [selectedStarterIndex, setSelectedStarterIndex] = useState<number | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const attachmentPolicySummary = summarizeIntakeAttachmentPolicy();
@@ -125,6 +135,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   const hasConcreteIdeaSignal = countWords(primaryIdea) >= STRONG_IDEA_MIN_WORDS;
   const hasTargetUserSignal = targetUser.trim().length > 0;
   const hasMainUncertaintySignal = mainUncertainty.trim().length > 0;
+  const hasProblemSolvedSignal = problemSolved.trim().length > 0;
   const hasReferenceUrlSignal = url.trim().length > 0;
   const intakeSignals = [
     {
@@ -143,6 +154,11 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       hint: "Call out the risk, assumption, or decision you need to test.",
     },
     {
+      label: "Problem solved named",
+      present: hasProblemSolvedSignal,
+      hint: "State the concrete pain this idea should solve for the target user.",
+    },
+    {
       label: "Reference URL added",
       present: hasReferenceUrlSignal,
       hint: "Optional but helpful for a product, market, or workflow reference.",
@@ -150,9 +166,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
   ] as const;
   const presentSignalCount = intakeSignals.filter((signal) => signal.present).length;
   const intakeGuideSummary =
-    presentSignalCount <= 1
+    presentSignalCount <= 2
       ? "Early signal only. Add a sharper idea, target user, or uncertainty so the first brief has more to work from."
-      : presentSignalCount <= 3
+      : presentSignalCount <= 4
         ? "Promising signal. You have a workable intake; one more detail would make the first brief more specific."
         : "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.";
   const titleIdForStep = (stepNumber: number) => `${dialogId}-title-${stepNumber}`;
@@ -162,6 +178,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     url,
     targetUser,
     mainUncertainty,
+    problemSolved,
   });
 
   const clearSelectedStarter = () => {
@@ -176,6 +193,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
       setUrl(initialIntake?.url?.trim() ?? "");
       setTargetUser(initialIntake?.targetUser?.trim() ?? "");
       setMainUncertainty(initialIntake?.mainUncertainty?.trim() ?? "");
+      setProblemSolved(initialIntake?.problemSolved?.trim() ?? "");
       setSelectedStarterIndex(null);
       return;
     }
@@ -189,6 +207,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
     setUrl("");
     setTargetUser("");
     setMainUncertainty("");
+    setProblemSolved("");
     setSelectedStarterIndex(null);
     setIsLaunching(false);
   }, [initialIntake, open]);
@@ -278,6 +297,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
         url: url.trim(),
         targetUser: targetUser.trim(),
         mainUncertainty: mainUncertainty.trim(),
+        problemSolved: problemSolved.trim(),
       });
     } catch {
       // Re-enable the action if project creation fails and the modal remains open.
@@ -401,8 +421,8 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
               About Your Idea
             </h2>
             <p id={descriptionIdForStep(2)} className="mt-5 max-w-xl text-base leading-8 text-stone-600">
-              Start with one clear idea. Add a URL, target user, or the main uncertainty only if
-              they help sharpen the brief.
+              Start with one clear idea. Add a URL, target user, problem solved, or the main
+              uncertainty only if they help sharpen the brief.
             </p>
 
             <div className="mt-8 space-y-5">
@@ -435,6 +455,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                         setUrl(starter.url);
                         setTargetUser(starter.targetUser);
                         setMainUncertainty(starter.mainUncertainty);
+                        setProblemSolved(starter.problemSolved);
                       }}
                       className={`rounded-[24px] border p-4 text-left transition focus-visible:outline-none ${
                         isSelected
@@ -510,6 +531,20 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                 />
               </label>
 
+              <label className="block">
+                <span className="text-sm font-medium text-stone-700">Problem solved (optional)</span>
+                <textarea
+                  value={problemSolved}
+                  onChange={(event) => {
+                    clearSelectedStarter();
+                    setProblemSolved(event.target.value);
+                  }}
+                  placeholder="Founders cannot quickly turn interview notes and market links into one clear decision about what to validate next."
+                  rows={3}
+                  className="mt-2 w-full rounded-[24px] border border-stone-200 bg-white px-5 py-4 text-sm leading-7 text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-stone-400"
+                />
+              </label>
+
               <section
                 aria-label="Intake quality guide"
                 className="rounded-[28px] border border-stone-200/90 bg-[#f5efe5] p-5 sm:p-6"
@@ -520,7 +555,7 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                       Intake quality guide
                     </div>
                     <p className="mt-2 text-sm leading-6 text-stone-700">
-                      Rough completeness signal: {presentSignalCount} of 4 signals present.
+                      Rough completeness signal: {presentSignalCount} of 5 signals present.
                     </p>
                     <p className="mt-2 text-sm leading-6 text-stone-700">{intakeGuideSummary}</p>
                   </div>
@@ -528,9 +563,9 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                     aria-hidden="true"
                     className="rounded-full border border-stone-300 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-600"
                   >
-                    {presentSignalCount <= 1
+                    {presentSignalCount <= 2
                       ? "Early signal"
-                      : presentSignalCount <= 3
+                      : presentSignalCount <= 4
                         ? "Promising signal"
                         : "Strong signal"}
                   </div>
@@ -664,6 +699,14 @@ export default function OnboardingModal({ open, onComplete, onSkip, initialIntak
                   </div>
                   <p className="mt-2 text-sm leading-6 text-stone-600">
                     {mainUncertainty.trim() || "Not provided"}
+                  </p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Problem solved
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {problemSolved.trim() || "Not provided"}
                   </p>
                 </div>
               </div>

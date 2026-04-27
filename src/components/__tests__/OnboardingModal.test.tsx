@@ -12,12 +12,14 @@ function fillIntakeFields(overrides?: {
   url?: string;
   targetUser?: string;
   mainUncertainty?: string;
+  problemSolved?: string;
 }) {
   const intake = {
     primaryIdea: "An AI copilot for founder research.",
     url: "https://example.com",
     targetUser: "Seed-stage founders",
     mainUncertainty: "Whether they want one workspace.",
+    problemSolved: "Founders cannot turn scattered interview notes into one clear validation decision.",
     ...overrides,
   };
 
@@ -32,6 +34,9 @@ function fillIntakeFields(overrides?: {
   });
   fireEvent.change(screen.getByLabelText("Main uncertainty (optional)"), {
     target: { value: intake.mainUncertainty },
+  });
+  fireEvent.change(screen.getByLabelText("Problem solved (optional)"), {
+    target: { value: intake.problemSolved },
   });
 
   return intake;
@@ -93,7 +98,7 @@ describe("OnboardingModal", () => {
     moveToIdeaStep();
     expect(screen.getByLabelText("What are you thinking about building?")).toHaveFocus();
 
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("heading", { name: "Ready to Launch" })).toHaveFocus();
 
@@ -122,7 +127,7 @@ describe("OnboardingModal", () => {
     expect(screen.queryByRole("button", { name: "Get Started" })).not.toBeInTheDocument();
     expect(stepOneSection).toHaveAttribute("hidden");
 
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     const launchDialog = screen.getByRole("dialog", { name: "Ready to Launch" });
@@ -147,6 +152,7 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Target user (optional)")).toBeInTheDocument();
     expect(screen.getByLabelText("Main uncertainty (optional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Problem solved (optional)")).toBeInTheDocument();
   });
 
   it("shows the intake quality guide with missing signals by default", () => {
@@ -157,7 +163,7 @@ describe("OnboardingModal", () => {
     const guide = screen.getByRole("region", { name: "Intake quality guide" });
     const status = within(guide).getByRole("status");
 
-    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 5 signals present.");
     expect(status).toHaveTextContent("Early signal only.");
     expect(
       within(guide).getByText("More than a few words helps. Aim for at least 6 words."),
@@ -180,7 +186,7 @@ describe("OnboardingModal", () => {
     fireEvent.change(screen.getByLabelText("What are you thinking about building?"), {
       target: { value: "Founder research copilot" },
     });
-    expect(status).toHaveTextContent("Rough completeness signal: 0 of 4 signals present.");
+    expect(status).toHaveTextContent("Rough completeness signal: 0 of 5 signals present.");
     expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
       "Concrete idea or workflow: missing",
     );
@@ -192,8 +198,8 @@ describe("OnboardingModal", () => {
       target: { value: "Seed-stage founders" },
     });
 
-    expect(status).toHaveTextContent("Rough completeness signal: 2 of 4 signals present.");
-    expect(status).toHaveTextContent("Promising signal.");
+    expect(status).toHaveTextContent("Rough completeness signal: 2 of 5 signals present.");
+    expect(status).toHaveTextContent("Early signal");
     expect(within(guide).getByText("Concrete idea or workflow", { exact: false })).toHaveTextContent(
       "Concrete idea or workflow: present",
     );
@@ -203,7 +209,7 @@ describe("OnboardingModal", () => {
 
     fillIntakeFields();
 
-    expect(status).toHaveTextContent("Rough completeness signal: 4 of 4 signals present.");
+    expect(status).toHaveTextContent("Rough completeness signal: 5 of 5 signals present.");
     expect(status).toHaveTextContent("Strong signal.");
     expect(status).toHaveTextContent(
       "Strong signal. This looks complete enough for a more grounded first brief, but it is still only a rough intake check.",
@@ -252,6 +258,9 @@ describe("OnboardingModal", () => {
     );
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Is the biggest wedge missed appointments, or do clinic teams care more about reducing manual coordination across channels?",
+    );
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue(
+      "Clinic staff spend hours each week on manual scheduling follow-ups and no-show recovery.",
     );
     expect(clinicStarter).toHaveAttribute("aria-pressed", "true");
     expect(retailStarter).toHaveAttribute("aria-pressed", "false");
@@ -311,6 +320,9 @@ describe("OnboardingModal", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Whether they want one workspace.",
     );
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue(
+      "Founders cannot turn scattered interview notes into one clear validation decision.",
+    );
   });
 
   it("navigates from step 2 to step 3 with the intake summary shown", () => {
@@ -337,6 +349,7 @@ describe("OnboardingModal", () => {
     expect(within(summary!).getByText(intake.url)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.targetUser)).toBeInTheDocument();
     expect(within(summary!).getByText(intake.mainUncertainty)).toBeInTheDocument();
+    expect(within(summary!).getByText(intake.problemSolved)).toBeInTheDocument();
   });
 
   it("previews the first workspace handoff with personalized artifact copy", () => {
@@ -346,6 +359,7 @@ describe("OnboardingModal", () => {
     fillIntakeFields({
       targetUser: "Seed-stage founders",
       mainUncertainty: "Whether they want one workspace.",
+      problemSolved: "Founders cannot turn scattered interview notes into one clear validation decision.",
     });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -353,11 +367,13 @@ describe("OnboardingModal", () => {
 
     expect(within(handoff).getByText("First Workspace Handoff")).toBeInTheDocument();
     expect(
-      within(handoff).getByText("Use the workspace to sharpen your claim for Seed-stage founders."),
+      within(handoff).getByText(
+        'Use the workspace to sharpen your claim for Seed-stage founders around "Founders cannot turn scattered interview notes into one clear validation decision.".',
+      ),
     ).toBeInTheDocument();
     expect(
       within(handoff).getByText(
-        "Use the workspace to outline a customer research memo for Seed-stage founders, including early findings, contradictions, and next questions.",
+        'Use the workspace to outline a customer research memo for Seed-stage founders, focused on evidence that this problem is real and urgent: "Founders cannot turn scattered interview notes into one clear validation decision.".',
       ),
     ).toBeInTheDocument();
     expect(
@@ -371,7 +387,7 @@ describe("OnboardingModal", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     const handoff = screen.getByLabelText("What happens next");
@@ -430,6 +446,7 @@ describe("OnboardingModal", () => {
       url: "https://example.com",
       targetUser: "Seed-stage founders",
       mainUncertainty: "Whether they want one workspace.",
+      problemSolved: "Founders cannot turn scattered interview notes into one clear validation decision.",
     });
   });
 
@@ -544,7 +561,7 @@ describe("OnboardingModal", () => {
     expect(screen.getByRole("heading", { name: "Welcome to AI Cofounder" })).toBeInTheDocument();
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
@@ -563,7 +580,7 @@ describe("OnboardingModal", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
@@ -585,17 +602,17 @@ describe("OnboardingModal", () => {
     render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    expect(screen.getAllByText("Not provided")).toHaveLength(3);
+    expect(screen.getAllByText("Not provided")).toHaveLength(4);
   });
 
   it("resets to the first step when reopened", () => {
     const { rerender } = render(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
 
     moveToIdeaStep();
-    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "" });
+    fillIntakeFields({ url: "", targetUser: "", mainUncertainty: "", problemSolved: "" });
 
     rerender(<OnboardingModal open={false} onComplete={onComplete} onSkip={onSkip} />);
     rerender(<OnboardingModal open onComplete={onComplete} onSkip={onSkip} />);
