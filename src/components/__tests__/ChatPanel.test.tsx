@@ -64,11 +64,19 @@ const validationCreateModeStarters = [
   "What assumptions should we validate before locking any scores?",
   "Draft the next validation step that would most reduce risk.",
 ];
+const validationCreateModeCues = [
+  "Intent: Evidence baseline",
+  "Why this helps: locks in what is already proven before adding new assumptions.",
+];
 
 const memoFollowUpStarters = [
   "What contradictions in this memo need to be resolved first?",
   "Which missing evidence would most improve this memo?",
   "Turn these findings into the next customer interview plan.",
+];
+const memoFollowUpCues = [
+  "Intent: Contradiction triage",
+  "Why this helps: clears the biggest conflict blocking action from this memo.",
 ];
 
 type RenderOptions = {
@@ -264,6 +272,37 @@ describe("ChatPanel", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("shows compact intent and why cues for validation scorecard starters in create mode", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      for (const cue of validationCreateModeCues) {
+        expect(screen.getByText(cue)).toBeInTheDocument();
+      }
+    });
+
+    it("links each starter button to its visible intent/why cues with aria-describedby", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      const starterButton = screen.getByRole("button", { name: validationCreateModeStarters[0] });
+      const describedBy = starterButton.getAttribute("aria-describedby");
+
+      expect(describedBy).toBeTruthy();
+      const describedByIds = describedBy!.split(" ");
+      expect(describedByIds).toHaveLength(2);
+
+      const [categoryCue, reasonCue] = describedByIds.map((id) => document.getElementById(id));
+      expect(categoryCue).toHaveTextContent("Intent: Evidence baseline");
+      expect(reasonCue).toHaveTextContent(
+        "Why this helps: locks in what is already proven before adding new assumptions.",
+      );
+    });
+
     it("omits optional action controls when research callbacks are not provided", () => {
       renderChatPanel({
         onResearch: undefined,
@@ -294,6 +333,19 @@ describe("ChatPanel", () => {
       expect(
         screen.queryByRole("button", { name: validationCreateModeStarters[0] }),
       ).not.toBeInTheDocument();
+    });
+
+    it("shows compact intent and why cues for memo starters in follow-up mode", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+
+      for (const cue of memoFollowUpCues) {
+        expect(screen.getByText(cue)).toBeInTheDocument();
+      }
     });
   });
 
@@ -396,6 +448,20 @@ describe("ChatPanel", () => {
 
       expect(textarea).toHaveValue(validationCreateModeStarters[1]);
       expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
+    it("clicking a starter seeds only the prompt text (not cue text) into the textarea", () => {
+      renderChatPanel();
+      const textarea = screen.getByPlaceholderText(
+        "Add evidence, scores, or next validation checks for the scorecard...",
+      );
+      const prompt = validationCreateModeStarters[0];
+
+      fireEvent.click(screen.getByRole("button", { name: prompt }));
+
+      expect(textarea).toHaveValue(prompt);
+      expect(textarea).not.toHaveValue(expect.stringContaining("Intent:"));
+      expect(textarea).not.toHaveValue(expect.stringContaining("Why this helps:"));
     });
 
     it("shows the typing indicator when isLoading is true", () => {
