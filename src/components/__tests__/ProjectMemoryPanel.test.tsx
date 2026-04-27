@@ -34,6 +34,19 @@ describe("ProjectMemoryPanel", () => {
         "This is workspace-level memory promoted from saved artifacts, so you can inspect what carries across runs instead of only what belongs to the active artifact.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("memory-loop-guidance")).toBeInTheDocument();
+    expect(screen.getByText("Workspace memory loop")).toBeInTheDocument();
+    const guidanceList = within(screen.getByTestId("memory-loop-guidance")).getByRole("list");
+    expect(within(guidanceList).getAllByRole("listitem")).toHaveLength(4);
+    expect(screen.getByText("Capture evidence")).toBeInTheDocument();
+    expect(screen.getByText("Promote durable facts")).toBeInTheDocument();
+    expect(screen.getByText("Reuse in follow-ups")).toBeInTheDocument();
+    expect(screen.getByText("Verify before decisions")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Saved artifact evidence becomes future workspace context across runs. Generate or refine artifacts first, then promote what should persist for future follow-ups.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "No workspace memory has been promoted yet. Generate or refine artifacts like the validation scorecard and customer research memo, and reusable facts will appear here with their source references across future runs.",
@@ -170,6 +183,13 @@ describe("ProjectMemoryPanel", () => {
     });
 
     render(<ProjectMemoryPanel project={project} />);
+
+    expect(screen.getByTestId("memory-loop-guidance")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Saved artifact evidence becomes future workspace context across runs. Reuse these saved facts in the next artifact follow-up, then verify anything still tentative before making a decision.",
+      ),
+    ).toBeInTheDocument();
 
     const icpBucket = screen.getByTestId("memory-bucket-icp");
     expect(within(icpBucket).getByText("Best-fit buyer")).toBeInTheDocument();
