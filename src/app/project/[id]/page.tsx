@@ -121,6 +121,21 @@ function formatCompactCount(completed: number, total: number) {
   return `${completed}/${total} done`;
 }
 
+const SCORECARD_EVIDENCE_PROMPTS = [
+  {
+    label: "Problem urgency",
+    question: "What happened in the last 30 days that shows this problem is painful enough to solve now?",
+  },
+  {
+    label: "Buyer evidence",
+    question: "Who is the likely buyer, and what quote, action, or commitment proves they value this outcome?",
+  },
+  {
+    label: "Next experiment/decision",
+    question: "What is the next validation test, and what result will make you continue, adjust, or stop?",
+  },
+];
+
 function getSafeReferenceUrl(rawValue: string) {
   const value = rawValue.trim();
 
@@ -361,16 +376,20 @@ function ValidationScorecardPanel({ artifact }: { artifact: ValidationScorecardA
             <p className="text-sm leading-6 text-stone-600">
               No validation criteria yet. Start using this scorecard to capture the strongest signal, biggest risk, and next validation move.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {["Problem urgency", "Evidence quality", "Willingness to pay"].map((prompt) => (
-                <span
-                  key={prompt}
-                  className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium text-stone-700"
-                >
-                  {prompt}
-                </span>
-              ))}
-            </div>
+            <section
+              aria-label="Scorecard evidence prompts"
+              className="rounded-2xl border border-stone-200 bg-white p-4"
+            >
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Scorecard evidence prompts</h3>
+              <ul className="mt-3 space-y-3">
+                {SCORECARD_EVIDENCE_PROMPTS.map((prompt) => (
+                  <li key={prompt.label}>
+                    <p className="text-sm font-medium text-stone-800">{prompt.label}</p>
+                    <p className="mt-1 text-sm leading-6 text-stone-600">{prompt.question}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
         )}
       </div>

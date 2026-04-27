@@ -1030,7 +1030,8 @@ describe("ProjectWorkspacePage", () => {
         "No validation criteria yet. Start using this scorecard to capture the strongest signal, biggest risk, and next validation move.",
       )[0],
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Problem urgency")[0]).toBeInTheDocument();
+    const scorecardEvidencePrompts = screen.getAllByRole("region", { name: "Scorecard evidence prompts" })[0];
+    expect(within(scorecardEvidencePrompts).getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getAllByTestId("chat-artifact-label")[0]).toHaveTextContent("Validation scorecard");
     expect(screen.getAllByTestId("chat-artifact-type")[0]).toHaveTextContent("validation-scorecard");
     expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("create");
@@ -1866,6 +1867,44 @@ describe("ProjectWorkspacePage", () => {
 
     expect(screen.getAllByTestId("chat-artifact-mode")[0]).toHaveTextContent("create");
     expect(screen.getAllByTestId("chat-artifact-chat-mode")[0]).toHaveTextContent("create");
+  });
+
+  it("does not show scorecard evidence prompts when validation criteria already exist", async () => {
+    mockGetProject.mockResolvedValue(
+      makeProject({
+        artifacts: [
+          {
+            id: "artifact-validation-scorecard",
+            type: "validation-scorecard",
+            title: "Validation scorecard",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            summary: "Demand looks real.",
+            criteria: [
+              {
+                id: "criterion-1",
+                label: "Problem urgency",
+                score: 4,
+                notes: "Three founders reported active churn tied to this pain.",
+              },
+            ],
+          },
+          {
+            id: "artifact-customer-research-memo",
+            type: "customer-research-memo",
+            title: "Customer research memo",
+            updatedAt: "2025-01-10T00:00:00.000Z",
+            research: null,
+          },
+        ],
+        activeArtifactId: "artifact-validation-scorecard",
+      }),
+    );
+
+    render(<ProjectWorkspacePage />);
+
+    await screen.findAllByTestId("chat-panel");
+
+    expect(screen.queryByRole("region", { name: "Scorecard evidence prompts" })).not.toBeInTheDocument();
   });
 
   it("shows refine mode in the workspace header when the active artifact is populated", async () => {
