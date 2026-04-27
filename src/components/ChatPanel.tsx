@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
@@ -24,6 +24,12 @@ type ChatPanelProps = {
   className?: string;
 };
 
+type StarterPrompt = {
+  prompt: string;
+  category: string;
+  reason: string;
+};
+
 export default function ChatPanel({
   messages,
   phases,
@@ -45,6 +51,7 @@ export default function ChatPanel({
   const [draft, setDraft] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const messagesRegionRef = useRef<HTMLDivElement | null>(null);
+  const starterCueIdPrefix = useId();
 
   const activePhase = useMemo(
     () => phases.find((phase) => phase.id === activePhaseId) ?? phases[0],
@@ -82,31 +89,79 @@ export default function ChatPanel({
       ? "Ask about scorecard"
       : "Update scorecard";
   const modeLabel = isFollowUpMode ? "Artifact follow-up" : "Create mode";
-  const starterPrompts = useMemo(() => {
+  const starterPrompts = useMemo<StarterPrompt[]>(() => {
     if (isResearchMemoActive) {
       return isFollowUpMode
         ? [
-            "What contradictions in this memo need to be resolved first?",
-            "Which missing evidence would most improve this memo?",
-            "Turn these findings into the next customer interview plan.",
+            {
+              prompt: "What contradictions in this memo need to be resolved first?",
+              category: "Intent: Contradiction triage",
+              reason: "Why this helps: clears the biggest conflict blocking action from this memo.",
+            },
+            {
+              prompt: "Which missing evidence would most improve this memo?",
+              category: "Intent: Evidence gap",
+              reason: "Why this helps: focuses the next research step on the highest-leverage blind spot.",
+            },
+            {
+              prompt: "Turn these findings into the next customer interview plan.",
+              category: "Intent: Research execution",
+              reason: "Why this helps: converts memo insights into specific interviews you can run now.",
+            },
           ]
         : [
-            "Summarize the strongest customer signals we should capture in this memo.",
-            "What open questions should guide the next round of interviews?",
-            "Draft the next research move that would sharpen this memo fastest.",
+            {
+              prompt: "Summarize the strongest customer signals we should capture in this memo.",
+              category: "Intent: Signal synthesis",
+              reason: "Why this helps: anchors the memo on the highest-confidence patterns first.",
+            },
+            {
+              prompt: "What open questions should guide the next round of interviews?",
+              category: "Intent: Interview focus",
+              reason: "Why this helps: keeps upcoming interviews targeted on unresolved decisions.",
+            },
+            {
+              prompt: "Draft the next research move that would sharpen this memo fastest.",
+              category: "Intent: Priority move",
+              reason: "Why this helps: identifies the fastest path to increase memo quality and confidence.",
+            },
           ];
     }
 
     return isFollowUpMode
       ? [
-          "What score in this scorecard needs the strongest challenge right now?",
-          "Which evidence gap is keeping this scorecard from being decision-ready?",
-          "Turn this scorecard into the next validation experiment plan.",
+          {
+            prompt: "What score in this scorecard needs the strongest challenge right now?",
+            category: "Intent: Score challenge",
+            reason: "Why this helps: stress-tests the weakest-scored claim before you commit resources.",
+          },
+          {
+            prompt: "Which evidence gap is keeping this scorecard from being decision-ready?",
+            category: "Intent: Evidence gap",
+            reason: "Why this helps: surfaces the missing proof blocking a clear go/no-go decision.",
+          },
+          {
+            prompt: "Turn this scorecard into the next validation experiment plan.",
+            category: "Intent: Experiment planning",
+            reason: "Why this helps: translates current scores into concrete validation actions.",
+          },
         ]
       : [
-          "Summarize the strongest evidence we already have for this scorecard.",
-          "What assumptions should we validate before locking any scores?",
-          "Draft the next validation step that would most reduce risk.",
+          {
+            prompt: "Summarize the strongest evidence we already have for this scorecard.",
+            category: "Intent: Evidence baseline",
+            reason: "Why this helps: locks in what is already proven before adding new assumptions.",
+          },
+          {
+            prompt: "What assumptions should we validate before locking any scores?",
+            category: "Intent: Assumption check",
+            reason: "Why this helps: prevents premature scoring by exposing high-risk unknowns early.",
+          },
+          {
+            prompt: "Draft the next validation step that would most reduce risk.",
+            category: "Intent: Risk reduction",
+            reason: "Why this helps: prioritizes the single next action with the biggest downside reduction.",
+          },
         ];
   }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
@@ -217,17 +272,30 @@ export default function ChatPanel({
             Use one to seed the freeform composer without sending immediately.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {starterPrompts.map((starter) => (
-              <button
-                key={starter}
-                type="button"
-                onClick={() => setDraft(starter)}
-                disabled={isLoading}
-                className="rounded-full border border-stone-200 bg-white px-3 py-2 text-left text-sm leading-5 text-stone-700 transition hover:border-stone-300 hover:text-stone-900 disabled:cursor-not-allowed disabled:text-stone-400"
-              >
-                {starter}
-              </button>
-            ))}
+            {starterPrompts.map((starter, index) => {
+              const categoryId = `${starterCueIdPrefix}-starter-${index}-category`;
+              const reasonId = `${starterCueIdPrefix}-starter-${index}-reason`;
+
+              return (
+                <button
+                  key={starter.prompt}
+                  type="button"
+                  onClick={() => setDraft(starter.prompt)}
+                  disabled={isLoading}
+                  aria-label={starter.prompt}
+                  aria-describedby={`${categoryId} ${reasonId}`}
+                  className="max-w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-left text-sm leading-5 text-stone-700 transition hover:border-stone-300 hover:text-stone-900 disabled:cursor-not-allowed disabled:text-stone-400"
+                >
+                  <div className="font-medium text-stone-800">{starter.prompt}</div>
+                  <div id={categoryId} className="mt-1 text-[11px] uppercase tracking-[0.08em] text-stone-500">
+                    {starter.category}
+                  </div>
+                  <div id={reasonId} className="text-[11px] leading-4 text-stone-500">
+                    {starter.reason}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-4">
