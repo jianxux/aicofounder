@@ -198,4 +198,89 @@ describe("UltraplanReport", () => {
       expect(screen.getByText(`${action.timelineHours}h`)).toBeInTheDocument();
     });
   });
+
+  it("renders action plan snapshot region", () => {
+    renderUltraplanReport();
+
+    expect(screen.getByRole("region", { name: "Action plan snapshot" })).toBeInTheDocument();
+  });
+
+  it("derives snapshot metrics", () => {
+    const result = createResult();
+    renderUltraplanReport(result);
+
+    expect(screen.getByText("11h total")).toBeInTheDocument();
+    expect(screen.getByText("2 high-impact actions")).toBeInTheDocument();
+  });
+
+  it("pluralizes high-impact action metric label", () => {
+    renderUltraplanReport({
+      ...createResult(),
+      actions: [
+        {
+          id: "action-only-high-impact",
+          title: "One high impact action",
+          description: "Only one action is high-impact.",
+          effort: "low",
+          impact: "high",
+          timelineHours: 1,
+        },
+        {
+          id: "action-not-high-impact",
+          title: "Not high impact action",
+          description: "This action is medium impact.",
+          effort: "low",
+          impact: "medium",
+          timelineHours: 1,
+        },
+      ],
+    });
+
+    expect(screen.getByText("1 high-impact action")).toBeInTheDocument();
+  });
+
+  it("uses unique action plan snapshot heading ids across multiple reports", () => {
+    const { container } = render(
+      <>
+        <UltraplanReport result={createResult()} />
+        <UltraplanReport result={createResult()} />
+      </>,
+    );
+
+    const regions = screen.getAllByRole("region", { name: "Action plan snapshot" });
+    expect(regions).toHaveLength(2);
+
+    const headingIds = regions.map((region) => {
+      const heading = region.querySelector("h3");
+      expect(heading).not.toBeNull();
+      expect(heading?.textContent).toBe("Action plan snapshot");
+      expect(heading?.id).toBeTruthy();
+      expect(region).toHaveAttribute("aria-labelledby", heading?.id);
+      return heading?.id ?? "";
+    });
+
+    expect(new Set(headingIds).size).toBe(2);
+
+    headingIds.forEach((id) => {
+      expect(container.querySelectorAll(`h3#${id}`)).toHaveLength(1);
+    });
+  });
+
+  it("selects the next lowest-effort action", () => {
+    renderUltraplanReport();
+
+    expect(screen.getByText("Start with: Add qualification questions (2h)")).toBeInTheDocument();
+  });
+
+  it("handles empty actions in snapshot gracefully", () => {
+    renderUltraplanReport({
+      ...createResult(),
+      actions: [],
+    });
+
+    expect(screen.getByText("0h total")).toBeInTheDocument();
+    expect(screen.getByText("0 high-impact actions")).toBeInTheDocument();
+    expect(screen.getByText("Start with: No actions yet")).toBeInTheDocument();
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
+  });
 });
