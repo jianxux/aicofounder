@@ -16,6 +16,7 @@ const BLOCK_OPTIONS: Array<{ type: WebsiteBlockType; label: string }> = [
   { type: "features", label: "Features" },
   { type: "cta", label: "CTA" },
   { type: "text", label: "Text" },
+  { type: "lead_capture", label: "Lead Capture" },
 ];
 
 function createBlock(type: WebsiteBlockType): WebsiteBlock {
@@ -47,6 +48,16 @@ function createBlock(type: WebsiteBlockType): WebsiteBlock {
       heading: "Ready to validate demand?",
       body: "Invite visitors to book a call, join a waitlist, or try the product.",
       buttonText: "Join waitlist",
+    };
+  }
+
+  if (type === "lead_capture") {
+    return {
+      id,
+      type,
+      heading: "Get qualified enquiries in your inbox",
+      body: "Collect project goals, timeline, and contact details so you can follow up with high-intent leads.",
+      buttonText: "Send enquiry",
     };
   }
 
@@ -232,6 +243,45 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
                         <button
                           type="button"
                           className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900"
+                        >
+                          {block.buttonText}
+                        </button>
+                      ) : null}
+                    </section>
+                  );
+                }
+
+                if (block.type === "lead_capture") {
+                  return (
+                    <section key={block.id} className="mt-5 rounded-[24px] border border-stone-200 bg-[#f8f5ef] px-5 py-6">
+                      <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">{block.body}</p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Work email"
+                          aria-label="Lead capture email"
+                          className="rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-500"
+                        />
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="Company website"
+                          aria-label="Lead capture website"
+                          className="rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-500"
+                        />
+                      </div>
+                      <textarea
+                        disabled
+                        aria-label="Lead capture enquiry"
+                        placeholder="Tell us what you're trying to launch and by when"
+                        className="mt-3 min-h-24 w-full resize-none rounded-2xl border border-stone-200 bg-white px-3 py-2 text-sm leading-6 text-stone-500"
+                      />
+                      {block.buttonText ? (
+                        <button
+                          type="button"
+                          className="mt-4 rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white"
                         >
                           {block.buttonText}
                         </button>

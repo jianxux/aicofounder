@@ -52,7 +52,7 @@ function asWebsiteBlocks(value: unknown): WebsiteBlock[] {
 
     const type = block.type;
 
-    if (type !== "hero" && type !== "features" && type !== "cta" && type !== "text") {
+    if (type !== "hero" && type !== "features" && type !== "cta" && type !== "text" && type !== "lead_capture") {
       return [];
     }
 
