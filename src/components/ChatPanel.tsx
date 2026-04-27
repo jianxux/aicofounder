@@ -86,27 +86,63 @@ export default function ChatPanel({
     if (isResearchMemoActive) {
       return isFollowUpMode
         ? [
-            "What contradictions in this memo need to be resolved first?",
-            "Which missing evidence would most improve this memo?",
-            "Turn these findings into the next customer interview plan.",
+            {
+              label: "Contradiction scan",
+              prompt: "What contradictions in this memo need to be resolved first?",
+            },
+            {
+              label: "Proof gap",
+              prompt: "Which missing evidence would most improve this memo?",
+            },
+            {
+              label: "Interview plan",
+              prompt: "Turn these findings into the next customer interview plan.",
+            },
           ]
         : [
-            "Summarize the strongest customer signals we should capture in this memo.",
-            "What open questions should guide the next round of interviews?",
-            "Draft the next research move that would sharpen this memo fastest.",
+            {
+              label: "Evidence check",
+              prompt: "Summarize the strongest customer signals we should capture in this memo.",
+            },
+            {
+              label: "Assumption scan",
+              prompt: "What open questions should guide the next round of interviews?",
+            },
+            {
+              label: "Experiment plan",
+              prompt: "Draft the next research move that would sharpen this memo fastest.",
+            },
           ];
     }
 
     return isFollowUpMode
       ? [
-          "What score in this scorecard needs the strongest challenge right now?",
-          "Which evidence gap is keeping this scorecard from being decision-ready?",
-          "Turn this scorecard into the next validation experiment plan.",
+          {
+            label: "Score challenge",
+            prompt: "What score in this scorecard needs the strongest challenge right now?",
+          },
+          {
+            label: "Proof gap",
+            prompt: "Which evidence gap is keeping this scorecard from being decision-ready?",
+          },
+          {
+            label: "Experiment plan",
+            prompt: "Turn this scorecard into the next validation experiment plan.",
+          },
         ]
       : [
-          "Summarize the strongest evidence we already have for this scorecard.",
-          "What assumptions should we validate before locking any scores?",
-          "Draft the next validation step that would most reduce risk.",
+          {
+            label: "Evidence check",
+            prompt: "Summarize the strongest evidence we already have for this scorecard.",
+          },
+          {
+            label: "Assumption scan",
+            prompt: "What assumptions should we validate before locking any scores?",
+          },
+          {
+            label: "Risk reducer",
+            prompt: "Draft the next validation step that would most reduce risk.",
+          },
         ];
   }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
@@ -211,7 +247,7 @@ export default function ChatPanel({
         ) : null}
         <div className="mb-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Starter prompts for {activeArtifactLabel}
+            Prompt library for {activeArtifactLabel}
           </div>
           <p className="mt-2 text-xs leading-5 text-stone-600">
             Use one to seed the freeform composer without sending immediately.
@@ -219,13 +255,17 @@ export default function ChatPanel({
           <div className="mt-3 flex flex-wrap gap-2">
             {starterPrompts.map((starter) => (
               <button
-                key={starter}
+                key={starter.prompt}
                 type="button"
-                onClick={() => setDraft(starter)}
+                onClick={() => setDraft(starter.prompt)}
                 disabled={isLoading}
+                aria-label={`${starter.label}: ${starter.prompt}`}
                 className="rounded-full border border-stone-200 bg-white px-3 py-2 text-left text-sm leading-5 text-stone-700 transition hover:border-stone-300 hover:text-stone-900 disabled:cursor-not-allowed disabled:text-stone-400"
               >
-                {starter}
+                <span className="mb-1 inline-flex rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-600">
+                  {starter.label}
+                </span>
+                <span className="block">{starter.prompt}</span>
               </button>
             ))}
           </div>

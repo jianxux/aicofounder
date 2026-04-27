@@ -64,12 +64,29 @@ const validationCreateModeStarters = [
   "What assumptions should we validate before locking any scores?",
   "Draft the next validation step that would most reduce risk.",
 ];
+const validationCreateModeLabels = ["Evidence check", "Assumption scan", "Risk reducer"];
+const validationFollowUpStarters = [
+  "What score in this scorecard needs the strongest challenge right now?",
+  "Which evidence gap is keeping this scorecard from being decision-ready?",
+  "Turn this scorecard into the next validation experiment plan.",
+];
+const validationFollowUpLabels = ["Score challenge", "Proof gap", "Experiment plan"];
+
+const memoCreateModeStarters = [
+  "Summarize the strongest customer signals we should capture in this memo.",
+  "What open questions should guide the next round of interviews?",
+  "Draft the next research move that would sharpen this memo fastest.",
+];
+const memoCreateModeLabels = ["Evidence check", "Assumption scan", "Experiment plan"];
 
 const memoFollowUpStarters = [
   "What contradictions in this memo need to be resolved first?",
   "Which missing evidence would most improve this memo?",
   "Turn these findings into the next customer interview plan.",
 ];
+const memoFollowUpLabels = ["Contradiction scan", "Proof gap", "Interview plan"];
+
+const starterButtonName = (label: string, prompt: string) => `${label}: ${prompt}`;
 
 type RenderOptions = {
   messages?: ChatMessage[];
@@ -255,12 +272,20 @@ describe("ChatPanel", () => {
         activeArtifactChatMode: "create",
       });
 
-      for (const starter of validationCreateModeStarters) {
-        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      for (const [index, starter] of validationCreateModeStarters.entries()) {
+        expect(
+          screen.getByRole("button", { name: starterButtonName(validationCreateModeLabels[index], starter) }),
+        ).toBeInTheDocument();
+      }
+
+      for (const label of validationCreateModeLabels) {
+        expect(screen.getByText(label)).toBeInTheDocument();
       }
 
       expect(
-        screen.queryByRole("button", { name: memoFollowUpStarters[0] }),
+        screen.queryByRole("button", {
+          name: starterButtonName(memoFollowUpLabels[0], memoFollowUpStarters[0]),
+        }),
       ).not.toBeInTheDocument();
     });
 
@@ -270,8 +295,10 @@ describe("ChatPanel", () => {
         onUltraplan: undefined,
       });
 
-      for (const starter of validationCreateModeStarters) {
-        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      for (const [index, starter] of validationCreateModeStarters.entries()) {
+        expect(
+          screen.getByRole("button", { name: starterButtonName(validationCreateModeLabels[index], starter) }),
+        ).toBeInTheDocument();
       }
 
       expect(screen.queryByRole("button", { name: /update customer research memo/i })).not.toBeInTheDocument();
@@ -287,13 +314,57 @@ describe("ChatPanel", () => {
         activeArtifactChatMode: "artifact-follow-up",
       });
 
-      for (const starter of memoFollowUpStarters) {
-        expect(screen.getByRole("button", { name: starter })).toBeInTheDocument();
+      for (const [index, starter] of memoFollowUpStarters.entries()) {
+        expect(
+          screen.getByRole("button", { name: starterButtonName(memoFollowUpLabels[index], starter) }),
+        ).toBeInTheDocument();
+      }
+
+      for (const label of memoFollowUpLabels) {
+        expect(screen.getByText(label)).toBeInTheDocument();
       }
 
       expect(
-        screen.queryByRole("button", { name: validationCreateModeStarters[0] }),
+        screen.queryByRole("button", {
+          name: starterButtonName(validationCreateModeLabels[0], validationCreateModeStarters[0]),
+        }),
       ).not.toBeInTheDocument();
+    });
+
+    it("shows validation-scorecard follow-up starter prompts with cue labels", () => {
+      renderChatPanel({
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+
+      for (const [index, starter] of validationFollowUpStarters.entries()) {
+        expect(
+          screen.getByRole("button", { name: starterButtonName(validationFollowUpLabels[index], starter) }),
+        ).toBeInTheDocument();
+      }
+
+      for (const label of validationFollowUpLabels) {
+        expect(screen.getByText(label)).toBeInTheDocument();
+      }
+    });
+
+    it("shows customer research memo create starter prompts with cue labels", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      for (const [index, starter] of memoCreateModeStarters.entries()) {
+        expect(
+          screen.getByRole("button", { name: starterButtonName(memoCreateModeLabels[index], starter) }),
+        ).toBeInTheDocument();
+      }
+
+      for (const label of memoCreateModeLabels) {
+        expect(screen.getByText(label)).toBeInTheDocument();
+      }
     });
   });
 
@@ -392,7 +463,11 @@ describe("ChatPanel", () => {
         "Add evidence, scores, or next validation checks for the scorecard...",
       );
 
-      fireEvent.click(screen.getByRole("button", { name: validationCreateModeStarters[1] }));
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: starterButtonName(validationCreateModeLabels[1], validationCreateModeStarters[1]),
+        }),
+      );
 
       expect(textarea).toHaveValue(validationCreateModeStarters[1]);
       expect(onSendMessage).not.toHaveBeenCalled();
@@ -420,7 +495,9 @@ describe("ChatPanel", () => {
     it("disables starter prompt interactions while loading", () => {
       const { onSendMessage } = renderChatPanel({ isLoading: true });
 
-      const starter = screen.getByRole("button", { name: validationCreateModeStarters[0] });
+      const starter = screen.getByRole("button", {
+        name: starterButtonName(validationCreateModeLabels[0], validationCreateModeStarters[0]),
+      });
       const textarea = screen.getByPlaceholderText(
         "Add evidence, scores, or next validation checks for the scorecard...",
       );
