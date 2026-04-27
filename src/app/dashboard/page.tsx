@@ -81,6 +81,18 @@ function formatProgressSummary(progress: ReturnType<typeof getProjectTaskProgres
   return `${completedTaskCount} of ${totalTaskCount} tasks complete • ${percentComplete}% complete`;
 }
 
+function formatDigestAction(progress: ReturnType<typeof getProjectTaskProgress>) {
+  if (progress.nextTask) {
+    return `Next action: ${progress.nextTask.label}`;
+  }
+
+  if (progress.isComplete) {
+    return "All tasks complete.";
+  }
+
+  return "Zero tasks yet.";
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -224,6 +236,8 @@ export default function DashboardPage() {
           {projects.map((project) => {
             const taskProgress = getProjectTaskProgress(project);
             const progressSummary = formatProgressSummary(taskProgress);
+            const digestAction = formatDigestAction(taskProgress);
+            const formattedUpdatedDate = formatDate(project.updatedAt);
 
             return (
               <Link
@@ -247,10 +261,23 @@ export default function DashboardPage() {
                       <p className="text-stone-500">All tasks complete.</p>
                     ) : null}
                   </div>
+                  <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50/80 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-700">
+                      Founder update / weekly decision digest
+                    </p>
+                    <p className="mt-2 text-xs leading-6 text-stone-600">
+                      Packages scattered signals into a shareable update so your next decision is easy to share.
+                    </p>
+                    <p className="mt-2 text-xs leading-6 text-stone-700">
+                      {project.notes.length} notes • {taskProgress.percentComplete}% progress • Updated{" "}
+                      {formattedUpdatedDate}
+                    </p>
+                    <p className="text-xs leading-6 text-stone-700">{digestAction}</p>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-sm text-stone-500">
                   <span>{project.notes.length} notes</span>
-                  <span>Updated {formatDate(project.updatedAt)}</span>
+                  <span>Updated {formattedUpdatedDate}</span>
                 </div>
               </Link>
             );
