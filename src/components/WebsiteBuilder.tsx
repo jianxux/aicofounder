@@ -14,6 +14,7 @@ type WebsiteBuilderProps = {
 const BLOCK_OPTIONS: Array<{ type: WebsiteBlockType; label: string }> = [
   { type: "hero", label: "Hero" },
   { type: "features", label: "Features" },
+  { type: "proof", label: "Proof" },
   { type: "cta", label: "CTA" },
   { type: "text", label: "Text" },
 ];
@@ -47,6 +48,15 @@ function createBlock(type: WebsiteBlockType): WebsiteBlock {
       heading: "Ready to validate demand?",
       body: "Invite visitors to book a call, join a waitlist, or try the product.",
       buttonText: "Join waitlist",
+    };
+  }
+
+  if (type === "proof") {
+    return {
+      id,
+      type,
+      heading: "Trusted proof that reduces buyer hesitation",
+      body: "Trusted by 250+ startup teams\nFeatured in Product Hunt's top products\n4.9/5 onboarding satisfaction score",
     };
   }
 
@@ -236,6 +246,29 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
                           {block.buttonText}
                         </button>
                       ) : null}
+                    </section>
+                  );
+                }
+
+                if (block.type === "proof") {
+                  const proofItems = block.body
+                    .split("\n")
+                    .map((entry) => entry.trim())
+                    .filter(Boolean);
+
+                  return (
+                    <section key={block.id} className="mt-5 rounded-[24px] border border-stone-200 bg-[#f6f1e8] px-5 py-6">
+                      <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {proofItems.map((proof) => (
+                          <div
+                            key={proof}
+                            className="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-medium leading-6 text-stone-700 shadow-[0_1px_0_rgba(0,0,0,0.04)]"
+                          >
+                            {proof}
+                          </div>
+                        ))}
+                      </div>
                     </section>
                   );
                 }

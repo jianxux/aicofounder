@@ -304,7 +304,7 @@ describe("lib/types guards", () => {
     expect(types.isDocumentCardData(documentCard)).toBe(true);
   });
 
-  it.each(["hero", "features", "cta", "text"] as const)(
+  it.each(["hero", "features", "proof", "cta", "text"] as const)(
     "accepts %s as a valid website block type",
     (type) => {
       expect(types.isWebsiteBlockType(type)).toBe(true);
