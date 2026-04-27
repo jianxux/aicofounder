@@ -71,6 +71,9 @@ const memoFollowUpStarters = [
   "Turn these findings into the next customer interview plan.",
 ];
 
+const scorecardCreateGuideSubtitle = "Build a connected scorecard from the core validation inputs.";
+const memoFollowUpGuideSubtitle = "Tighten this memo with the highest-leverage missing proof.";
+
 type RenderOptions = {
   messages?: ChatMessage[];
   phases?: Phase[];
@@ -262,6 +265,37 @@ describe("ChatPanel", () => {
       expect(
         screen.queryByRole("button", { name: memoFollowUpStarters[0] }),
       ).not.toBeInTheDocument();
+    });
+
+    it("renders an evidence guide for validation scorecard create mode", () => {
+      renderChatPanel({
+        activeArtifactType: "validation-scorecard",
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      expect(screen.getByTestId("evidence-guide")).toBeInTheDocument();
+      expect(screen.getByText("Evidence guide")).toBeInTheDocument();
+      expect(screen.getByText(scorecardCreateGuideSubtitle)).toBeInTheDocument();
+      expect(screen.getByText("Create")).toBeInTheDocument();
+      expect(screen.getByText("Start with the idea, target customer, and problem you are validating.")).toBeInTheDocument();
+    });
+
+    it("updates the evidence guide content for customer research memo follow-up mode", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+
+      expect(screen.getByTestId("evidence-guide")).toBeInTheDocument();
+      expect(screen.getByText(memoFollowUpGuideSubtitle)).toBeInTheDocument();
+      expect(screen.getByText("Follow-up")).toBeInTheDocument();
+      expect(
+        screen.getByText("Centralize: add 1 new interview quote tied to a specific customer segment."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(scorecardCreateGuideSubtitle)).not.toBeInTheDocument();
     });
 
     it("omits optional action controls when research callbacks are not provided", () => {
