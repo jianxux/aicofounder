@@ -31,7 +31,14 @@ describe("Navbar", () => {
   it("keeps auth destinations on existing routes", () => {
     render(<Navbar redirectTo="/dashboard" />);
 
+    expect(screen.getByText("Free preview · no credit card")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
     expect(screen.getByTestId("auth-button")).toHaveAttribute("data-redirect-to", "/dashboard");
+  });
+
+  it("hides reassurance text when auth actions are disabled", () => {
+    render(<Navbar showAuth={false} />);
+
+    expect(screen.queryByText("Free preview · no credit card")).not.toBeInTheDocument();
   });
 });
