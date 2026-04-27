@@ -7,6 +7,7 @@ import {
   ARTIFACT_FOLLOW_UP_EDIT_EVENT,
   ARTIFACT_INTAKE_SUBMITTED_EVENT,
   WORKSPACE_ARTIFACT_SWITCHED_EVENT,
+  type ArtifactFlowMetrics,
   type AnalyticsEventRow,
   type AnalyticsRange,
   fetchAnalyticsEvents,
@@ -37,6 +38,17 @@ type BreakdownRow = {
   label: string;
   count: number;
 };
+
+type GuidanceRow = {
+  title: string;
+  signal: string;
+  recommendation: string;
+};
+
+const LOW_ARTIFACT_CREATION_RATE_THRESHOLD = 0.5;
+const LOW_FOLLOW_UP_EDIT_RATE_THRESHOLD = 0.5;
+const VALIDATION_SCORECARD_TYPE = "validation-scorecard";
+const CUSTOMER_RESEARCH_MEMO_TYPE = "customer-research-memo";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
@@ -131,6 +143,80 @@ function getBreakdownRows(items: string[]) {
     .slice(0, 6);
 }
 
+function getEventDataArtifactType(event: AnalyticsEventRow) {
+  const artifactType = event.data?.artifact_type;
+  return typeof artifactType === "string" && artifactType.trim().length > 0 ? artifactType.trim() : null;
+}
+
+function getFounderGuidanceRows(events: AnalyticsEventRow[], artifactFlow: ArtifactFlowMetrics) {
+  const intakeToArtifact: GuidanceRow = {
+    title: "Intake-to-artifact",
+    signal: "No onboarding samples yet.",
+    recommendation: "Collect onboarding samples to measure intake-to-artifact conversion.",
+  };
+
+  if (artifactFlow.artifactCreationRate !== null) {
+    intakeToArtifact.signal =
+      artifactFlow.artifactCreationRate < LOW_ARTIFACT_CREATION_RATE_THRESHOLD
+        ? "Artifact creation rate is low."
+        : "Artifact creation rate is healthy.";
+    intakeToArtifact.recommendation =
+      artifactFlow.artifactCreationRate < LOW_ARTIFACT_CREATION_RATE_THRESHOLD
+        ? "Inspect onboarding steps and project dropoff before artifact creation."
+        : "Intake conversion is stable and ready for deeper review.";
+  }
+
+  const followUpDepth: GuidanceRow = {
+    title: "Follow-up depth",
+    signal: "No generated artifacts yet.",
+    recommendation: "Generate artifacts first so follow-up depth can be measured.",
+  };
+
+  if (artifactFlow.followUpEditRate !== null) {
+    followUpDepth.signal =
+      artifactFlow.followUpEditRate < LOW_FOLLOW_UP_EDIT_RATE_THRESHOLD
+        ? "Follow-up edit rate is low."
+        : "Follow-up edit rate is healthy.";
+    followUpDepth.recommendation =
+      artifactFlow.followUpEditRate < LOW_FOLLOW_UP_EDIT_RATE_THRESHOLD
+        ? "Check whether generated artifacts clearly invite refinement."
+        : "Founders are returning to sharpen outputs.";
+  }
+
+  const artifactTypes = new Set(
+    events
+      .filter((event) => [ARTIFACT_CREATED_EVENT, WORKSPACE_ARTIFACT_SWITCHED_EVENT].includes(event.event))
+      .map(getEventDataArtifactType)
+      .filter((value): value is string => value !== null),
+  );
+  const hasValidationScorecard = artifactTypes.has(VALIDATION_SCORECARD_TYPE);
+  const hasCustomerResearchMemo = artifactTypes.has(CUSTOMER_RESEARCH_MEMO_TYPE);
+
+  const workspaceCoverage: GuidanceRow = {
+    title: "Workspace coverage / artifact mix",
+    signal: "No artifact type data yet.",
+    recommendation: "Create or switch artifacts to understand coverage across artifact types.",
+  };
+
+  if (artifactTypes.size > 0) {
+    if (hasValidationScorecard && hasCustomerResearchMemo) {
+      workspaceCoverage.signal = "Both core artifact types are represented.";
+      workspaceCoverage.recommendation = "Coverage includes validation-scorecard and customer-research-memo artifacts.";
+    } else if (hasValidationScorecard) {
+      workspaceCoverage.signal = "Coverage is missing customer-research-memo artifacts.";
+      workspaceCoverage.recommendation = "Add customer-research-memo outputs to expand evidence coverage.";
+    } else if (hasCustomerResearchMemo) {
+      workspaceCoverage.signal = "Coverage is missing validation-scorecard artifacts.";
+      workspaceCoverage.recommendation = "Add validation-scorecard outputs to expand evidence coverage.";
+    } else {
+      workspaceCoverage.signal = "Artifact mix is unknown.";
+      workspaceCoverage.recommendation = "Track validation-scorecard and customer-research-memo artifact_type values for coverage guidance.";
+    }
+  }
+
+  return [intakeToArtifact, followUpDepth, workspaceCoverage];
+}
+
 function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -191,12 +277,13 @@ export default function AnalyticsPage() {
     };
   }, [range]);
 
+  const artifactFlow = useMemo(() => getArtifactFlowMetrics(events), [events]);
+
   const metrics = useMemo<MetricCard[]>(() => {
     const totalPageViews = events.filter((event) => event.event === "page_view").length;
     const uniqueVisitors = new Set(events.map((event) => event.session_id)).size;
     const ctaClicks = events.filter((event) => event.event === "cta_click").length;
     const signupsAndLogins = events.filter((event) => event.event === "login_success").length;
-    const artifactFlow = getArtifactFlowMetrics(events);
 
     return [
       {
@@ -244,13 +331,14 @@ export default function AnalyticsPage() {
         helper: `Intentional ${WORKSPACE_ARTIFACT_SWITCHED_EVENT} events`,
       },
     ];
-  }, [events]);
+  }, [artifactFlow, events]);
 
   const dailyPageViews = useMemo(() => getLast14DaysPageViews(events), [events]);
   const topPages = useMemo(() => getBreakdownRows(events.filter((event) => event.event === "page_view").map(getPageLabel)), [events]);
   const topEvents = useMemo(() => getBreakdownRows(events.map((event) => event.event)), [events]);
   const deviceBreakdown = useMemo(() => getBreakdownRows(events.map(getDeviceLabel)), [events]);
   const recentEvents = useMemo(() => events.slice(0, 50), [events]);
+  const founderGuidanceRows = useMemo(() => getFounderGuidanceRows(events, artifactFlow), [artifactFlow, events]);
   const maxDailyCount = Math.max(...dailyPageViews.map((day) => day.count), 1);
   const configured = isAnalyticsConfigured();
 
@@ -343,6 +431,36 @@ export default function AnalyticsPage() {
           Intake conversion is measured per project or session that submitted onboarding. Follow-up edits are measured
           per created artifact.
         </p>
+
+        <section
+          aria-label="Founder decision guidance"
+          style={{
+            border: `1px solid ${CARD_BORDER}`,
+            background: CARD_BACKGROUND,
+            borderRadius: 24,
+            padding: 24,
+            marginTop: 16,
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Founder decision guidance</h2>
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            {founderGuidanceRows.map((row) => (
+              <article
+                key={row.title}
+                style={{
+                  border: `1px solid ${CARD_BORDER}`,
+                  borderRadius: 16,
+                  padding: 16,
+                  background: PAGE_BACKGROUND,
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{row.title}</h3>
+                <p style={{ margin: "8px 0 0", fontSize: 14, color: TEXT_PRIMARY }}>{row.signal}</p>
+                <p style={{ margin: "6px 0 0", fontSize: 14, color: TEXT_MUTED }}>{row.recommendation}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
         <div
           style={{
