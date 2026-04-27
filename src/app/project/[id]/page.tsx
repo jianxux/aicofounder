@@ -535,6 +535,14 @@ function ProjectSnapshotPanel({
             </div>
           ) : null}
         </div>
+        <div className="mt-3 rounded-2xl border border-stone-200 bg-white px-3 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Decision checklist</div>
+          <ul className="mt-2 space-y-2 text-sm leading-6 text-stone-700">
+            <li>Define customer and problem</li>
+            <li>Inspect evidence and proof gaps</li>
+            <li>Choose next experiment or action</li>
+          </ul>
+        </div>
       </div>
     </section>
   );
