@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import FrameworkTemplatePanel from "@/components/FrameworkTemplatePanel";
-import type { ResearchCitation, ResearchReport as ResearchReportData, ResearchSource } from "@/lib/research";
+import type {
+  ResearchCitation,
+  ResearchReport as ResearchReportData,
+  ResearchSource,
+  ResearchTrustEvidenceSummary,
+} from "@/lib/research";
 import type { ProjectResearchArtifact } from "@/lib/types";
 
 type ResearchReportProps = {
@@ -210,6 +215,30 @@ function getLatestFailure(artifact?: ProjectResearchArtifact) {
   const failures = artifact?.failures ?? [];
 
   return failures.length > 0 ? failures[failures.length - 1] : undefined;
+}
+
+function getSourceQualityNextStep(evidenceSummary: ResearchTrustEvidenceSummary) {
+  if (evidenceSummary.contradictionsCount > 0) {
+    return `Resolve ${evidenceSummary.contradictionsCount} contradiction${
+      evidenceSummary.contradictionsCount === 1 ? "" : "s"
+    } before committing.`;
+  }
+
+  if (evidenceSummary.unresolvedQuestionCount > 0) {
+    return `Answer ${evidenceSummary.unresolvedQuestionCount} unresolved question${
+      evidenceSummary.unresolvedQuestionCount === 1 ? "" : "s"
+    } to de-risk execution.`;
+  }
+
+  if (evidenceSummary.overall === "strong") {
+    return "Evidence is strong enough to move into execution with light monitoring.";
+  }
+
+  if (evidenceSummary.overall === "moderate") {
+    return "Proceed with a focused validation step while strengthening weaker claims.";
+  }
+
+  return "Gather more high-relevance evidence before making a high-impact decision.";
 }
 
 function getNextActionsSummary(report?: ResearchReportData | null, artifact?: ProjectResearchArtifact) {
@@ -597,6 +626,20 @@ export default function ResearchReport({
 
   const evidenceSummary =
     report?.trust?.evidenceStrength ?? getFallbackEvidenceSummary(report, orderedSelectedSources.length, reportCitations.length);
+  const retainedCitations = reportCitations.length > 0 ? reportCitations : dedupeById(selectedSources);
+  const citationRelevanceCounts = retainedCitations.reduce(
+    (counts, citation) => ({
+      ...counts,
+      [citation.relevance]: counts[citation.relevance] + 1,
+    }),
+    { high: 0, medium: 0, low: 0 } as Record<"high" | "medium" | "low", number>,
+  );
+  const rejectedSourceCount = sourceInventory.rejected.length > 0 ? sourceInventory.rejected.length : rejectedSources.length;
+  const hasNormalizedArtifactSourceInventory = Boolean(artifact?.sourceInventory);
+  const hasLegacyArtifactSourceData = selectedSources.length > 0 || rejectedSources.length > 0;
+  const shouldRenderSourceQualitySnapshot =
+    status !== "empty" && (Boolean(report) || hasNormalizedArtifactSourceInventory || hasLegacyArtifactSourceData);
+  const sourceQualityNextStep = getSourceQualityNextStep(evidenceSummary);
   const hasArtifactDetails =
     Boolean(artifact?.status) ||
     Boolean(artifact?.generatedAt) ||
@@ -637,6 +680,49 @@ export default function ResearchReport({
         artifact={artifact}
         researchQuestion={researchQuestion ?? report?.researchQuestion}
       />
+
+      {shouldRenderSourceQualitySnapshot ? (
+        <section className="rounded-3xl border border-stone-200 bg-white p-4" aria-labelledby="source-quality-snapshot-heading">
+          <h2 id="source-quality-snapshot-heading" className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Source quality snapshot
+          </h2>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Retained sources</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{sourceInventory.selected.length}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">High relevance citations</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{citationRelevanceCounts.high}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Medium relevance citations</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{citationRelevanceCounts.medium}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Low relevance citations</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{citationRelevanceCounts.low}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Strong major claims</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{evidenceSummary.strongClaimCount}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Moderate major claims</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{evidenceSummary.moderateClaimCount}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Weak major claims</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{evidenceSummary.weakClaimCount}</dd>
+            </div>
+            <div className="rounded-2xl bg-[#fcfaf6] px-3 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Rejected sources</dt>
+              <dd className="mt-1 text-lg font-semibold text-stone-900">{rejectedSourceCount}</dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-sm leading-6 text-stone-700">{sourceQualityNextStep}</p>
+        </section>
+      ) : null}
 
       {(status === "success" || status === "error") && report ? (
         <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
