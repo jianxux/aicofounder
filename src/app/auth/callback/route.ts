@@ -2,10 +2,24 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
+function sanitizeNextPath(value?: string | null) {
+  if (!value) {
+    return "/dashboard";
+  }
+
+  const candidate = value.trim();
+
+  if (!candidate.startsWith("/") || candidate.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return candidate;
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/dashboard";
+  const next = sanitizeNextPath(requestUrl.searchParams.get("next"));
 
   if (!code) {
     return NextResponse.redirect(new URL(next, requestUrl.origin));
