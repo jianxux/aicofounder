@@ -79,6 +79,22 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
     });
   };
 
+  const moveBlock = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= websiteBuilder.blocks.length) {
+      return;
+    }
+
+    const reorderedBlocks = [...websiteBuilder.blocks];
+    const [movedBlock] = reorderedBlocks.splice(fromIndex, 1);
+
+    if (!movedBlock) {
+      return;
+    }
+
+    reorderedBlocks.splice(toIndex, 0, movedBlock);
+    onChange(websiteBuilder.id, { blocks: reorderedBlocks });
+  };
+
   return (
     <div
       className="absolute w-[460px] rounded-[28px] border border-stone-200 bg-[#fdfbf7] shadow-sm transition hover:shadow-md"
@@ -135,13 +151,33 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
                     {index + 1}. {block.type}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => deleteBlock(block.id)}
-                    className="text-xs font-medium text-stone-500 transition hover:text-red-500"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label={`Move ${block.type} block at position ${index + 1} up`}
+                      onClick={() => moveBlock(index, index - 1)}
+                      disabled={index === 0}
+                      className="text-xs font-medium text-stone-500 transition hover:text-stone-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-stone-500"
+                    >
+                      Move up
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${block.type} block at position ${index + 1} down`}
+                      onClick={() => moveBlock(index, index + 1)}
+                      disabled={index === websiteBuilder.blocks.length - 1}
+                      className="text-xs font-medium text-stone-500 transition hover:text-stone-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-stone-500"
+                    >
+                      Move down
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteBlock(block.id)}
+                      className="text-xs font-medium text-stone-500 transition hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   <input
