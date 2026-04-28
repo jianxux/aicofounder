@@ -249,6 +249,17 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Demand exists.")).toBeInTheDocument();
     expect(screen.getByText("Execution risk is moderate.")).toBeInTheDocument();
     expect(screen.getByText("Market demand")).toBeInTheDocument();
+    const sectionArticle = screen.getByRole("heading", { name: "Market demand", level: 3 }).closest("article");
+    expect(sectionArticle).not.toBeNull();
+    const challengeRegion = within(sectionArticle as HTMLElement).getByRole("region", {
+      name: "Challenge prompts for Market demand",
+    });
+    expect(challengeRegion).toBeInTheDocument();
+    expect(within(challengeRegion).getByText("Challenge the evidence")).toBeInTheDocument();
+    expect(within(challengeRegion).getByText("Find the riskiest assumption")).toBeInTheDocument();
+    expect(within(challengeRegion).getByText("Design a validation test")).toBeInTheDocument();
+    expect(within(challengeRegion).getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getAllByRole("region", { name: /Challenge prompts for/i })).toHaveLength(1);
     expect(screen.getAllByText("Industry report").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText("Trust scaffolding")).toBeInTheDocument();
     expect(screen.getByText("Major claims")).toBeInTheDocument();
@@ -285,6 +296,11 @@ describe("ResearchReport", () => {
     fireEvent.click(screen.getByRole("button", { name: /Market demand/i }));
 
     expect(screen.queryByText("Customers are actively searching.")).not.toBeInTheDocument();
+    expect(
+      within(sectionArticle as HTMLElement).queryByRole("region", {
+        name: "Challenge prompts for Market demand",
+      }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Show")).toBeInTheDocument();
   });
 
