@@ -31,6 +31,7 @@ export default function DocumentCard({ document, onChange, onDragStart, onDelete
         <input
           value={document.title}
           onChange={(event) => onChange(document.id, { title: event.target.value })}
+          onPointerDown={(event) => event.stopPropagation()}
           className="w-full border-none bg-transparent pr-8 text-sm font-semibold text-stone-900 outline-none"
         />
         {onDelete ? (
