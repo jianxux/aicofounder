@@ -22,6 +22,7 @@ type ResearchFields = {
   missingEvidence: string;
   targetUserQuestion: string;
   nextResearchQuestion: string;
+  feedbackSourceOrQuote: string;
 };
 
 const emptyValidationFields = (): ValidationFields => ({
@@ -37,6 +38,7 @@ const emptyResearchFields = (): ResearchFields => ({
   missingEvidence: "",
   targetUserQuestion: "",
   nextResearchQuestion: "",
+  feedbackSourceOrQuote: "",
 });
 
 function hasAnyValue(fields: Record<string, string>) {
@@ -63,6 +65,9 @@ function buildResearchRefinementMessage(fields: ResearchFields) {
     fields.missingEvidence.trim() ? `Missing evidence: ${fields.missingEvidence.trim()}` : null,
     fields.targetUserQuestion.trim() ? `Target user question: ${fields.targetUserQuestion.trim()}` : null,
     fields.nextResearchQuestion.trim() ? `Next research question: ${fields.nextResearchQuestion.trim()}` : null,
+    fields.feedbackSourceOrQuote.trim()
+      ? `Feedback source or quote: ${fields.feedbackSourceOrQuote.trim()}`
+      : null,
   ].filter(Boolean);
 
   return [`Refine the customer research memo with this update:`, ...lines].join("\n");
@@ -214,6 +219,17 @@ export default function ArtifactRefinementForm({
                 value={researchFields.nextResearchQuestion}
                 onChange={(event) =>
                   setResearchFields((current) => ({ ...current, nextResearchQuestion: event.target.value }))
+                }
+                disabled={isLoading}
+                className="min-h-20 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-normal text-stone-800 outline-none transition focus:border-stone-400"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-stone-700 sm:col-span-2">
+              Feedback source or quote
+              <textarea
+                value={researchFields.feedbackSourceOrQuote}
+                onChange={(event) =>
+                  setResearchFields((current) => ({ ...current, feedbackSourceOrQuote: event.target.value }))
                 }
                 disabled={isLoading}
                 className="min-h-20 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-normal text-stone-800 outline-none transition focus:border-stone-400"
