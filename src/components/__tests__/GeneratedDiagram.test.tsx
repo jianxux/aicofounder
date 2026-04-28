@@ -67,13 +67,37 @@ describe("GeneratedDiagram", () => {
     render(<GeneratedDiagram diagram={createDiagram()} />);
 
     const [topicNode, branchNode, detailNode, referenceNode] = screen.getAllByTestId("generated-diagram-node");
+    const topicGroup = screen.getByRole("group", { name: "Topic node (Topic)" });
+    const detailGroup = screen.getByRole("group", { name: "Detail node (Detail)" });
+    const referenceGroup = screen.getByRole("group", { name: "Reference node (Reference)" });
 
     expect(topicNode).toHaveClass("rounded-full", "border-amber-300", "cursor-grab", "active:cursor-grabbing");
     expect(branchNode).toHaveClass("rounded-[24px]", "border-stone-300");
     expect(detailNode).toHaveClass("rounded-[24px]", "border-stone-200", "bg-white/90");
     expect(referenceNode).toHaveClass("rounded-[28px]", "bg-[#f7f2e7]/92");
+    expect(topicGroup).not.toHaveAttribute("tabindex");
+    expect(detailGroup).not.toHaveAttribute("tabindex");
+    expect(referenceGroup).not.toHaveAttribute("tabindex");
+    expect(topicGroup).not.toHaveAttribute("aria-roledescription");
+    expect(detailGroup).not.toHaveAttribute("aria-roledescription");
+    expect(referenceGroup).not.toHaveAttribute("aria-roledescription");
 
     expect(() => fireEvent.pointerDown(topicNode, { pointerId: 1, clientX: 100, clientY: 120 })).not.toThrow();
+  });
+
+  it("exposes an accessible diagram region", () => {
+    render(<GeneratedDiagram diagram={createDiagram()} />);
+
+    const region = screen.getByRole("region", { name: "Generated project diagram" });
+    const descriptionId = region.getAttribute("aria-describedby");
+    const descriptionNode = document.getElementById(descriptionId ?? "");
+
+    expect(region).toBeInTheDocument();
+    expect(descriptionId).toBeTruthy();
+    expect(region).not.toHaveAttribute("aria-description");
+    expect(descriptionNode).toBeInTheDocument();
+    expect(descriptionNode).toHaveClass("sr-only");
+    expect(descriptionNode).toHaveTextContent("Interactive diagram map with draggable nodes and connecting edges.");
   });
 
   it("forwards drag starts for diagram nodes", () => {
@@ -175,5 +199,83 @@ describe("GeneratedDiagram", () => {
         { type: "artifact", artifactId: "artifact-customer-research-memo", artifactType: "customer-research-memo" },
       ]),
     );
+  });
+
+  it("makes all nodes discoverable by role and accessible name", () => {
+    render(<GeneratedDiagram diagram={createDiagram()} />);
+
+    expect(screen.getByRole("group", { name: "Topic node (Topic)" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Branch node (Branch)" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Detail node (Detail)" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Reference node (Reference)" })).toBeInTheDocument();
+  });
+
+  it("adds hidden descriptive context only for nodes with content, source, or links", () => {
+    render(<GeneratedDiagram diagram={createDiagram()} />);
+
+    const detailNode = screen.getByRole("group", { name: "Detail node (Detail)" });
+    const topicNode = screen.getByRole("group", { name: "Topic node (Topic)" });
+    const referenceNode = screen.getByRole("group", { name: "Reference node (Reference)" });
+    const detailDescriptionId = detailNode.getAttribute("aria-describedby");
+    const detailDescription = document.getElementById(detailDescriptionId!);
+
+    expect(detailDescriptionId).toBeTruthy();
+    expect(detailDescriptionId).toContain("detail-1");
+    expect(referenceNode).not.toHaveAttribute("aria-describedby");
+    expect(topicNode).not.toHaveAttribute("aria-describedby");
+    expect(detailDescription).toBeInTheDocument();
+    expect(detailDescription).toHaveClass("sr-only");
+    expect(detailDescription?.textContent).toContain("Source: canvas document doc-1");
+    expect(detailDescription?.textContent).toContain("Links: 2");
+  });
+
+  it("uses unique context ids for multiple described nodes and across component instances", () => {
+    const diagram = createDiagram();
+    diagram.nodes = diagram.nodes.map((node) =>
+      node.id === "branch:notes"
+        ? {
+            ...node,
+            content: "Branch context",
+          }
+        : node,
+    );
+
+    const { container } = render(
+      <div>
+        <GeneratedDiagram diagram={diagram} />
+        <GeneratedDiagram diagram={diagram} />
+      </div>,
+    );
+
+    const describedNodes = screen
+      .getAllByTestId("generated-diagram-node")
+      .map((node) => node.getAttribute("aria-describedby"))
+      .filter((value): value is string => Boolean(value));
+
+    expect(describedNodes.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(describedNodes).size).toBe(describedNodes.length);
+    expect(describedNodes.some((id) => id.includes("detail-1"))).toBe(true);
+    expect(describedNodes.some((id) => id.includes("branch-notes"))).toBe(true);
+
+    const hiddenContextNodes = container.querySelectorAll(".sr-only[id^='generated-diagram-node-context-']");
+    expect(hiddenContextNodes.length).toBe(describedNodes.length);
+  });
+
+  it("removes aria-describedby and hidden context when rerendered without context fields", () => {
+    const diagram = createDiagram();
+    diagram.nodes = diagram.nodes.map((node) => (node.id === "diagram-root" ? { ...node, content: "Topic details" } : node));
+
+    const { rerender, container } = render(<GeneratedDiagram diagram={diagram} />);
+    const topicNodeBefore = screen.getByRole("group", { name: "Topic node (Topic)" });
+    const topicDescriptionIdBefore = topicNodeBefore.getAttribute("aria-describedby");
+    expect(topicDescriptionIdBefore).toBeTruthy();
+    expect(document.getElementById(topicDescriptionIdBefore!)).toBeInTheDocument();
+
+    const clearedDiagram = createDiagram();
+    rerender(<GeneratedDiagram diagram={clearedDiagram} />);
+
+    const topicNodeAfter = screen.getByRole("group", { name: "Topic node (Topic)" });
+    expect(topicNodeAfter).not.toHaveAttribute("aria-describedby");
+    expect(container.querySelector(`#${topicDescriptionIdBefore}`)).toBeNull();
   });
 });
