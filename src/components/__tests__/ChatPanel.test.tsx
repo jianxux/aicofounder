@@ -264,6 +264,42 @@ describe("ChatPanel", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("shows the review coach checklist for validation scorecard create mode", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Validation scorecard",
+        activeArtifactType: "validation-scorecard",
+        activeArtifactHasOutput: false,
+        activeArtifactChatMode: "create",
+      });
+
+      const coach = screen.getByRole("region", { name: "Artifact review coach" });
+
+      expect(coach).toHaveTextContent(
+        "Frame the scorecard so the assistant can review it like an expert validation coach.",
+      );
+      expect(coach).toHaveTextContent("Evidence backing each score");
+      expect(coach).toHaveTextContent("Contradictions and open questions");
+      expect(coach).toHaveTextContent("Next validation move to reduce risk");
+    });
+
+    it("shows the review coach checklist for customer research memo follow-up mode", () => {
+      renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+
+      const coach = screen.getByRole("region", { name: "Artifact review coach" });
+
+      expect(coach).toHaveTextContent(
+        "Ask follow-up questions that pressure-test the active memo before the next revision.",
+      );
+      expect(coach).toHaveTextContent("Challenge current customer findings");
+      expect(coach).toHaveTextContent("Check readiness for the next research move");
+      expect(coach).toHaveTextContent("Focus the revision on contradictions and missing evidence");
+    });
+
     it("omits optional action controls when research callbacks are not provided", () => {
       renderChatPanel({
         onResearch: undefined,

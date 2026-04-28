@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import ArtifactRefinementForm from "@/components/ArtifactRefinementForm";
 import PhaseTracker from "@/components/PhaseTracker";
 import { ChatMessage, Phase, WorkspaceArtifactChatMode } from "@/lib/types";
@@ -44,6 +44,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const reviewCoachTitleId = useId();
   const messagesRegionRef = useRef<HTMLDivElement | null>(null);
 
   const activePhase = useMemo(
@@ -108,6 +109,45 @@ export default function ChatPanel({
           "What assumptions should we validate before locking any scores?",
           "Draft the next validation step that would most reduce risk.",
         ];
+  }, [isFollowUpMode, isResearchMemoActive]);
+  const reviewCoach = useMemo(() => {
+    if (isResearchMemoActive) {
+      return isFollowUpMode
+        ? {
+            copy: "Ask follow-up questions that pressure-test the active memo before the next revision.",
+            items: [
+              "Challenge current customer findings",
+              "Check readiness for the next research move",
+              "Focus the revision on contradictions and missing evidence",
+            ],
+          }
+        : {
+            copy: "Frame the memo so the assistant can turn raw research into a practical review loop.",
+            items: [
+              "Evidence behind customer signals",
+              "Contradictions and open questions",
+              "Next research move to sharpen the memo",
+            ],
+          };
+    }
+
+    return isFollowUpMode
+      ? {
+          copy: "Ask follow-up questions that pressure-test the active scorecard before the next revision.",
+          items: [
+            "Challenge score confidence and assumptions",
+            "Check readiness for a go, no-go, or learn-more decision",
+            "Focus the revision on evidence gaps and the next validation move",
+          ],
+        }
+      : {
+          copy: "Frame the scorecard so the assistant can review it like an expert validation coach.",
+          items: [
+            "Evidence backing each score",
+            "Contradictions and open questions",
+            "Next validation move to reduce risk",
+          ],
+        };
   }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
 
@@ -209,6 +249,26 @@ export default function ChatPanel({
             Freeform chat is grounded in the active artifact and its latest revision.
           </p>
         ) : null}
+        <section
+          aria-labelledby={reviewCoachTitleId}
+          className="mb-4 rounded-3xl border border-amber-200 bg-amber-50/70 px-4 py-4"
+        >
+          <h3
+            id={reviewCoachTitleId}
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800"
+          >
+            Artifact review coach
+          </h3>
+          <p className="mt-2 text-xs leading-5 text-amber-900/80">{reviewCoach.copy}</p>
+          <ul className="mt-3 grid gap-2 text-sm leading-5 text-stone-700 sm:grid-cols-3">
+            {reviewCoach.items.map((item) => (
+              <li key={item} className="flex gap-2">
+                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
         <div className="mb-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
             Starter prompts for {activeArtifactLabel}
