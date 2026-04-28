@@ -230,6 +230,7 @@ describe("ChatPanel", () => {
       expect(screen.getByRole("form", { name: "Structured refinement" })).toBeInTheDocument();
       expect(screen.getByLabelText("Strongest signal")).toBeInTheDocument();
       expect(screen.getByLabelText("Biggest risk")).toBeInTheDocument();
+      expect(screen.getByLabelText("Simulated customer feedback")).toBeInTheDocument();
       expect(screen.getByText("Ask about the validation scorecard")).toBeInTheDocument();
       expect(screen.getByText("Artifact follow-up")).toBeInTheDocument();
       expect(screen.getByText("Freeform chat is grounded in the active artifact and its latest revision.")).toBeInTheDocument();
@@ -477,6 +478,9 @@ describe("ChatPanel", () => {
       fireEvent.change(screen.getByLabelText("Confidence"), {
         target: { value: "  Medium  " },
       });
+      fireEvent.change(screen.getByLabelText("Simulated customer feedback"), {
+        target: { value: "  I'd try it, but only if it works with HubSpot.  " },
+      });
       fireEvent.change(screen.getByLabelText("Next validation step"), {
         target: { value: "  Run pricing tests next week.  " },
       });
@@ -488,6 +492,7 @@ describe("ChatPanel", () => {
           "Biggest risk: Weak willingness to pay\n" +
           "Score: 3.5/5\n" +
           "Confidence: Medium\n" +
+          "Simulated customer feedback: I'd try it, but only if it works with HubSpot.\n" +
           "Next validation step: Run pricing tests next week.",
       );
     });

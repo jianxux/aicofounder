@@ -14,6 +14,7 @@ type ValidationFields = {
   biggestRisk: string;
   score: string;
   confidence: string;
+  simulatedCustomerFeedback: string;
   nextValidationStep: string;
 };
 
@@ -29,6 +30,7 @@ const emptyValidationFields = (): ValidationFields => ({
   biggestRisk: "",
   score: "",
   confidence: "",
+  simulatedCustomerFeedback: "",
   nextValidationStep: "",
 });
 
@@ -49,6 +51,9 @@ function buildValidationRefinementMessage(fields: ValidationFields) {
     fields.biggestRisk.trim() ? `Biggest risk: ${fields.biggestRisk.trim()}` : null,
     fields.score.trim() ? `Score: ${fields.score.trim()}` : null,
     fields.confidence.trim() ? `Confidence: ${fields.confidence.trim()}` : null,
+    fields.simulatedCustomerFeedback.trim()
+      ? `Simulated customer feedback: ${fields.simulatedCustomerFeedback.trim()}`
+      : null,
     fields.nextValidationStep.trim() ? `Next validation step: ${fields.nextValidationStep.trim()}` : null,
   ].filter(Boolean);
 
@@ -159,6 +164,20 @@ export default function ArtifactRefinementForm({
                 }
                 disabled={isLoading}
                 className="rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-normal text-stone-800 outline-none transition focus:border-stone-400"
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-stone-700 sm:col-span-2">
+              Simulated customer feedback
+              <textarea
+                value={validationFields.simulatedCustomerFeedback}
+                onChange={(event) =>
+                  setValidationFields((current) => ({
+                    ...current,
+                    simulatedCustomerFeedback: event.target.value,
+                  }))
+                }
+                disabled={isLoading}
+                className="min-h-20 rounded-2xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-normal text-stone-800 outline-none transition focus:border-stone-400"
               />
             </label>
             <label className="flex flex-col gap-2 text-sm font-medium text-stone-700 sm:col-span-2">
