@@ -98,6 +98,21 @@ const sampleArtifactRows = [
   },
 ];
 
+const evidenceLoopSteps = [
+  {
+    title: "Choose the claim",
+    body: "Pull the riskiest promise from the brief, including competitor notes, and decide what buyer signal would prove it matters.",
+  },
+  {
+    title: "Publish the smallest test",
+    body: "Turn the claim into a page, form, or outreach script that asks for one specific action.",
+  },
+  {
+    title: "Lead signal",
+    body: "Track who responds, what they ask, and which objection should change the next iteration.",
+  },
+] as const;
+
 const firstSessionReceiptItems = [
   {
     captured: "Founder goal, buyer, and messy draft",
@@ -701,6 +716,39 @@ export default function LandingPage() {
                 AI Cofounder helps service operators follow up with every lead fast enough to save the jobs that usually disappear between estimate and
                 callback.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+        <div className="overflow-hidden rounded-[2.25rem] border border-stone-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(252,250,247,0.92)_52%,rgba(245,236,221,0.88)_100%)] p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] lg:p-8">
+          <div className="grid gap-7 lg:grid-cols-[0.7fr_1.3fr] lg:items-center">
+            <div className="max-w-md">
+              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Evidence-to-lead test loop</div>
+              <h2 className="mt-4 text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[0.98] tracking-[-0.05em] text-stone-950">
+                From brief to buyer signal
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-stone-600">
+                After the first session, use the sharpest evidence gap to ship a tiny demand test instead of another abstract planning doc.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {evidenceLoopSteps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className={`rounded-[1.65rem] border p-5 shadow-[0_16px_45px_rgba(52,39,21,0.06)] ${
+                    index === 1 ? "border-stone-950 bg-stone-950 text-stone-50" : "border-stone-200/80 bg-white/88 text-stone-950"
+                  }`}
+                >
+                  <div className={`text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${index === 1 ? "text-amber-200" : "text-stone-500"}`}>
+                    Step {index + 1}
+                  </div>
+                  <h3 className="mt-4 text-xl font-semibold tracking-[-0.04em]">{step.title}</h3>
+                  <p className={`mt-3 text-sm leading-7 ${index === 1 ? "text-stone-200" : "text-stone-600"}`}>{step.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>

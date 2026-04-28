@@ -363,6 +363,18 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Homepage opening to test/i)).toBeInTheDocument();
   });
 
+  it("renders the evidence-to-lead test loop with all three founder steps", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Evidence-to-lead test loop/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /From brief to buyer signal/i })).toBeInTheDocument();
+    expect(screen.getByText(/Choose the claim/i)).toBeInTheDocument();
+    expect(screen.getByText(/including competitor notes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Publish the smallest test/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lead signal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Track who responds, what they ask/i)).toBeInTheDocument();
+  });
+
   it("renders a first-session receipt checklist with captured inputs, assumptions, and next actions", () => {
     render(<LandingPage />);
 
