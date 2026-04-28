@@ -68,6 +68,22 @@ describe("POST /api/brainstorm", () => {
     });
   });
 
+  it("returns 400 when required fields are blank after trimming", async () => {
+    const { POST } = await import("@/app/api/brainstorm/route");
+
+    const response = await POST(
+      createRequest({
+        projectName: "   ",
+        projectDescription: "\n\t",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Project name and project description are required",
+    });
+  });
+
   it("returns 500 when OPENAI_API_KEY is not set", async () => {
     const { POST } = await import("@/app/api/brainstorm/route");
 
@@ -243,6 +259,86 @@ describe("POST /api/brainstorm", () => {
       "Startup research assistant",
       undefined,
       "Relevant memory context:\nSignal",
+    );
+  });
+
+  it("trims padded inputs for prompt memory query and brainstorm prompt args", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create: vi.fn().mockResolvedValue({
+                choices: [{ message: { content: '{"painPoints":[],"summary":"ok","searchContext":"ok"}' } }],
+              }),
+            },
+          },
+        } as never;
+      },
+    );
+    parseBrainstormResponseMock.mockReturnValue({ painPoints: [], summary: "ok", searchContext: "ok" });
+
+    const { POST } = await import("@/app/api/brainstorm/route");
+    await POST(
+      createRequest({
+        projectName: "  Orbit  ",
+        projectDescription: "\nStartup research assistant\t",
+        focusArea: "  Validation  ",
+      }),
+    );
+
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant Validation",
+      memoryEntries: undefined,
+      memorySummaries: undefined,
+    });
+    expect(buildBrainstormPromptMock).toHaveBeenCalledWith(
+      "Orbit",
+      "Startup research assistant",
+      "Validation",
+      "",
+    );
+  });
+
+  it("omits whitespace-only focusArea from query and passes undefined to prompt builder", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+
+    openAIConstructor.mockImplementation(
+      function mockOpenAI() {
+        return {
+          chat: {
+            completions: {
+              create: vi.fn().mockResolvedValue({
+                choices: [{ message: { content: '{"painPoints":[],"summary":"ok","searchContext":"ok"}' } }],
+              }),
+            },
+          },
+        } as never;
+      },
+    );
+    parseBrainstormResponseMock.mockReturnValue({ painPoints: [], summary: "ok", searchContext: "ok" });
+
+    const { POST } = await import("@/app/api/brainstorm/route");
+    await POST(
+      createRequest({
+        projectName: "Orbit",
+        projectDescription: "Startup research assistant",
+        focusArea: "   \n\t   ",
+      }),
+    );
+
+    expect(buildPromptMemoryMock).toHaveBeenCalledWith({
+      query: "Orbit Startup research assistant",
+      memoryEntries: undefined,
+      memorySummaries: undefined,
+    });
+    expect(buildBrainstormPromptMock).toHaveBeenCalledWith(
+      "Orbit",
+      "Startup research assistant",
+      undefined,
+      "",
     );
   });
 
