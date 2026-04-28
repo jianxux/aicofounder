@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -117,6 +117,7 @@ describe("WebsiteBuilder", () => {
     expect(screen.getByText("Actionable outputs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ready to ship faster?" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Built for lean teams" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Launch readiness checklist" })).toBeInTheDocument();
   });
 
   it("toggles back to edit mode from preview mode", async () => {
@@ -451,5 +452,41 @@ describe("WebsiteBuilder", () => {
 
     expect(screen.getByRole("heading", { name: "Simple hero" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Get started" })).not.toBeInTheDocument();
+  });
+
+  it("renders launch readiness checklist as an accessible region with exactly three items in preview mode and preserves their order", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder()}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    const checklistRegion = screen.getByRole("region", { name: "Launch readiness checklist" });
+    const checklistItems = within(checklistRegion).getAllByRole("listitem");
+
+    expect(checklistItems).toHaveLength(3);
+    expect(checklistItems[0]).toHaveTextContent("Clear one-sentence promise");
+    expect(checklistItems[1]).toHaveTextContent("Primary conversion path");
+    expect(checklistItems[2]).toHaveTextContent("Search/discovery basics");
+  });
+
+  it("does not render launch readiness checklist in edit mode", () => {
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder()}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "Launch readiness checklist" })).not.toBeInTheDocument();
   });
 });
