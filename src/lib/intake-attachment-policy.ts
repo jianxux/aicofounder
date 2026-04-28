@@ -77,9 +77,9 @@ export const INTAKE_ATTACHMENT_POLICY: IntakeAttachmentPolicy = {
     },
     {
       fileClass: "text",
-      label: "Plain text notes",
-      mimeTypes: ["text/plain"],
-      extensions: [".txt"],
+      label: "Plain text or Markdown notes",
+      mimeTypes: ["text/plain", "text/markdown"],
+      extensions: [".txt", ".md", ".markdown"],
     },
   ] as const,
   blockedContentClasses: [
@@ -183,7 +183,7 @@ function normalizeAttachment(
       errors: [
         {
           code: "unsupported_type" as const,
-          message: "Only PDF, PNG/JPEG, or plain text files are allowed for intake.",
+          message: "Only PDF, PNG/JPEG, or plain text/Markdown files are allowed for intake.",
           attachmentIndex,
         },
       ],

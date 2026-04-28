@@ -238,19 +238,106 @@ describe("intake attachment policy", () => {
           sizeBytes: 4096,
           mimeType: "image/png",
         },
+        {
+          name: "fake-notes.md",
+          sizeBytes: 1024,
+          mimeType: "image/png",
+        },
+      ],
+      ENABLED_POLICY,
+    );
+
+    expect(result.isValid).toBe(false);
+    expect(result.normalizedAttachments).toEqual([]);
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unsupported_type",
+          attachmentIndex: 0,
+        }),
+        expect.objectContaining({
+          code: "unsupported_type",
+          attachmentIndex: 1,
+        }),
+      ]),
+    );
+  });
+
+  it("accepts markdown files and normalizes markdown class attachments as text", () => {
+    const result = validateIntakeAttachments(
+      [
+        {
+          name: "notes.md",
+          sizeBytes: 300,
+          mimeType: "text/markdown",
+        },
       ],
       ENABLED_POLICY,
     );
 
     expect(result).toEqual({
-      isValid: false,
-      normalizedAttachments: [],
-      errors: [
-        expect.objectContaining({
-          code: "unsupported_type",
-          attachmentIndex: 0,
-        }),
+      isValid: true,
+      normalizedAttachments: [
+        {
+          name: "notes.md",
+          sizeBytes: 300,
+          mimeType: "text/markdown",
+          fileClass: "text",
+        },
       ],
+      errors: [],
+    });
+  });
+
+  it("accepts .markdown files without MIME and falls back to text/plain", () => {
+    const result = validateIntakeAttachments(
+      [
+        {
+          name: "notes.markdown",
+          sizeBytes: 300,
+          mimeType: "",
+        },
+      ],
+      ENABLED_POLICY,
+    );
+
+    expect(result).toEqual({
+      isValid: true,
+      normalizedAttachments: [
+        {
+          name: "notes.markdown",
+          sizeBytes: 300,
+          mimeType: "text/plain",
+          fileClass: "text",
+        },
+      ],
+      errors: [],
+    });
+  });
+
+  it("supports plain text MIME with markdown extensions while preserving class match checks", () => {
+    const result = validateIntakeAttachments(
+      [
+        {
+          name: "notes.md",
+          sizeBytes: 256,
+          mimeType: "text/plain",
+        },
+      ],
+      ENABLED_POLICY,
+    );
+
+    expect(result).toEqual({
+      isValid: true,
+      normalizedAttachments: [
+        {
+          name: "notes.md",
+          sizeBytes: 256,
+          mimeType: "text/plain",
+          fileClass: "text",
+        },
+      ],
+      errors: [],
     });
   });
 
@@ -258,7 +345,7 @@ describe("intake attachment policy", () => {
     expect(summarizeIntakeAttachmentPolicy()).toEqual([
       "Attachments are coming soon for first-run intake. Uploads are not enabled yet.",
       "Plan for up to 3 files, 5 MB each, and 10 MB total.",
-      "When intake uploads launch, accepted files will stay conservative: PDFs, PNG or JPEG images, Plain text notes.",
+      "When intake uploads launch, accepted files will stay conservative: PDFs, PNG or JPEG images, Plain text or Markdown notes.",
       "Blocked for intake: archives and compressed bundles; executables, scripts, and installers; audio or video recordings; spreadsheets, slide decks, and rich office documents; password-protected or encrypted files; secrets, credentials, or regulated personal data.",
       "Use only what helps intake: Share only source material needed to frame the project brief.",
       "Do not include secrets or sensitive data: Keep out credentials, financial records, health data, and unnecessary personal information.",
