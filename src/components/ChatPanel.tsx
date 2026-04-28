@@ -109,6 +109,17 @@ export default function ChatPanel({
           "Draft the next validation step that would most reduce risk.",
         ];
   }, [isFollowUpMode, isResearchMemoActive]);
+  const objectionStarterPrompt = useMemo(() => {
+    if (isResearchMemoActive) {
+      return isFollowUpMode
+        ? "Simulate realistic customer reactions, objections, and questions to this memo. What should we resolve first?"
+        : "Simulate realistic customer reactions, objections, and questions about this memo direction before launch.";
+    }
+
+    return isFollowUpMode
+      ? "Simulate realistic customer reactions, objections, and questions to this scorecard. Which challenge is most urgent?"
+      : "Simulate realistic customer reactions, objections, and questions about this scorecard direction before launch.";
+  }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -228,6 +239,19 @@ export default function ChatPanel({
                 {starter}
               </button>
             ))}
+          </div>
+          <div className="mt-4 border-t border-stone-200 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Objection simulator
+            </div>
+            <button
+              type="button"
+              onClick={() => setDraft(objectionStarterPrompt)}
+              disabled={isLoading}
+              className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-3 py-2 text-left text-sm leading-5 text-stone-700 transition hover:border-stone-300 hover:text-stone-900 disabled:cursor-not-allowed disabled:text-stone-400"
+            >
+              {objectionStarterPrompt}
+            </button>
           </div>
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-4">

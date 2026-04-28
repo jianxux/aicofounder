@@ -71,6 +71,15 @@ const memoFollowUpStarters = [
   "Turn these findings into the next customer interview plan.",
 ];
 
+const validationCreateObjectionStarter =
+  "Simulate realistic customer reactions, objections, and questions about this scorecard direction before launch.";
+const validationFollowUpObjectionStarter =
+  "Simulate realistic customer reactions, objections, and questions to this scorecard. Which challenge is most urgent?";
+const memoCreateObjectionStarter =
+  "Simulate realistic customer reactions, objections, and questions about this memo direction before launch.";
+const memoFollowUpObjectionStarter =
+  "Simulate realistic customer reactions, objections, and questions to this memo. What should we resolve first?";
+
 type RenderOptions = {
   messages?: ChatMessage[];
   phases?: Phase[];
@@ -262,6 +271,8 @@ describe("ChatPanel", () => {
       expect(
         screen.queryByRole("button", { name: memoFollowUpStarters[0] }),
       ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: validationCreateObjectionStarter })).toBeInTheDocument();
+      expect(screen.getByText("Objection simulator")).toBeInTheDocument();
     });
 
     it("omits optional action controls when research callbacks are not provided", () => {
@@ -294,6 +305,72 @@ describe("ChatPanel", () => {
       expect(
         screen.queryByRole("button", { name: validationCreateModeStarters[0] }),
       ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: memoFollowUpObjectionStarter })).toBeInTheDocument();
+    });
+
+    it("shows an objection simulator prompt in every artifact and chat-mode variant", () => {
+      const cases: Array<{
+        activeArtifactLabel: string;
+        activeArtifactType: "validation-scorecard" | "customer-research-memo";
+        activeArtifactHasOutput: boolean;
+        activeArtifactChatMode: "create" | "artifact-follow-up";
+        expectedPrompt: string;
+      }> = [
+        {
+          activeArtifactLabel: "Validation scorecard",
+          activeArtifactType: "validation-scorecard",
+          activeArtifactHasOutput: false,
+          activeArtifactChatMode: "create",
+          expectedPrompt: validationCreateObjectionStarter,
+        },
+        {
+          activeArtifactLabel: "Validation scorecard",
+          activeArtifactType: "validation-scorecard",
+          activeArtifactHasOutput: true,
+          activeArtifactChatMode: "artifact-follow-up",
+          expectedPrompt: validationFollowUpObjectionStarter,
+        },
+        {
+          activeArtifactLabel: "Customer research memo",
+          activeArtifactType: "customer-research-memo",
+          activeArtifactHasOutput: false,
+          activeArtifactChatMode: "create",
+          expectedPrompt: memoCreateObjectionStarter,
+        },
+        {
+          activeArtifactLabel: "Customer research memo",
+          activeArtifactType: "customer-research-memo",
+          activeArtifactHasOutput: true,
+          activeArtifactChatMode: "artifact-follow-up",
+          expectedPrompt: memoFollowUpObjectionStarter,
+        },
+      ];
+
+      for (const testCase of cases) {
+        const { unmount } = render(
+          <ChatPanel
+            messages={createMessages()}
+            phases={createPhases()}
+            activePhaseId="build"
+            activeArtifactLabel={testCase.activeArtifactLabel}
+            activeArtifactType={testCase.activeArtifactType}
+            activeArtifactHasOutput={testCase.activeArtifactHasOutput}
+            activeArtifactChatMode={testCase.activeArtifactChatMode}
+            onSendMessage={vi.fn()}
+            isLoading={false}
+            onRemind={vi.fn()}
+            onBrainstorm={vi.fn()}
+            onResearch={vi.fn()}
+            onUltraplan={vi.fn()}
+            onToggleTask={vi.fn()}
+            onSetActivePhase={vi.fn()}
+          />,
+        );
+
+        expect(screen.getByText("Objection simulator")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: testCase.expectedPrompt })).toBeInTheDocument();
+        unmount();
+      }
     });
   });
 
@@ -395,6 +472,23 @@ describe("ChatPanel", () => {
       fireEvent.click(screen.getByRole("button", { name: validationCreateModeStarters[1] }));
 
       expect(textarea).toHaveValue(validationCreateModeStarters[1]);
+      expect(onSendMessage).not.toHaveBeenCalled();
+    });
+
+    it("clicking the objection simulator prompt seeds the composer without sending", () => {
+      const { onSendMessage } = renderChatPanel({
+        activeArtifactLabel: "Customer research memo",
+        activeArtifactType: "customer-research-memo",
+        activeArtifactHasOutput: true,
+        activeArtifactChatMode: "artifact-follow-up",
+      });
+      const textarea = screen.getByPlaceholderText(
+        "Ask about this memo, its contradictions, or the next research move...",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: memoFollowUpObjectionStarter }));
+
+      expect(textarea).toHaveValue(memoFollowUpObjectionStarter);
       expect(onSendMessage).not.toHaveBeenCalled();
     });
 
