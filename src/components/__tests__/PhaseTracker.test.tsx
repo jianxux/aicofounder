@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PhaseTracker from "@/components/PhaseTracker";
@@ -74,6 +74,35 @@ describe("PhaseTracker", () => {
       expect(screen.getByText("Progress")).toBeInTheDocument();
       expect(screen.getByText("Phase tracker")).toBeInTheDocument();
       expect(screen.queryByText(/Phase \d+/)).not.toBeInTheDocument();
+    });
+
+    it("renders phases as an ordered semantic step list", () => {
+      renderPhaseTracker();
+
+      const list = screen.getByRole("list");
+      const items = screen.getAllByRole("listitem");
+
+      expect(list.tagName).toBe("OL");
+      expect(items).toHaveLength(2);
+      items.forEach((item) => {
+        expect(within(item).getByRole("button")).toBeInTheDocument();
+      });
+    });
+
+    it("reports expected progress percentages for populated phases", () => {
+      renderPhaseTracker();
+
+      const gettingStartedProgress = screen.getByRole("progressbar", {
+        name: "Getting started completion",
+      });
+      const buildProgress = screen.getByRole("progressbar", {
+        name: "Build MVP completion",
+      });
+
+      expect(gettingStartedProgress).toHaveAttribute("aria-valuenow", "67");
+      expect(gettingStartedProgress).toHaveAttribute("aria-valuetext", "67% complete");
+      expect(buildProgress).toHaveAttribute("aria-valuenow", "0");
+      expect(buildProgress).toHaveAttribute("aria-valuetext", "0% complete");
     });
   });
 
@@ -164,6 +193,22 @@ describe("PhaseTracker", () => {
       expect(onSetActivePhase).toHaveBeenCalledTimes(1);
       expect(onSetActivePhase).toHaveBeenCalledWith("build");
     });
+
+    it("marks only the active phase with aria-current step", () => {
+      renderPhaseTracker({
+        activePhaseId: "getting-started",
+      });
+
+      const gettingStartedButton = screen.getByRole("button", {
+        name: /Phase 1\s+Getting started \(2 of 3 done\)\s+2\/3/i,
+      });
+      const buildButton = screen.getByRole("button", {
+        name: /Phase 2\s+Build MVP\s+0\/2/i,
+      });
+
+      expect(gettingStartedButton).toHaveAttribute("aria-current", "step");
+      expect(buildButton).not.toHaveAttribute("aria-current");
+    });
   });
 
   describe("getting-started special format", () => {
@@ -207,6 +252,26 @@ describe("PhaseTracker", () => {
       expect(screen.getByText("Empty phase")).toBeInTheDocument();
       expect(screen.getByText("0/0")).toBeInTheDocument();
       expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
+    it("reports 0 percent progress for a phase with no tasks", () => {
+      renderPhaseTracker({
+        phases: [
+          {
+            id: "empty-phase",
+            title: "Empty phase",
+            tasks: [],
+          },
+        ],
+        activePhaseId: "empty-phase",
+        collapsed: false,
+      });
+
+      const progress = screen.getByRole("progressbar", { name: "Empty phase completion" });
+
+      expect(screen.getByText("0/0")).toBeInTheDocument();
+      expect(progress).toHaveAttribute("aria-valuenow", "0");
+      expect(progress).toHaveAttribute("aria-valuetext", "0% complete");
     });
 
     it("shows the correct count when all tasks are done", () => {

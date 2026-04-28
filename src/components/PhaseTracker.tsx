@@ -35,13 +35,15 @@ export default function PhaseTracker({
         </button>
       </div>
 
-      <div className="space-y-3">
+      <ol className="list-none space-y-3">
         {phases.map((phase, index) => {
           const completeCount = phase.tasks.filter((task) => task.done).length;
+          const totalTasks = phase.tasks.length;
+          const completionPercent = totalTasks > 0 ? Math.round((completeCount / totalTasks) * 100) : 0;
           const isActive = phase.id === activePhaseId;
 
           return (
-            <div
+            <li
               key={phase.id}
               className={`rounded-2xl border p-3 transition ${
                 isActive ? "border-stone-900 bg-stone-50" : "border-stone-200 bg-white"
@@ -50,6 +52,7 @@ export default function PhaseTracker({
               <button
                 type="button"
                 onClick={() => onSetActivePhase(phase.id)}
+                aria-current={isActive ? "step" : undefined}
                 className="flex w-full items-start justify-between gap-4 text-left"
               >
                 <div>
@@ -58,11 +61,22 @@ export default function PhaseTracker({
                   </div>
                   <div className="text-sm font-semibold text-stone-900">
                     {phase.title}
-                    {phase.id === "getting-started" ? ` (${completeCount} of ${phase.tasks.length} done)` : ""}
+                    {phase.id === "getting-started" ? ` (${completeCount} of ${totalTasks} done)` : ""}
                   </div>
                 </div>
-                <div className="text-xs text-stone-500">{completeCount}/{phase.tasks.length}</div>
+                <div className="text-xs text-stone-500">{completeCount}/{totalTasks}</div>
               </button>
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"
+                role="progressbar"
+                aria-label={`${phase.title} completion`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={completionPercent}
+                aria-valuetext={`${completionPercent}% complete`}
+              >
+                <div className="h-full rounded-full bg-stone-900" style={{ width: `${completionPercent}%` }} />
+              </div>
 
               {!collapsed && isActive ? (
                 <div className="mt-3 space-y-2">
@@ -82,10 +96,10 @@ export default function PhaseTracker({
                   ))}
                 </div>
               ) : null}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 }
