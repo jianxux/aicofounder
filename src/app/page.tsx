@@ -130,6 +130,13 @@ const sourceMaterialChips = [
   "Competitor screenshots or teardown notes",
 ];
 
+const founderSignalChecklist = [
+  "Idea / current draft",
+  "Ideal customer / buyer",
+  "Problem or workaround",
+  "Evidence source / artifact",
+];
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -381,6 +388,7 @@ export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null);
 
   const activePreset = focusPresets.find((preset) => preset.id === activePresetId) ?? focusPresets[0];
+  const founderSignalChecklistId = useId();
 
   useEffect(() => {
     void trackEvent("page_view", {
@@ -567,6 +575,21 @@ export default function LandingPage() {
                         </li>
                       ))}
                     </ul>
+                    <div className="mt-4 rounded-[1.2rem] border border-stone-200 bg-white px-3 py-3">
+                      <div id={founderSignalChecklistId} className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                        Founder signal checklist
+                      </div>
+                      <ul className="mt-3 grid gap-2 sm:grid-cols-2" aria-labelledby={founderSignalChecklistId}>
+                        {founderSignalChecklist.map((item) => (
+                          <li key={item} className="flex items-center gap-2 rounded-full border border-stone-200 bg-[#fcfaf6] px-3 py-2 text-xs font-medium text-stone-700">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[0.65rem] text-emerald-700" aria-hidden="true">
+                              ✓
+                            </span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
