@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AnalyticsPage from "@/app/analytics/page";
 
@@ -170,6 +170,12 @@ describe("AnalyticsPage", () => {
   });
 
   it("supports range changes, renders page-view charts, and shows the unconfigured empty state", async () => {
+    const fixtureDate = new Date();
+    const fixtureDateKey = fixtureDate.toISOString().slice(0, 10);
+    const fixtureDateLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
+      new Date(fixtureDateKey),
+    );
+
     mockIsAnalyticsConfigured.mockReturnValue(false);
     mockFetchAnalyticsEvents.mockResolvedValue([
       {
@@ -182,7 +188,7 @@ describe("AnalyticsPage", () => {
           user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
         },
         ip: null,
-        created_at: new Date().toISOString(),
+        created_at: fixtureDate.toISOString(),
       },
     ]);
 
@@ -202,5 +208,15 @@ describe("AnalyticsPage", () => {
     expect(screen.getByText("Top pages")).toBeInTheDocument();
     expect(screen.getAllByText("/dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Mobile").length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: /daily page views chart/i })).toBeInTheDocument();
+    const dailySummaryTable = screen.getByRole("table", { name: /daily page views data for the last 14 days/i });
+    expect(dailySummaryTable).toBeInTheDocument();
+    expect(within(dailySummaryTable).getByRole("columnheader", { name: "Day" })).toBeInTheDocument();
+    expect(within(dailySummaryTable).getByRole("columnheader", { name: "Page views" })).toBeInTheDocument();
+
+    const fixtureDayRowHeader = within(dailySummaryTable).getByRole("rowheader", { name: fixtureDateLabel });
+    const fixtureDayRow = fixtureDayRowHeader.closest("tr");
+    expect(fixtureDayRow).not.toBeNull();
+    expect(within(fixtureDayRow as HTMLTableRowElement).getByRole("cell", { name: "1" })).toBeInTheDocument();
   });
 });

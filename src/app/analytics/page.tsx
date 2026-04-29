@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   ARTIFACT_CREATED_EVENT,
   ARTIFACT_FOLLOW_UP_EDIT_EVENT,
@@ -162,6 +162,10 @@ function EmptyPanel({ message }: { message: string }) {
 }
 
 export default function AnalyticsPage() {
+  const dailyChartIdBase = useId();
+  const dailyChartTitleId = `${dailyChartIdBase}-daily-page-views-title`;
+  const dailyChartDescId = `${dailyChartIdBase}-daily-page-views-desc`;
+  const dailyTableCaptionId = `${dailyChartIdBase}-daily-page-views-table-caption`;
   const [range, setRange] = useState<AnalyticsRange>("7d");
   const [events, setEvents] = useState<AnalyticsEventRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,6 +257,13 @@ export default function AnalyticsPage() {
   const recentEvents = useMemo(() => events.slice(0, 50), [events]);
   const maxDailyCount = Math.max(...dailyPageViews.map((day) => day.count), 1);
   const configured = isAnalyticsConfigured();
+  const selectedRangeLabel = RANGE_OPTIONS.find((option) => option.value === range)?.label ?? range;
+  const totalDailyPageViews = dailyPageViews.reduce((sum, day) => sum + day.count, 0);
+  const peakDailyPageView = dailyPageViews.reduce((maxDay, day) => (day.count > maxDay.count ? day : maxDay), dailyPageViews[0]);
+  const dailyChartTitle = `Daily page views chart, ${selectedRangeLabel} selection`;
+  const dailyChartDescription = `Bar chart of the last 14 days of page views for the ${selectedRangeLabel} range. Total page views ${formatNumber(
+    totalDailyPageViews,
+  )}. Peak ${formatNumber(peakDailyPageView?.count ?? 0)} on ${peakDailyPageView?.label ?? "N/A"}.`;
 
   return (
     <main
@@ -363,27 +374,69 @@ export default function AnalyticsPage() {
             <div style={{ fontSize: 18, fontWeight: 600 }}>Daily page views</div>
             <div style={{ color: TEXT_MUTED, fontSize: 14, marginTop: 4 }}>Last 14 days</div>
             {dailyPageViews.some((day) => day.count > 0) ? (
-              <svg viewBox="0 0 720 240" width="100%" height="240" style={{ marginTop: 20, overflow: "visible" }}>
-                {dailyPageViews.map((day, index) => {
-                  const barWidth = 36;
-                  const gap = 14;
-                  const x = index * (barWidth + gap) + 18;
-                  const barHeight = (day.count / maxDailyCount) * 150;
-                  const y = 180 - barHeight;
+              <>
+                <svg
+                  viewBox="0 0 720 240"
+                  width="100%"
+                  height="240"
+                  style={{ marginTop: 20, overflow: "visible" }}
+                  role="img"
+                  aria-labelledby={dailyChartTitleId}
+                  aria-describedby={dailyChartDescId}
+                >
+                  <title id={dailyChartTitleId}>{dailyChartTitle}</title>
+                  <desc id={dailyChartDescId}>{dailyChartDescription}</desc>
+                  {dailyPageViews.map((day, index) => {
+                    const barWidth = 36;
+                    const gap = 14;
+                    const x = index * (barWidth + gap) + 18;
+                    const barHeight = (day.count / maxDailyCount) * 150;
+                    const y = 180 - barHeight;
 
-                  return (
-                    <g key={day.date}>
-                      <rect x={x} y={y} width={barWidth} height={barHeight} rx={12} fill="#292524" />
-                      <text x={x + barWidth / 2} y={198} textAnchor="middle" fontSize="11" fill={TEXT_MUTED}>
-                        {day.label}
-                      </text>
-                      <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize="12" fill={TEXT_PRIMARY}>
-                        {day.count}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+                    return (
+                      <g key={day.date}>
+                        <rect x={x} y={y} width={barWidth} height={barHeight} rx={12} fill="#292524" />
+                        <text x={x + barWidth / 2} y={198} textAnchor="middle" fontSize="11" fill={TEXT_MUTED}>
+                          {day.label}
+                        </text>
+                        <text x={x + barWidth / 2} y={y - 8} textAnchor="middle" fontSize="12" fill={TEXT_PRIMARY}>
+                          {day.count}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+                <table
+                  aria-labelledby={dailyTableCaptionId}
+                  style={{
+                    position: "absolute",
+                    width: 1,
+                    height: 1,
+                    margin: -1,
+                    padding: 0,
+                    overflow: "hidden",
+                    clip: "rect(0 0 0 0)",
+                    whiteSpace: "nowrap",
+                    border: 0,
+                  }}
+                >
+                  <caption id={dailyTableCaptionId}>Daily page views data for the last 14 days</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Day</th>
+                      <th scope="col">Page views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyPageViews.map((day) => (
+                      <tr key={`${day.date}-summary`}>
+                        <th scope="row">{day.label}</th>
+                        <td>{formatNumber(day.count)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             ) : (
               <EmptyPanel message="No page views in the current range yet." />
             )}
