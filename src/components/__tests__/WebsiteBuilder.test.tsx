@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,6 +93,40 @@ describe("WebsiteBuilder", () => {
     expect(screen.getAllByPlaceholderText("Heading")).toHaveLength(4);
     expect(screen.getAllByPlaceholderText("Body copy")).toHaveLength(4);
     expect(screen.getAllByPlaceholderText("Button text (optional)")).toHaveLength(4);
+  });
+
+  it("renders integration-readiness guidance in edit mode and hides it in preview mode", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder()}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    const guidanceRegion = screen.getByRole("region", { name: "Integration readiness" });
+    expect(guidanceRegion).toBeInTheDocument();
+    expect(
+      screen.getByText("Once your page is ready, connect contact forms, CRM/email, and analytics."),
+    ).toBeInTheDocument();
+
+    const guidanceList = within(guidanceRegion).getByRole("list");
+    expect(guidanceList).toBeInTheDocument();
+    const guidanceItems = within(guidanceRegion).getAllByRole("listitem");
+    expect(guidanceItems).toHaveLength(3);
+    expect(screen.getByText("Capture leads")).toBeInTheDocument();
+    expect(screen.getByText("Route follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Measure demand")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(screen.queryByRole("region", { name: "Integration readiness" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Capture leads")).not.toBeInTheDocument();
+    expect(screen.queryByText("Route follow-up")).not.toBeInTheDocument();
+    expect(screen.queryByText("Measure demand")).not.toBeInTheDocument();
   });
 
   it("toggles to preview mode and renders hero, features, cta, and text sections", async () => {

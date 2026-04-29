@@ -129,6 +129,21 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
 
         {mode === "edit" ? (
           <div className="space-y-4">
+            <section
+              aria-label="Integration readiness"
+              className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3"
+            >
+              <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">Integration readiness</h2>
+              <p className="mt-2 text-xs leading-5 text-stone-600">
+                Once your page is ready, connect contact forms, CRM/email, and analytics.
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-800">
+                <li>Capture leads</li>
+                <li>Route follow-up</li>
+                <li>Measure demand</li>
+              </ul>
+            </section>
+
             {websiteBuilder.blocks.map((block, index) => (
               <div key={block.id} className="rounded-3xl border border-stone-200 bg-white p-4">
                 <div className="mb-3 flex items-center justify-between">
