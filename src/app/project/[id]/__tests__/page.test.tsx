@@ -359,6 +359,36 @@ describe("ProjectWorkspacePage", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renders the mobile panel switcher as accessible tabs and toggles associated tabpanels", async () => {
+    mockGetProject.mockResolvedValue(makeProject());
+
+    render(<ProjectWorkspacePage />);
+
+    const tablist = await screen.findByRole("tablist", { name: "Workspace mobile panel switcher" });
+    expect(tablist).toBeInTheDocument();
+
+    const chatTab = within(tablist).getByRole("tab", { name: "Chat" });
+    const canvasTab = within(tablist).getByRole("tab", { name: "Canvas" });
+
+    expect(chatTab).toHaveAttribute("aria-selected", "true");
+    expect(canvasTab).toHaveAttribute("aria-selected", "false");
+
+    const chatPanel = screen.getByRole("tabpanel");
+    expect(chatPanel).toBeVisible();
+    expect(chatPanel).toHaveAttribute("aria-labelledby", chatTab.getAttribute("id"));
+    expect(within(chatPanel).getByTestId("chat-panel")).toBeInTheDocument();
+
+    fireEvent.click(canvasTab);
+
+    expect(chatTab).toHaveAttribute("aria-selected", "false");
+    expect(canvasTab).toHaveAttribute("aria-selected", "true");
+
+    const canvasPanel = screen.getByRole("tabpanel");
+    expect(canvasPanel).toBeVisible();
+    expect(canvasPanel).toHaveAttribute("aria-labelledby", canvasTab.getAttribute("id"));
+    expect(within(canvasPanel).getByTestId("canvas")).toBeInTheDocument();
+  });
+
   it("loads and renders a persisted research report state", async () => {
     mockGetProject.mockResolvedValue(
       makeProject({
@@ -1914,9 +1944,11 @@ describe("ProjectWorkspacePage", () => {
 
     const [desktopChatPanel] = await screen.findAllByTestId("chat-panel");
 
-    fireEvent.click(screen.getByRole("button", { name: "Canvas" }));
+    const mobilePanelSwitcher = screen.getByRole("tablist", { name: "Workspace mobile panel switcher" });
+    const mobileCanvasTab = within(mobilePanelSwitcher).getByRole("tab", { name: "Canvas" });
+    fireEvent.click(mobileCanvasTab);
 
-    expect(screen.getByRole("button", { name: "Canvas" })).toHaveClass("bg-stone-950");
+    expect(mobileCanvasTab).toHaveClass("bg-stone-950");
 
     const mobileResearchButtons = screen.getAllByRole("button", { name: "Customer research memo" });
     fireEvent.click(mobileResearchButtons[mobileResearchButtons.length - 1]);
@@ -1934,7 +1966,7 @@ describe("ProjectWorkspacePage", () => {
     fireEvent.click(mobileCanvas.getByRole("button", { name: "Create note" }));
     fireEvent.click(mobileCanvas.getByRole("button", { name: "Drag note" }));
     fireEvent.click(within(desktopChatPanel).getByRole("button", { name: "Activate missing phase" }));
-    fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+    fireEvent.click(within(mobilePanelSwitcher).getByRole("tab", { name: "Chat" }));
 
     expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ notes: expect.arrayContaining([expect.objectContaining({ id: "note-2" })]) }));
     expect(mockSaveProject).toHaveBeenCalledWith(expect.objectContaining({ sections: expect.arrayContaining([expect.objectContaining({ id: "section-2" })]) }));

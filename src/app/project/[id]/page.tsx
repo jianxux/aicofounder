@@ -546,6 +546,11 @@ export default function ProjectWorkspacePage() {
   const projectId = params.id;
   const [project, setProject] = useState<Project | null>(null);
   const [activePanel, setActivePanel] = useState<"chat" | "canvas">("chat");
+  const mobileTabsId = "project-workspace-mobile-tabs";
+  const mobileChatTabId = "project-workspace-mobile-tab-chat";
+  const mobileCanvasTabId = "project-workspace-mobile-tab-canvas";
+  const mobileChatPanelId = "project-workspace-mobile-panel-chat";
+  const mobileCanvasPanelId = "project-workspace-mobile-panel-canvas";
   const [activePhaseId, setActivePhaseId] = useState("getting-started");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isResearchLoading, setIsResearchLoading] = useState(false);
@@ -1346,9 +1351,18 @@ export default function ProjectWorkspacePage() {
         </div>
 
         <div className="md:hidden">
-          <div className="inline-flex gap-2 rounded-full bg-stone-100 p-1">
+          <div
+            id={mobileTabsId}
+            role="tablist"
+            aria-label="Workspace mobile panel switcher"
+            className="inline-flex gap-2 rounded-full bg-stone-100 p-1"
+          >
             <button
+              id={mobileChatTabId}
               type="button"
+              role="tab"
+              aria-selected={activePanel === "chat"}
+              aria-controls={mobileChatPanelId}
               onClick={() => setActivePanel("chat")}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 activePanel === "chat"
@@ -1359,7 +1373,11 @@ export default function ProjectWorkspacePage() {
               Chat
             </button>
             <button
+              id={mobileCanvasTabId}
               type="button"
+              role="tab"
+              aria-selected={activePanel === "canvas"}
+              aria-controls={mobileCanvasPanelId}
               onClick={() => setActivePanel("canvas")}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 activePanel === "canvas"
@@ -1451,26 +1469,28 @@ export default function ProjectWorkspacePage() {
 
         <div className="md:hidden">
           {activePanel === "chat" ? (
-            <ChatPanel
-              className="min-h-[calc(100vh-13rem)]"
-              messages={project.messages}
-              phases={project.phases}
-              activePhaseId={activePhaseId}
-              activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
-              activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
-              activeArtifactHasOutput={activeArtifactHasOutput}
-              activeArtifactChatMode={activeArtifactChatMode}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              onRemind={handleRemind}
-              onBrainstorm={handleBrainstorm}
-              onResearch={handleResearch}
-              onUltraplan={handleUltraplan}
-              onToggleTask={handleToggleTask}
-              onSetActivePhase={handleSetActivePhase}
-            />
+            <div role="tabpanel" id={mobileChatPanelId} aria-labelledby={mobileChatTabId}>
+              <ChatPanel
+                className="min-h-[calc(100vh-13rem)]"
+                messages={project.messages}
+                phases={project.phases}
+                activePhaseId={activePhaseId}
+                activeArtifactLabel={activeArtifact ? getArtifactLabel(activeArtifact) : "Artifact"}
+                activeArtifactType={activeArtifact?.type ?? "validation-scorecard"}
+                activeArtifactHasOutput={activeArtifactHasOutput}
+                activeArtifactChatMode={activeArtifactChatMode}
+                onSendMessage={handleSendMessage}
+                isLoading={isLoading}
+                onRemind={handleRemind}
+                onBrainstorm={handleBrainstorm}
+                onResearch={handleResearch}
+                onUltraplan={handleUltraplan}
+                onToggleTask={handleToggleTask}
+                onSetActivePhase={handleSetActivePhase}
+              />
+            </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div role="tabpanel" id={mobileCanvasPanelId} aria-labelledby={mobileCanvasTabId} className="flex flex-col gap-4">
               {activeArtifact?.type === "validation-scorecard" ? (
                 <ValidationScorecardPanel artifact={activeArtifact} />
               ) : (
