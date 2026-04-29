@@ -129,6 +129,33 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Momentum improves when each next step closes a specific uncertainty/i)).toBeInTheDocument();
   });
 
+  it("shows a recommended first artifact for the default demand-validation preset", () => {
+    render(<LandingPage />);
+
+    expect(screen.getByText(/Recommended first artifact/i)).toBeInTheDocument();
+    expect(screen.getByText("Demand signal scorecard v1")).toBeInTheDocument();
+    expect(screen.getByText(/Turns a broad idea into visible buyer pain, current workaround, and proof gaps/i)).toBeInTheDocument();
+    expect(screen.getByText(/Interview five target buyers and score the problem by urgency, budget, and existing workaround/i)).toBeInTheDocument();
+  });
+
+  it("updates the recommended first artifact when positioning or next-step planning is selected", () => {
+    render(<LandingPage />);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Positioning/i }));
+
+    expect(screen.getByText("Homepage positioning brief")).toBeInTheDocument();
+    expect(screen.getByText(/Converts fuzzy product value into a repeatable buyer claim/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rewrite the hero around the strongest buyer language/i)).toBeInTheDocument();
+    expect(screen.queryByText("Demand signal scorecard v1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Next-step planning/i }));
+
+    expect(screen.getByText("7-day validation sprint plan")).toBeInTheDocument();
+    expect(screen.getByText(/Sequences scattered notes into the next three moves/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run the first experiment this week/i)).toBeInTheDocument();
+    expect(screen.queryByText("Homepage positioning brief")).not.toBeInTheDocument();
+  });
+
   it("renders concrete founder-specific starter cards for the default demand-validation preset", () => {
     render(<LandingPage />);
 

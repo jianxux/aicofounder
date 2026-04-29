@@ -165,6 +165,11 @@ const focusPresets = [
       "Interview for what breaks when the task is delayed, not just whether the idea sounds useful.",
     ],
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
+    recommendedArtifact: {
+      name: "Demand signal scorecard v1",
+      why: "Turns a broad idea into visible buyer pain, current workaround, and proof gaps before you spend a build cycle.",
+      nextStep: "Interview five target buyers and score the problem by urgency, budget, and existing workaround.",
+    },
   },
   {
     id: "positioning",
@@ -200,6 +205,11 @@ const focusPresets = [
       "Your next move is tightening the positioning claim before shipping the homepage.",
     ],
     sessionOutputs: ["Positioning report", "Market research memo", "Homepage angle to test"],
+    recommendedArtifact: {
+      name: "Homepage positioning brief",
+      why: "Converts fuzzy product value into a repeatable buyer claim, sharper ICP, and first homepage angle.",
+      nextStep: "Rewrite the hero around the strongest buyer language and test it with three prospects.",
+    },
   },
   {
     id: "next-step-planning",
@@ -235,6 +245,11 @@ const focusPresets = [
       "Name the metric or learning target before you draft the task list.",
     ],
     sessionOutputs: ["Next-step plan", "Validation sprint outline", "Decision-ready founder brief"],
+    recommendedArtifact: {
+      name: "7-day validation sprint plan",
+      why: "Sequences scattered notes into the next three moves, each tied to one uncertainty and success signal.",
+      nextStep: "Run the first experiment this week, then decide whether to narrow, pause, or build.",
+    },
   },
 ] as const;
 
@@ -567,6 +582,20 @@ export default function LandingPage() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+                  <div className="mt-3 rounded-[1.35rem] border border-amber-200 bg-amber-50/70 px-4 py-4 text-left">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-amber-800">Recommended first artifact</div>
+                    <div className="mt-2 text-base font-semibold tracking-[-0.03em] text-stone-950">{activePreset.recommendedArtifact.name}</div>
+                    <dl className="mt-3 grid gap-3 text-sm leading-6 text-stone-700 sm:grid-cols-2">
+                      <div>
+                        <dt className="font-semibold text-stone-950">Why it helps</dt>
+                        <dd className="mt-1">{activePreset.recommendedArtifact.why}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold text-stone-950">Do next</dt>
+                        <dd className="mt-1">{activePreset.recommendedArtifact.nextStep}</dd>
+                      </div>
+                    </dl>
                   </div>
                   <div className="mt-3 rounded-[1.5rem] border border-stone-200 bg-[#f8f5ef] px-4 py-4 sm:px-5 sm:py-5">
                     <textarea
