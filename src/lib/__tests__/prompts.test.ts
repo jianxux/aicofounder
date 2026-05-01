@@ -14,6 +14,8 @@ describe("buildSystemPrompt", () => {
   it.each([
     ["getting-started", "problem validation"],
     ["understand-project", "Reddit threads"],
+    ["understand-project", "direct alternatives, adjacent workarounds, and status-quo behavior"],
+    ["understand-project", "switching costs, unmet gaps, and a defensible wedge"],
     ["plan", "feature creep"],
     ["build", "build vs buy"],
     ["launch", "distribution channels"],
@@ -27,6 +29,7 @@ describe("buildSystemPrompt", () => {
     expect(basePrompt).toContain("You are an AI cofounder");
     expect(basePrompt).not.toContain("problem validation");
     expect(basePrompt).not.toContain("Reddit threads");
+    expect(basePrompt).not.toContain("defensible wedge");
     expect(basePrompt).not.toContain("feature creep");
     expect(basePrompt).not.toContain("build vs buy");
     expect(basePrompt).not.toContain("distribution channels");
@@ -38,6 +41,7 @@ describe("buildSystemPrompt", () => {
     expect(emptyPrompt).toContain("You are an AI cofounder");
     expect(emptyPrompt).not.toContain("problem validation");
     expect(emptyPrompt).not.toContain("Reddit threads");
+    expect(emptyPrompt).not.toContain("defensible wedge");
     expect(emptyPrompt).not.toContain("feature creep");
     expect(emptyPrompt).not.toContain("build vs buy");
     expect(emptyPrompt).not.toContain("distribution channels");

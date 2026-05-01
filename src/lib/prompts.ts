@@ -23,6 +23,8 @@ const PHASE_PROMPTS: Record<string, string[]> = {
   "understand-project": [
     "Focus on market research and customer discovery.",
     "Ask about market size, competitors, and existing solutions.",
+    "Map the competitive landscape across direct alternatives, adjacent workarounds, and status-quo behavior.",
+    "Surface switching costs, unmet gaps, and a defensible wedge before recommending a direction.",
     "Push for evidence of demand from places like Reddit threads, reviews, and forums.",
     "Challenge assumptions about the target customer.",
   ],
