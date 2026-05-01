@@ -109,6 +109,49 @@ export default function ChatPanel({
           "Draft the next validation step that would most reduce risk.",
         ];
   }, [isFollowUpMode, isResearchMemoActive]);
+  const evidenceGuide = useMemo(() => {
+    if (isResearchMemoActive) {
+      return isFollowUpMode
+        ? {
+            title: "Evidence guide",
+            subtitle: "Tighten this memo with the highest-leverage missing proof.",
+            checkpoints: [
+              "Centralize: add 1 new interview quote tied to a specific customer segment.",
+              "Analyze: call out the strongest unresolved contradiction in the current findings.",
+              "Query and act: define the next interview question and who to ask this week.",
+            ],
+          }
+        : {
+            title: "Evidence guide",
+            subtitle: "Start with concrete inputs so the memo is grounded from day one.",
+            checkpoints: [
+              "Capture the idea, target customer, and core problem in customer language.",
+              "Centralize signals: add 2-3 quotes, observations, or workflow examples.",
+              "Analyze to act: log one contradiction and the next research move it should trigger.",
+            ],
+          };
+    }
+
+    return isFollowUpMode
+      ? {
+          title: "Evidence guide",
+          subtitle: "Sharpen this scorecard by challenging weak confidence first.",
+          checkpoints: [
+            "Re-check the weakest score with one recent customer or market datapoint.",
+            "Link each score change to explicit proof, not intuition.",
+            "Set the next validation experiment with a clear pass/fail signal.",
+          ],
+        }
+      : {
+          title: "Evidence guide",
+          subtitle: "Build a connected scorecard from the core validation inputs.",
+          checkpoints: [
+            "Start with the idea, target customer, and problem you are validating.",
+            "Add proof for each score: customer quotes, behavior, or experiment outcomes.",
+            "Connect modules: signal -> risk -> score -> next validation step.",
+          ],
+        };
+  }, [isFollowUpMode, isResearchMemoActive]);
   const isDraftEmpty = !draft.trim();
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -209,6 +252,28 @@ export default function ChatPanel({
             Freeform chat is grounded in the active artifact and its latest revision.
           </p>
         ) : null}
+        <div
+          data-testid="evidence-guide"
+          className="mb-4 rounded-3xl border border-stone-200 bg-white px-4 py-4"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+              {evidenceGuide.title}
+            </div>
+            <span className="rounded-full bg-[#f4efe7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-700">
+              {isFollowUpMode ? "Follow-up" : "Create"}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-stone-600">{evidenceGuide.subtitle}</p>
+          <ul className="mt-3 space-y-2 text-sm leading-5 text-stone-700">
+            {evidenceGuide.checkpoints.map((checkpoint) => (
+              <li key={checkpoint} className="flex gap-2">
+                <span aria-hidden className="mt-[7px] h-1.5 w-1.5 rounded-full bg-stone-400" />
+                <span>{checkpoint}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
         <div className="mb-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] px-4 py-4">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
             Starter prompts for {activeArtifactLabel}
