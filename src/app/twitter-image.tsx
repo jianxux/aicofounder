@@ -89,17 +89,15 @@ export default function TwitterImage() {
                     fontSize: "20px",
                   }}
                 >
-                  An AI partner for deliberate founders
+                  Idea score to customer proof to next move
                 </div>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "18px", maxWidth: "760px" }}>
-              <div style={{ fontSize: "78px", lineHeight: 1.02, fontWeight: 700 }}>
-                Make something people actually want
-              </div>
+              <div style={{ fontSize: "78px", lineHeight: 1.02, fontWeight: 700 }}>From founder idea to proof</div>
               <div style={{ fontSize: "32px", lineHeight: 1.3, color: "#D6D3D1" }}>
-                Research demand, sharpen your product strategy, and move from idea to launch with an AI partner that
-                challenges weak assumptions.
+                Score demand, synthesize customer feedback, and leave each session with a prioritized next-step plan
+                and strategy-ready outputs.
               </div>
             </div>
             <div style={{ display: "flex", gap: "18px", color: "#E7E5E4", fontSize: "22px" }}>
@@ -111,7 +109,7 @@ export default function TwitterImage() {
                   padding: "12px 18px",
                 }}
               >
-                Research
+                Idea scoring
               </div>
               <div
                 style={{
@@ -121,7 +119,7 @@ export default function TwitterImage() {
                   padding: "12px 18px",
                 }}
               >
-                Strategy
+                Customer feedback
               </div>
               <div
                 style={{
@@ -131,7 +129,7 @@ export default function TwitterImage() {
                   padding: "12px 18px",
                 }}
               >
-                Launch
+                Next-step plan
               </div>
             </div>
           </div>

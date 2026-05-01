@@ -5,26 +5,44 @@ const metadataBase = new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhos
 
 export const metadata: Metadata = {
   metadataBase,
-  title: "AI Cofounder — Make something people actually want",
-  description: "Research and build your product with AI. Your AI cofounder guides you from idea to launch.",
+  title: "AI Cofounder — Score demand, prove customer pull, ship the next move",
+  description:
+    "Turn a founder idea into proof artifacts with AI: idea scoring, customer-feedback synthesis, and a concrete next-step plan.",
   applicationName: "AI Cofounder",
-  keywords: ["AI Cofounder", "startup", "product research", "founder tools", "AI product strategist"],
+  keywords: [
+    "AI Cofounder",
+    "startup",
+    "idea scoring",
+    "customer feedback analysis",
+    "founder workflow",
+    "demand validation",
+    "positioning",
+  ],
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: ["/icon.svg"],
     apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "AI Cofounder — Make something people actually want",
-    description: "Research and build your product with AI. Your AI cofounder guides you from idea to launch.",
+    title: "AI Cofounder — Score demand, prove customer pull, ship the next move",
+    description:
+      "Convert scattered founder inputs into concrete outputs: idea scorecards, customer evidence, and a prioritized next-step plan.",
     siteName: "AI Cofounder",
     type: "website",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "AI Cofounder preview card" }],
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "AI Cofounder workflow preview with idea scoring, customer proof, and next-step planning",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI Cofounder — Make something people actually want",
-    description: "Research and build your product with AI. Your AI cofounder guides you from idea to launch.",
+    title: "AI Cofounder — Score demand, prove customer pull, ship the next move",
+    description:
+      "Idea scorecard + customer feedback synthesis + next-step execution plan, grounded in your founder context.",
     images: ["/twitter-image"],
   },
 };
