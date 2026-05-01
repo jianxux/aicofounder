@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import {
   frameworkHasRenderableContent,
   getFrameworkTemplateLabel,
@@ -93,6 +95,29 @@ function getEvidenceLabel(
   return entry.label;
 }
 
+const FRAMEWORK_GUIDANCE_STEPS: Record<ArtifactFramework["type"], [string, string, string]> = {
+  swot: [
+    "Capture evidence-backed points in each quadrant instead of generic claims.",
+    "Pick one strength to leverage and one weakness to reduce this quarter.",
+    "Turn the top opportunity and threat into clear next actions with owners.",
+  ],
+  "five-forces": [
+    "Rate each force using current customer, competitor, and pricing evidence.",
+    "Identify the single force most likely to slow growth in your next stage.",
+    "Define one counter-move to test in the next 30 days.",
+  ],
+  "problem-solution-fit": [
+    "Name the narrow customer segment and urgent job you are targeting.",
+    "List the top pains and current alternatives that segment relies on.",
+    "Record fit signals and adoption risks you need to validate next.",
+  ],
+  "validation-experiment-planning": [
+    "Write one falsifiable hypothesis per experiment.",
+    "Set the method, success metric, and timebox before you run it.",
+    "Track signals and risks, then decide to scale, pivot, or stop.",
+  ],
+};
+
 function EvidenceChips({
   evidence,
   itemId,
@@ -151,9 +176,13 @@ export default function FrameworkTemplatePanel({
   citationsById,
   sourceIndexById,
 }: FrameworkTemplatePanelProps) {
+  const guidanceHeadingId = useId();
+
   if (!frameworkHasRenderableContent(framework)) {
     return null;
   }
+
+  const guidanceSteps = FRAMEWORK_GUIDANCE_STEPS[framework.type];
 
   return (
     <section className="rounded-3xl border border-stone-200 bg-white p-4">
@@ -164,6 +193,16 @@ export default function FrameworkTemplatePanel({
         </div>
         <span className="rounded-full bg-[#fcfaf6] px-3 py-1 text-xs font-medium text-stone-600">Optional structure</span>
       </div>
+      <section aria-labelledby={guidanceHeadingId} className="mt-4 rounded-2xl bg-[#fcfaf6] px-4 py-3">
+        <h4 id={guidanceHeadingId} className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-600">
+          How to use this template
+        </h4>
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-stone-700">
+          {guidanceSteps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </section>
 
       {framework.type === "swot" ? (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
