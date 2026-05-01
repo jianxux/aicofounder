@@ -197,6 +197,41 @@ const focusPresets = [
     sessionOutputs: ["Demand signal scorecard", "Proof gaps to close", "Highest-risk assumption list"],
   },
   {
+    id: "landing-page-market-sizing",
+    label: "Landing-page market sizing",
+    title: "Estimate whether this landing-page wedge has enough headroom.",
+    description: "Frame the idea, customer, and painful problem first, then size a narrow landing-page opportunity with explicit assumptions.",
+    helper: "Use this when your homepage promise sounds strong but you still need a realistic market opportunity range before committing.",
+    placeholder: "Size the near-term market opportunity for this landing-page wedge before I scale build and paid acquisition.",
+    promptIdeas: [
+      {
+        title: "Vertical AI intake automation page",
+        summary: "Estimate if one healthcare intake landing-page wedge can support early revenue goals.",
+        prompt:
+          "Estimate the market opportunity for a landing page offering AI intake automation for outpatient physical therapy clinics with 3 to 20 providers. Start by restating the idea, customer, and core problem in one paragraph. Then provide bottom-up assumptions for clinic count, reachable segment, expected conversion from page visit to booked demo, win rate, annual contract value, and realistic year-one revenue range. Include TAM, SAM, and a beachhead SOM for the landing-page wedge, plus the top metrics I should track in the first 60 days to validate or kill this direction.",
+      },
+      {
+        title: "Home-service estimate follow-up page",
+        summary: "Model a narrow market for HVAC/plumbing operators losing jobs after slow callbacks.",
+        prompt:
+          "Create a stage-specific market size estimate for a landing page focused on AI estimate follow-up for HVAC and plumbing operators with 20 to 150 field staff. Begin with idea, target customer, and painful workflow problem before scoring attractiveness. Then calculate a conservative, base, and upside market case using assumptions for target account count, page traffic mix, demo conversion, pilot-to-paid conversion, monthly pricing, and expected retention. Output TAM/SAM/SOM and the key proof metrics that would make this market worth pursuing.",
+      },
+      {
+        title: "B2B finance close workflow page",
+        summary: "Pressure-test whether a finance-close landing-page angle can justify GTM investment.",
+        prompt:
+          "Size the market opportunity for a landing page selling AI month-end close workflow support to controllers at multi-entity SMBs. I need explicit assumptions and formulas, not generic ranges. Anchor the estimate in concrete metrics: number of target firms, percent with multi-entity complexity, reachable pipeline in 12 months, lead-to-opportunity rate, close rate, ARPA, and churn. Return TAM, SAM, and beachhead SOM, a one-year forecast table, and the leading indicators to monitor weekly so I can decide whether to keep investing in this landing-page positioning.",
+      },
+    ],
+    insightTitle: "Example insight: market opportunity",
+    insightBody: "Credible sizing starts after the idea, buyer, and problem are explicit, then ties each estimate to measurable funnel assumptions.",
+    insightPoints: [
+      "Use scenario ranges and show the formula behind each number so founders can challenge weak assumptions quickly.",
+      "A narrow SOM plus clear conversion metrics beats a broad TAM claim when deciding whether to fund the wedge.",
+    ],
+    sessionOutputs: ["Market size estimate", "One-year forecast model", "Validation metrics checklist"],
+  },
+  {
     id: "positioning",
     label: "Positioning",
     title: "Sharpen the angle buyers will actually repeat.",
