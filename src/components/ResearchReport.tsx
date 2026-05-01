@@ -31,6 +31,12 @@ type ResearchProgressStage = {
   detail: string;
 };
 
+const SECTION_CHALLENGE_PROMPTS = [
+  "Challenge the evidence",
+  "Find the riskiest assumption",
+  "Design a validation test",
+] as const;
+
 function getRelevanceClasses(relevance: "high" | "medium" | "low") {
   if (relevance === "high") {
     return "bg-emerald-100 text-emerald-800";
@@ -1089,6 +1095,8 @@ export default function ResearchReport({
 
             {report.sections.map((section) => {
               const isExpanded = expandedSections[section.id] ?? true;
+              const findingParagraphs = section.findings.split(/\n+/).filter((paragraph) => paragraph.trim());
+              const hasFindings = findingParagraphs.length > 0;
 
               return (
                 <article key={section.id} className="rounded-3xl border border-stone-200 bg-white p-5">
@@ -1115,14 +1123,32 @@ export default function ResearchReport({
                   {isExpanded ? (
                     <div className="mt-4">
                       <div className="space-y-3">
-                        {section.findings.split(/\n+/).map((paragraph, index) =>
-                          paragraph.trim() ? (
-                            <p key={`${section.id}-finding-${index + 1}`} className="text-sm leading-6 text-stone-700">
-                              {paragraph.trim()}
-                            </p>
-                          ) : null,
-                        )}
+                        {findingParagraphs.map((paragraph, index) => (
+                          <p key={`${section.id}-finding-${index + 1}`} className="text-sm leading-6 text-stone-700">
+                            {paragraph}
+                          </p>
+                        ))}
                       </div>
+
+                      {hasFindings ? (
+                        <section
+                          className="mt-5 rounded-2xl border border-stone-200 bg-[#fcfaf6] px-4 py-3"
+                          aria-label={`Challenge prompts for ${section.title}`}
+                        >
+                          <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                            Challenge prompts
+                          </h4>
+                          <ul className="mt-3 flex flex-wrap gap-2">
+                            {SECTION_CHALLENGE_PROMPTS.map((prompt) => (
+                              <li key={`${section.id}-${prompt}`}>
+                                <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-stone-700">
+                                  {prompt}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ) : null}
 
                       <div className="mt-5 border-t border-stone-200 pt-4">
                         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Citations</div>
