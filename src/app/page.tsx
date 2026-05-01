@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import type { User } from "@supabase/supabase-js";
 import AuthButton from "@/components/AuthButton";
 import Navbar from "@/components/Navbar";
@@ -258,11 +267,13 @@ function LandingLinkCta({
   children,
   variant = "primary",
   href = "/dashboard",
+  onClick,
 }: {
   button: string;
   children: ReactNode;
   variant?: "primary" | "secondary";
   href?: string;
+  onClick?: (event: ReactMouseEvent<HTMLAnchorElement>) => void;
 }) {
   const baseClassName =
     "inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200";
@@ -274,12 +285,13 @@ function LandingLinkCta({
   return (
     <Link
       href={href}
-      onClick={() =>
+      onClick={(event) => {
+        onClick?.(event);
         void trackEvent("cta_click", {
           page: "/",
           button,
-        })
-      }
+        });
+      }}
       className={`${baseClassName} ${variantClassName}`}
     >
       {children}
@@ -377,7 +389,17 @@ function LoginPromptModal({
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_45px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-stone-800"
             />
           )}
-          <LandingLinkCta button="hero_prompt_explore_demo" variant="secondary">
+          <LandingLinkCta
+            button="hero_prompt_explore_demo"
+            href="#proof"
+            variant="secondary"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.sessionStorage.removeItem("landingPromptDraft");
+              }
+              onClose();
+            }}
+          >
             Explore demo first
           </LandingLinkCta>
         </div>
@@ -697,14 +719,14 @@ export default function LandingPage() {
               analyticsPage="/"
               className="inline-flex items-center justify-center rounded-full bg-stone-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-stone-800"
             />
-            <LandingLinkCta button="hero_see_workspace" variant="secondary">
+            <LandingLinkCta button="hero_see_workspace" href="#workflow" variant="secondary">
               See the founder workflow
             </LandingLinkCta>
           </div>
         </section>
       </div>
 
-      <section className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
+      <section id="proof" className="mx-auto w-full max-w-7xl scroll-mt-24 px-6 py-8 lg:px-8">
         <div className="grid gap-6 rounded-[2.25rem] border border-stone-200/80 bg-white/72 p-6 shadow-[0_24px_90px_rgba(66,46,17,0.08)] backdrop-blur-sm lg:grid-cols-[0.72fr_1.28fr] lg:p-7">
           <div className="max-w-md">
             <div className="text-sm font-semibold uppercase tracking-[0.22em] text-stone-500">Sample first deliverable</div>

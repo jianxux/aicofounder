@@ -500,8 +500,8 @@ export async function saveProjectToSupabase(project: Project): Promise<void> {
   }
 }
 
-export async function createSupabaseProject(): Promise<Project> {
-  const project = createProjectRecord();
+export async function createSupabaseProject(initialProject?: Project): Promise<Project> {
+  const project = normalizeProject(initialProject ?? createProjectRecord());
 
   try {
     await saveProjectToSupabase(project);
