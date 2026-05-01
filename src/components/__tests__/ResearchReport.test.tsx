@@ -139,6 +139,7 @@ describe("ResearchReport", () => {
     expect(
       screen.getByText("Start a research run to track objective, scope, evidence, synthesis, and next actions."),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Source quality snapshot")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Create customer research memo" }));
 
@@ -251,6 +252,21 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Market demand")).toBeInTheDocument();
     expect(screen.getAllByText("Industry report").length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText("Trust scaffolding")).toBeInTheDocument();
+    expect(screen.getByText("Source quality snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Proceed with a focused validation step while strengthening weaker claims.")).toBeInTheDocument();
+    const sourceQualitySnapshot = screen.getByRole("region", { name: "Source quality snapshot" });
+    const retainedSourcesCard = within(sourceQualitySnapshot).getByText("Retained sources").closest("div");
+    expect(retainedSourcesCard).not.toBeNull();
+    expect(within(retainedSourcesCard as HTMLElement).getByText("1")).toBeInTheDocument();
+    const highRelevanceCard = within(sourceQualitySnapshot).getByText("High relevance citations").closest("div");
+    expect(highRelevanceCard).not.toBeNull();
+    expect(within(highRelevanceCard as HTMLElement).getByText("1")).toBeInTheDocument();
+    const weakClaimsCard = within(sourceQualitySnapshot).getByText("Weak major claims").closest("div");
+    expect(weakClaimsCard).not.toBeNull();
+    expect(within(weakClaimsCard as HTMLElement).getByText("0")).toBeInTheDocument();
+    const rejectedSourcesCard = within(sourceQualitySnapshot).getByText("Rejected sources").closest("div");
+    expect(rejectedSourcesCard).not.toBeNull();
+    expect(within(rejectedSourcesCard as HTMLElement).getByText("1")).toBeInTheDocument();
     expect(screen.getByText("Major claims")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -263,7 +279,7 @@ describe("ResearchReport", () => {
     expect(screen.getByText("Evidence inventory")).toBeInTheDocument();
     expect(screen.getByText("Source list")).toBeInTheDocument();
     expect(screen.getByText("Citation index")).toBeInTheDocument();
-    expect(screen.getByText("Rejected sources")).toBeInTheDocument();
+    expect(screen.getAllByText("Rejected sources").length).toBeGreaterThan(0);
     expect(screen.getByText("Run notes")).toBeInTheDocument();
     expect(
       screen.getByText("Run completed with issues during evidence gathering: One section failed validation"),
@@ -487,5 +503,125 @@ describe("ResearchReport", () => {
 
     expect(screen.getByText("Research context")).toBeInTheDocument();
     expect(screen.getByText("User asked for a market scan.")).toBeInTheDocument();
+  });
+
+  it("does not render source quality snapshot in empty state when artifact source inventory exists", () => {
+    render(
+      <ResearchReport
+        status="empty"
+        artifact={{
+          status: "partial",
+          sourceInventory: {
+            selected: [
+              {
+                id: "inventory-1",
+                title: "Analyst brief",
+                canonicalId: "analyst-brief",
+                sourceType: "analyst",
+                status: "selected",
+                citationIds: [],
+                sectionIds: [],
+                claimCount: 0,
+              },
+            ],
+            rejected: [],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "Source quality snapshot" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Source quality snapshot")).not.toBeInTheDocument();
+  });
+
+  it("renders source quality snapshot from artifact inventory fallback without a report", () => {
+    render(
+      <ResearchReport
+        status="success"
+        artifact={{
+          status: "partial",
+          selectedSources: [
+            {
+              id: "citation-1",
+              source: "Analyst brief",
+              claim: "Budget owners are active.",
+              relevance: "high",
+            },
+            {
+              id: "citation-2",
+              source: "Community thread",
+              claim: "Pain points are inconsistent.",
+              relevance: "low",
+            },
+          ],
+          sourceInventory: {
+            selected: [
+              {
+                id: "inventory-1",
+                title: "Analyst brief",
+                canonicalId: "analyst-brief",
+                sourceType: "analyst",
+                status: "selected",
+                citationIds: ["citation-1"],
+                sectionIds: [],
+                claimCount: 1,
+              },
+            ],
+            rejected: [
+              {
+                id: "rejected-1",
+                title: "Duplicate forum note",
+                canonicalId: "duplicate-forum-note",
+                sourceType: "community",
+                status: "rejected",
+                citationIds: [],
+                sectionIds: [],
+                claimCount: 0,
+                rejectionReason: "duplicate",
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Source quality snapshot")).toBeInTheDocument();
+    expect(screen.getByText("Gather more high-relevance evidence before making a high-impact decision.")).toBeInTheDocument();
+    const sourceQualitySnapshot = screen.getByRole("region", { name: "Source quality snapshot" });
+    const retainedSourcesCard = within(sourceQualitySnapshot).getByText("Retained sources").closest("div");
+    expect(retainedSourcesCard).not.toBeNull();
+    expect(within(retainedSourcesCard as HTMLElement).getByText("1")).toBeInTheDocument();
+    const highRelevanceCard = within(sourceQualitySnapshot).getByText("High relevance citations").closest("div");
+    expect(highRelevanceCard).not.toBeNull();
+    expect(within(highRelevanceCard as HTMLElement).getByText("1")).toBeInTheDocument();
+    const lowRelevanceCard = within(sourceQualitySnapshot).getByText("Low relevance citations").closest("div");
+    expect(lowRelevanceCard).not.toBeNull();
+    expect(within(lowRelevanceCard as HTMLElement).getByText("1")).toBeInTheDocument();
+    const rejectedSourcesCard = within(sourceQualitySnapshot).getByText("Rejected sources").closest("div");
+    expect(rejectedSourcesCard).not.toBeNull();
+    expect(within(rejectedSourcesCard as HTMLElement).getByText("1")).toBeInTheDocument();
+  });
+
+  it("renders source quality snapshot from legacy artifact sources without source inventory", () => {
+    render(
+      <ResearchReport
+        status="success"
+        artifact={{
+          status: "partial",
+          selectedSources: [
+            {
+              id: "citation-1",
+              source: "Analyst brief",
+              claim: "Budget owners are active.",
+              relevance: "high" as const,
+            },
+          ],
+          rejectedSources: [{ source: "Community thread", reason: "duplicate" as const }],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "Source quality snapshot" })).toBeInTheDocument();
+    expect(screen.getByText("Source quality snapshot")).toBeInTheDocument();
   });
 });
