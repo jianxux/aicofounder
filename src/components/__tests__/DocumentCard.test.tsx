@@ -115,6 +115,18 @@ describe("DocumentCard", () => {
     expect(onDragStart.mock.calls[0]?.[0]).toBe("doc-1");
   });
 
+  it("does not call onDragStart when title input is pointerdown", () => {
+    const onDragStart = vi.fn();
+
+    render(
+      <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={onDragStart} />,
+    );
+
+    fireEvent.pointerDown(screen.getByDisplayValue("My Document"));
+
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
   it("renders a delete button when onDelete is provided", () => {
     render(
       <DocumentCard
