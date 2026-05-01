@@ -100,9 +100,9 @@ describe("lib/analytics", () => {
     expect(window.sessionStorage.getItem("analytics-session-id")).toBe(firstPayload.session_id);
   });
 
-  it("falls back to fetch when sendBeacon cannot deliver a page unload event", async () => {
+  it("uses authenticated keepalive fetch for Supabase page unload events", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    const sendBeaconMock = vi.fn().mockReturnValue(false);
+    const sendBeaconMock = vi.fn().mockReturnValue(true);
     vi.stubGlobal("fetch", fetchMock);
     Object.defineProperty(navigator, "sendBeacon", {
       configurable: true,
@@ -113,8 +113,18 @@ describe("lib/analytics", () => {
 
     await trackPageUnload({ reason: "navigation" });
 
-    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    expect(sendBeaconMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.supabase.co/rest/v1/events",
+      expect.objectContaining({
+        keepalive: true,
+        headers: expect.objectContaining({
+          apikey: "public-anon-key",
+          Authorization: "Bearer public-anon-key",
+        }),
+      }),
+    );
     const fallbackPayload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string);
     expect(fallbackPayload.event).toBe("page_unload");
     expect(fallbackPayload.data).toEqual(expect.objectContaining({ reason: "navigation" }));
@@ -155,9 +165,10 @@ describe("lib/analytics", () => {
     expect(getSessionId()).toBe("18bcfe568001f9add3739635f");
   });
 
-  it("uses beacon transport without fetch when sendBeacon succeeds", async () => {
+  it("uses beacon transport without fetch when a same-origin beacon endpoint is configured", async () => {
     const fetchMock = vi.fn();
     const sendBeaconMock = vi.fn().mockReturnValue(true);
+    vi.stubEnv("NEXT_PUBLIC_ANALYTICS_BEACON_URL", "/api/analytics/beacon");
     vi.stubGlobal("fetch", fetchMock);
     Object.defineProperty(navigator, "sendBeacon", {
       configurable: true,
@@ -172,8 +183,9 @@ describe("lib/analytics", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to fetch when beacon transport is unavailable", async () => {
+  it("falls back to fetch when configured beacon transport is unavailable", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubEnv("NEXT_PUBLIC_ANALYTICS_BEACON_URL", "/api/analytics/beacon");
     vi.stubGlobal("fetch", fetchMock);
     Object.defineProperty(navigator, "sendBeacon", {
       configurable: true,
@@ -187,8 +199,9 @@ describe("lib/analytics", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to fetch when sendBeacon throws", async () => {
+  it("falls back to fetch when configured sendBeacon throws", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubEnv("NEXT_PUBLIC_ANALYTICS_BEACON_URL", "/api/analytics/beacon");
     vi.stubGlobal("fetch", fetchMock);
     Object.defineProperty(navigator, "sendBeacon", {
       configurable: true,

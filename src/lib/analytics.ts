@@ -49,6 +49,7 @@ const SESSION_STORAGE_KEY = "analytics-session-id";
 function getSupabaseAnalyticsConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const beaconUrl = process.env.NEXT_PUBLIC_ANALYTICS_BEACON_URL?.trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return null;
@@ -58,6 +59,7 @@ function getSupabaseAnalyticsConfig() {
     supabaseUrl,
     supabaseAnonKey,
     restUrl: `${supabaseUrl}/rest/v1/events`,
+    beaconUrl: beaconUrl || null,
   };
 }
 
@@ -167,6 +169,19 @@ function sendWithBeacon(url: string, payload: EventPayload) {
     return navigator.sendBeacon(url, body);
   } catch {
     return false;
+  }
+}
+
+function getBeaconUrlForPayload(config: ReturnType<typeof getSupabaseAnalyticsConfig>) {
+  if (!config?.beaconUrl || !isBrowser() || typeof window.location === "undefined") {
+    return null;
+  }
+
+  try {
+    const parsedBeaconUrl = new URL(config.beaconUrl, window.location.href);
+    return parsedBeaconUrl.origin === window.location.origin ? parsedBeaconUrl.toString() : null;
+  } catch {
+    return null;
   }
 }
 
@@ -311,7 +326,8 @@ export async function trackEvent(
   const payload = buildPayload(eventName, data);
 
   if (options.transport === "beacon") {
-    const beaconSent = sendWithBeacon(config.restUrl, payload);
+    const beaconUrl = getBeaconUrlForPayload(config);
+    const beaconSent = beaconUrl ? sendWithBeacon(beaconUrl, payload) : false;
 
     if (beaconSent) {
       return;
