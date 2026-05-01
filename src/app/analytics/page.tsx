@@ -376,6 +376,8 @@ export default function AnalyticsPage() {
           </div>
 
           <div
+            role="group"
+            aria-label="Analytics range"
             style={{
               display: "flex",
               gap: 8,
@@ -391,6 +393,7 @@ export default function AnalyticsPage() {
                 <button
                   key={option.value}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => setRange(option.value)}
                   style={{
                     borderRadius: 999,

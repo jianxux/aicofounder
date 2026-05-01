@@ -199,11 +199,26 @@ describe("AnalyticsPage", () => {
       expect(mockFetchAnalyticsEvents).toHaveBeenCalledWith("7d");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(screen.getByRole("group", { name: "Analytics range" })).toBeInTheDocument();
+
+    const todayButton = screen.getByRole("button", { name: "Today" });
+    const sevenDaysButton = screen.getByRole("button", { name: "7 days" });
+    const thirtyDaysButton = screen.getByRole("button", { name: "30 days" });
+    const allTimeButton = screen.getByRole("button", { name: "All time" });
+
+    expect(sevenDaysButton).toHaveAttribute("aria-pressed", "true");
+    expect(todayButton).toHaveAttribute("aria-pressed", "false");
+    expect(thirtyDaysButton).toHaveAttribute("aria-pressed", "false");
+    expect(allTimeButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(todayButton);
 
     await waitFor(() => {
       expect(mockFetchAnalyticsEvents).toHaveBeenCalledWith("today");
     });
+
+    expect(todayButton).toHaveAttribute("aria-pressed", "true");
+    expect(sevenDaysButton).toHaveAttribute("aria-pressed", "false");
 
     expect(screen.getByText("Supabase is not configured.")).toBeInTheDocument();
     expect(screen.getByText("Top pages")).toBeInTheDocument();
