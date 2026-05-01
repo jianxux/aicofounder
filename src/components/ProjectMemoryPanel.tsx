@@ -147,6 +147,33 @@ export default function ProjectMemoryPanel({ project }: { project: Project }) {
         </p>
       </div>
 
+      <div className="mt-4 rounded-3xl border border-stone-200 bg-[#fcfaf6] p-4" data-testid="memory-loop-guidance">
+        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Workspace memory loop</div>
+        <ul className="mt-2 grid list-none gap-2 p-0 text-sm text-stone-700 sm:grid-cols-2">
+          <li>
+            <span className="font-semibold text-stone-900">Capture evidence</span> from artifacts worth carrying
+            forward.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Promote durable facts</span> with confidence and source
+            references.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Reuse in follow-ups</span> so saved context compounds.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Verify before decisions</span> when signals remain
+            tentative.
+          </li>
+        </ul>
+        <p className="mt-3 text-sm leading-6 text-stone-600">
+          Saved artifact evidence becomes future workspace context across runs.
+          {hasAnyMemory
+            ? " Reuse these saved facts in the next artifact follow-up, then verify anything still tentative before making a decision."
+            : " Generate or refine artifacts first, then promote what should persist for future follow-ups."}
+        </p>
+      </div>
+
       {!hasAnyMemory ? (
         <div className="mt-4 rounded-3xl border border-dashed border-stone-300 bg-[#fcfaf6] p-5 text-sm leading-6 text-stone-600">
           No workspace memory has been promoted yet. Generate or refine artifacts like the validation scorecard and
