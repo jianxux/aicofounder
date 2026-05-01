@@ -48,6 +48,7 @@ describe("ProjectMemoryPanel", () => {
     expect(
       screen.getAllByText("Nothing saved here yet. This bucket fills when reusable workspace memory is promoted from artifact output."),
     ).toHaveLength(5);
+    expect(screen.queryByRole("region", { name: "Advisor handoff prompts" })).not.toBeInTheDocument();
   });
 
   it("renders memory entries with confidence and revision-aware artifact provenance", () => {
@@ -196,5 +197,13 @@ describe("ProjectMemoryPanel", () => {
     expect(within(findingsBucket).getAllByText("Validation scorecard").length).toBeGreaterThan(0);
     expect(within(findingsBucket).getByText("Revision 1")).toBeInTheDocument();
     expect(within(findingsBucket).getByText(/^Updated Jan \d{1,2}, 2025$/)).toBeInTheDocument();
+
+    const handoffPanel = screen.getByRole("region", { name: "Advisor handoff prompts" });
+    const promptsList = within(handoffPanel).getByRole("list");
+    const prompts = within(promptsList).getAllByRole("listitem");
+    expect(prompts).toHaveLength(3);
+    expect(within(promptsList).getByText(/validated evidence from 1 finding/i)).toBeInTheDocument();
+    expect(within(promptsList).getByText(/assumption from 0 hypotheses/i)).toBeInTheDocument();
+    expect(within(promptsList).getByText(/next experiment from 0 experiments/i)).toBeInTheDocument();
   });
 });
