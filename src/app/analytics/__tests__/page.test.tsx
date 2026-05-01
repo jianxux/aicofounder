@@ -99,6 +99,13 @@ describe("AnalyticsPage", () => {
     expect(
       screen.getByText("Intake conversion is measured per project or session that submitted onboarding. Follow-up edits are measured per created artifact."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Founder decision guidance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Intake-to-artifact" })).toBeInTheDocument();
+    expect(screen.getByText("Intake conversion is stable and ready for deeper review.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Follow-up depth" })).toBeInTheDocument();
+    expect(screen.getByText("Founders are returning to sharpen outputs.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Workspace coverage / artifact mix" })).toBeInTheDocument();
+    expect(screen.getByText("Coverage includes validation-scorecard and customer-research-memo artifacts.")).toBeInTheDocument();
     expect(screen.getAllByText("artifact_followup_edit").length).toBeGreaterThan(0);
   });
 
@@ -202,5 +209,118 @@ describe("AnalyticsPage", () => {
     expect(screen.getByText("Top pages")).toBeInTheDocument();
     expect(screen.getAllByText("/dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Mobile").length).toBeGreaterThan(0);
+    expect(screen.getByText("No onboarding samples yet.")).toBeInTheDocument();
+    expect(screen.getByText("No generated artifacts yet.")).toBeInTheDocument();
+    expect(screen.getByText("No artifact type data yet.")).toBeInTheDocument();
+  });
+
+  it("shows unknown workspace coverage guidance when only non-standard artifact types exist", async () => {
+    mockFetchAnalyticsEvents.mockResolvedValue([
+      {
+        id: "switch-unknown-1",
+        user_id: null,
+        session_id: "session-unknown",
+        event: "workspace_artifact_switched",
+        data: {
+          project_id: "project-unknown",
+          artifact_id: "artifact-unknown",
+          artifact_type: "unknown-artifact-type",
+          page: "/project/project-unknown",
+        },
+        ip: null,
+        created_at: "2025-01-10T00:03:00.000Z",
+      },
+    ]);
+
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Track validation-scorecard and customer-research-memo artifact_type values for coverage guidance."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("shows low-rate guidance when creation and follow-up rates are below threshold", async () => {
+    mockFetchAnalyticsEvents.mockResolvedValue([
+      {
+        id: "intake-1",
+        user_id: null,
+        session_id: "session-low",
+        event: "artifact_intake_submitted",
+        data: { project_id: "project-low-1", page: "/dashboard" },
+        ip: null,
+        created_at: "2025-01-10T00:00:00.000Z",
+      },
+      {
+        id: "intake-2",
+        user_id: null,
+        session_id: "session-low",
+        event: "artifact_intake_submitted",
+        data: { project_id: "project-low-2", page: "/dashboard" },
+        ip: null,
+        created_at: "2025-01-10T00:01:00.000Z",
+      },
+      {
+        id: "create-1",
+        user_id: null,
+        session_id: "session-low",
+        event: "artifact_created",
+        data: {
+          project_id: "project-low-1",
+          artifact_id: "artifact-low-1",
+          artifact_type: "validation-scorecard",
+          page: "/project/project-low-1",
+        },
+        ip: null,
+        created_at: "2025-01-10T00:02:00.000Z",
+      },
+      {
+        id: "intake-3",
+        user_id: null,
+        session_id: "session-low",
+        event: "artifact_intake_submitted",
+        data: { project_id: "project-low-3", page: "/dashboard" },
+        ip: null,
+        created_at: "2025-01-10T00:03:00.000Z",
+      },
+    ]);
+
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Artifact creation rate is low.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Inspect onboarding steps and project dropoff before artifact creation.")).toBeInTheDocument();
+    expect(screen.getByText("Follow-up edit rate is low.")).toBeInTheDocument();
+    expect(screen.getByText("Check whether generated artifacts clearly invite refinement.")).toBeInTheDocument();
+  });
+
+  it("shows targeted coverage guidance when only validation-scorecard artifacts are represented", async () => {
+    mockFetchAnalyticsEvents.mockResolvedValue([
+      {
+        id: "create-validation-only-1",
+        user_id: null,
+        session_id: "session-validation-only",
+        event: "artifact_created",
+        data: {
+          project_id: "project-validation-only",
+          artifact_id: "artifact-validation-only",
+          artifact_type: "validation-scorecard",
+          page: "/project/project-validation-only",
+        },
+        ip: null,
+        created_at: "2025-01-10T00:00:00.000Z",
+      },
+    ]);
+
+    render(<AnalyticsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Coverage is missing customer-research-memo artifacts.")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Add customer-research-memo outputs to expand evidence coverage.")).toBeInTheDocument();
   });
 });
