@@ -40,8 +40,11 @@ export async function POST(request: Request) {
   try {
     const { projectName, projectDescription, focusArea, memoryEntries, memorySummaries }: BrainstormRequestBody =
       await request.json();
+    const normalizedProjectName = projectName?.trim();
+    const normalizedProjectDescription = projectDescription?.trim();
+    const normalizedFocusArea = focusArea?.trim() || undefined;
 
-    if (!projectName?.trim() || !projectDescription?.trim()) {
+    if (!normalizedProjectName || !normalizedProjectDescription) {
       return NextResponse.json(
         { error: "Project name and project description are required" },
         { status: 400 },
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     const brainstormOpenAI = openai as unknown as BrainstormOpenAIClient;
 
     const promptMemory = buildPromptMemory({
-      query: [projectName, projectDescription, focusArea].filter(Boolean).join(" "),
+      query: [normalizedProjectName, normalizedProjectDescription, normalizedFocusArea].filter(Boolean).join(" "),
       memoryEntries,
       memorySummaries,
     });
@@ -67,7 +70,12 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "system",
-          content: buildBrainstormPrompt(projectName, projectDescription, focusArea, promptMemory.block),
+          content: buildBrainstormPrompt(
+            normalizedProjectName,
+            normalizedProjectDescription,
+            normalizedFocusArea,
+            promptMemory.block,
+          ),
         },
         {
           role: "user",
