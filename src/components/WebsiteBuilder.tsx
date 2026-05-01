@@ -18,6 +18,26 @@ const BLOCK_OPTIONS: Array<{ type: WebsiteBlockType; label: string }> = [
   { type: "text", label: "Text" },
 ];
 
+type LaunchChecklistItem = {
+  title: string;
+  detail: string;
+};
+
+const LAUNCH_READINESS_CHECKLIST: LaunchChecklistItem[] = [
+  {
+    title: "Clear one-sentence promise",
+    detail: "State what you do, who it is for, and why it matters in a single line.",
+  },
+  {
+    title: "Primary conversion path",
+    detail: "Keep one obvious next step with a clear CTA above the fold and near the close.",
+  },
+  {
+    title: "Search/discovery basics",
+    detail: "Use a descriptive page title, scannable headings, and copy that matches search intent.",
+  },
+];
+
 function createBlock(type: WebsiteBlockType): WebsiteBlock {
   const id = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`;
 
@@ -216,74 +236,87 @@ export default function WebsiteBuilder({ websiteBuilder, onChange, onDelete, onD
             </div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white">
-            <div className="bg-[linear-gradient(180deg,_#f7efe5_0%,_#fffdf8_42%,_#ffffff_100%)] p-6">
-              {websiteBuilder.blocks.map((block) => {
-                if (block.type === "hero") {
-                  return (
-                    <section key={block.id} className="rounded-[24px] border border-stone-200 bg-white/80 px-6 py-8 text-center shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-                        {websiteBuilder.title}
-                      </div>
-                      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">{block.heading}</h2>
-                      <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-stone-600">{block.body}</p>
-                      {block.buttonText ? (
-                        <button
-                          type="button"
-                          className="mt-5 rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white"
-                        >
-                          {block.buttonText}
-                        </button>
-                      ) : null}
-                    </section>
-                  );
-                }
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white">
+              <div className="bg-[linear-gradient(180deg,_#f7efe5_0%,_#fffdf8_42%,_#ffffff_100%)] p-6">
+                {websiteBuilder.blocks.map((block) => {
+                  if (block.type === "hero") {
+                    return (
+                      <section key={block.id} className="rounded-[24px] border border-stone-200 bg-white/80 px-6 py-8 text-center shadow-sm">
+                        <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+                          {websiteBuilder.title}
+                        </div>
+                        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">{block.heading}</h2>
+                        <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-stone-600">{block.body}</p>
+                        {block.buttonText ? (
+                          <button
+                            type="button"
+                            className="mt-5 rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white"
+                          >
+                            {block.buttonText}
+                          </button>
+                        ) : null}
+                      </section>
+                    );
+                  }
 
-                if (block.type === "features") {
-                  const features = block.body
-                    .split("\n")
-                    .map((entry) => entry.trim())
-                    .filter(Boolean);
+                  if (block.type === "features") {
+                    const features = block.body
+                      .split("\n")
+                      .map((entry) => entry.trim())
+                      .filter(Boolean);
+
+                    return (
+                      <section key={block.id} className="mt-5">
+                        <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {features.map((feature) => (
+                            <div key={feature} className="rounded-3xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm leading-6 text-stone-700">
+                              {feature}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  }
+
+                  if (block.type === "cta") {
+                    return (
+                      <section key={block.id} className="mt-5 rounded-[24px] border border-stone-200 bg-stone-900 px-6 py-8 text-center text-stone-50">
+                        <h3 className="text-2xl font-semibold">{block.heading}</h3>
+                        <p className="mt-3 text-sm leading-7 text-stone-300">{block.body}</p>
+                        {block.buttonText ? (
+                          <button
+                            type="button"
+                            className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900"
+                          >
+                            {block.buttonText}
+                          </button>
+                        ) : null}
+                      </section>
+                    );
+                  }
 
                   return (
                     <section key={block.id} className="mt-5">
                       <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {features.map((feature) => (
-                          <div key={feature} className="rounded-3xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm leading-6 text-stone-700">
-                            {feature}
-                          </div>
-                        ))}
-                      </div>
+                      <p className="mt-3 text-sm leading-7 text-stone-600">{block.body}</p>
                     </section>
                   );
-                }
-
-                if (block.type === "cta") {
-                  return (
-                    <section key={block.id} className="mt-5 rounded-[24px] border border-stone-200 bg-stone-900 px-6 py-8 text-center text-stone-50">
-                      <h3 className="text-2xl font-semibold">{block.heading}</h3>
-                      <p className="mt-3 text-sm leading-7 text-stone-300">{block.body}</p>
-                      {block.buttonText ? (
-                        <button
-                          type="button"
-                          className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-stone-900"
-                        >
-                          {block.buttonText}
-                        </button>
-                      ) : null}
-                    </section>
-                  );
-                }
-
-                return (
-                  <section key={block.id} className="mt-5">
-                    <h3 className="text-xl font-semibold text-stone-950">{block.heading}</h3>
-                    <p className="mt-3 text-sm leading-7 text-stone-600">{block.body}</p>
-                  </section>
-                );
-              })}
+                })}
+              </div>
             </div>
+            <section aria-label="Launch readiness checklist" className="rounded-3xl border border-stone-200 bg-stone-50 px-4 py-4">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-600">Launch readiness checklist</h3>
+              <ul className="mt-3 space-y-2">
+                {LAUNCH_READINESS_CHECKLIST.map((item) => (
+                  <li key={item.title} className="rounded-2xl border border-stone-200 bg-white px-3 py-2 text-xs">
+                    <p className="font-semibold text-stone-800">{item.title}</p>
+                    <p className="mt-1 text-stone-600">{item.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
         )}
       </div>
