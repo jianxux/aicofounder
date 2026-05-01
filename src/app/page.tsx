@@ -341,6 +341,11 @@ function LoginPromptModal({
   }
 
   const isSignedIn = Boolean(user);
+  const reassuranceChips = [
+    "Draft saved for handoff",
+    "No credit card required",
+    "Explore demo first if you're not ready",
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/45 px-4 py-8 backdrop-blur-sm">
@@ -359,8 +364,8 @@ function LoginPromptModal({
             </h2>
             <p id={descriptionId} className="mt-4 text-sm leading-7 text-stone-600">
               {isSignedIn
-                ? "We&apos;ll carry this prompt into AI Cofounder so you can keep going from the dashboard without losing the draft."
-                : "We&apos;ll carry this prompt into AI Cofounder so the customer can keep going from the dashboard instead of losing the thought."}
+                ? "We'll carry this prompt into AI Cofounder so you can keep going from the dashboard without losing the draft."
+                : "We'll carry this prompt into AI Cofounder so you can keep going from the dashboard instead of losing the thought."}
             </p>
           </div>
           <button
@@ -376,6 +381,17 @@ function LoginPromptModal({
         <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 shadow-sm">
           <div className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Prompt preview</div>
           <p className="mt-3 text-sm leading-7 text-stone-700">{promptDraft || "Start with an idea, problem, or question."}</p>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Handoff reassurance">
+          {reassuranceChips.map((chip) => (
+            <span
+              key={chip}
+              className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-700"
+            >
+              {chip}
+            </span>
+          ))}
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">

@@ -232,6 +232,10 @@ describe("LandingPage", () => {
     expect(screen.getByRole("dialog", { name: /Sign in to open this inside your workspace/i })).toBeInTheDocument();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
     expect(screen.getAllByText(/Validate an AI workflow before I build it\./i)).toHaveLength(2);
+    expect(screen.getByText(/We'll carry this prompt into AI Cofounder so you can keep going/i)).toBeInTheDocument();
+    expect(screen.getByText("Draft saved for handoff")).toBeInTheDocument();
+    expect(screen.getByText("No credit card required")).toBeInTheDocument();
+    expect(screen.getByText("Explore demo first if you're not ready")).toBeInTheDocument();
     expect(window.sessionStorage.getItem("landingPromptDraft")).toBe("Validate an AI workflow before I build it.");
     expect(trackEvent).toHaveBeenCalledWith("cta_click", {
       page: "/",
@@ -329,7 +333,7 @@ describe("LandingPage", () => {
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: /Continue this inside your workspace/i })).toBeInTheDocument();
     });
-    expect(screen.getByText(/keep going from the dashboard without losing the draft/i)).toBeInTheDocument();
+    expect(screen.getByText(/We'll carry this prompt into AI Cofounder so you can keep going from the dashboard without losing the draft\./i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Continue to workspace" })).toHaveAttribute("href", "/dashboard");
     expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
     expect(screen.getByText("Prompt preview")).toBeInTheDocument();
