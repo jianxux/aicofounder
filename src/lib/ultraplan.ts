@@ -70,7 +70,8 @@ export function isValidAction(value: unknown): value is UltraplanAction {
     ["low", "medium", "high"].includes(candidate.effort as string) &&
     ["low", "medium", "high"].includes(candidate.impact as string) &&
     typeof candidate.timelineHours === "number" &&
-    Number.isFinite(candidate.timelineHours)
+    Number.isFinite(candidate.timelineHours) &&
+    candidate.timelineHours > 0
   );
 }
 
@@ -121,7 +122,7 @@ export function buildUltraplanPrompt(
     "Create 3 to 5 concrete, actionable steps that would reduce or remove that blocker.",
     "Make the blocker and actions specific to the project state, current phase, task progress, and recent messages instead of giving generic startup advice.",
     "Use realistic severity where 1 is minor friction and 5 is a critical blocker.",
-    "Use realistic effort, impact, and timeline estimates for each action.",
+    "Use realistic effort, impact, and positive timelineHours (> 0) estimates for each action.",
     "The rationale should explain why this blocker matters most right now.",
     "The nextStep should be the single highest-leverage action to take immediately.",
   ];

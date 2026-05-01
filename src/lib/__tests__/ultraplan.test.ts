@@ -255,6 +255,90 @@ describe("ultraplan helpers", () => {
     ).toBeNull();
   });
 
+  it("returns null when an action has zero timelineHours", () => {
+    expect(
+      parseUltraplanResponse(`{
+        "blocker": {
+          "id": "blocker-1",
+          "title": "Zero timeline",
+          "description": "Action timeline must be positive.",
+          "severity": 3,
+          "category": "resource"
+        },
+        "actions": [
+          {
+            "id": "action-1",
+            "title": "Action 1",
+            "description": "Invalid zero timeline.",
+            "effort": "low",
+            "impact": "medium",
+            "timelineHours": 0
+          },
+          {
+            "id": "action-2",
+            "title": "Action 2",
+            "description": "Valid action.",
+            "effort": "medium",
+            "impact": "high",
+            "timelineHours": 2
+          },
+          {
+            "id": "action-3",
+            "title": "Action 3",
+            "description": "Valid action.",
+            "effort": "low",
+            "impact": "high",
+            "timelineHours": 1
+          }
+        ],
+        "rationale": "Zero-hour action is not executable.",
+        "nextStep": "Set a realistic positive estimate."
+      }`),
+    ).toBeNull();
+  });
+
+  it("returns null when an action has negative timelineHours", () => {
+    expect(
+      parseUltraplanResponse(`{
+        "blocker": {
+          "id": "blocker-1",
+          "title": "Negative timeline",
+          "description": "Action timeline must be positive.",
+          "severity": 4,
+          "category": "strategic"
+        },
+        "actions": [
+          {
+            "id": "action-1",
+            "title": "Action 1",
+            "description": "Invalid negative timeline.",
+            "effort": "medium",
+            "impact": "high",
+            "timelineHours": -1
+          },
+          {
+            "id": "action-2",
+            "title": "Action 2",
+            "description": "Valid action.",
+            "effort": "low",
+            "impact": "medium",
+            "timelineHours": 1
+          },
+          {
+            "id": "action-3",
+            "title": "Action 3",
+            "description": "Valid action.",
+            "effort": "high",
+            "impact": "high",
+            "timelineHours": 6
+          }
+        ],
+        "rationale": "Negative-hour action is invalid.",
+        "nextStep": "Replace impossible estimates."
+      }`),
+    ).toBeNull();
+  });
+
   it("returns null when the action count is outside the allowed range", () => {
     expect(
       parseUltraplanResponse(`{
