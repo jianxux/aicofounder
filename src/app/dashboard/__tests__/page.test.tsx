@@ -16,6 +16,7 @@ function completeIntake(overrides?: {
   url?: string;
   targetUser?: string;
   mainUncertainty?: string;
+  problemSolved?: string;
 }) {
   const intake = {
     primaryIdea:
@@ -23,6 +24,7 @@ function completeIntake(overrides?: {
     url: "https://example.com",
     targetUser: "Seed-stage founders",
     mainUncertainty: "Whether they want one workspace.",
+    problemSolved: "Founders cannot turn scattered evidence into one clear validation decision.",
     ...overrides,
   };
 
@@ -37,6 +39,9 @@ function completeIntake(overrides?: {
   });
   fireEvent.change(screen.getByLabelText("Main uncertainty (optional)"), {
     target: { value: intake.mainUncertainty },
+  });
+  fireEvent.change(screen.getByLabelText("Problem solved (optional)"), {
+    target: { value: intake.problemSolved },
   });
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
@@ -434,6 +439,7 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Relevant URL (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue("");
   });
 
   it("prefills structured landingPromptDraft fields from supported labels and keeps unlabeled intro text in the primary idea", async () => {
@@ -447,6 +453,7 @@ describe("DashboardPage", () => {
         "Existing URL or homepage: https://example.com",
         "Who the customer is: Seed-stage founders",
         "Biggest uncertainty: Whether they want one workspace.",
+        "What problem does it solve: Founders struggle to turn scattered evidence into one decision.",
       ].join("\n"),
     );
 
@@ -461,6 +468,9 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Whether they want one workspace.",
     );
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue(
+      "Founders struggle to turn scattered evidence into one decision.",
+    );
   });
 
   it("prefills structured landingPromptDraft fields from accepted label variants", async () => {
@@ -474,6 +484,7 @@ describe("DashboardPage", () => {
         "Reference URL: https://example.com/founder-research",
         "Target user: Seed-stage founders",
         "Main uncertainty: Whether they trust AI-generated synthesis.",
+        "Problem solved: Founders cannot convert fragmented interviews into a clear next step.",
       ].join("\n"),
     );
 
@@ -489,6 +500,9 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Whether they trust AI-generated synthesis.",
+    );
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue(
+      "Founders cannot convert fragmented interviews into a clear next step.",
     );
   });
 
@@ -502,6 +516,7 @@ describe("DashboardPage", () => {
         "Reference URL: https://example.com/founder-research",
         "Target user: Seed-stage founders",
         "Main uncertainty: Whether they trust AI-generated synthesis.",
+        "Problem: Founders cannot convert fragmented interviews into a clear next step.",
       ].join("\n"),
     );
 
@@ -517,6 +532,9 @@ describe("DashboardPage", () => {
     expect(screen.getByLabelText("Target user (optional)")).toHaveValue("Seed-stage founders");
     expect(screen.getByLabelText("Main uncertainty (optional)")).toHaveValue(
       "Whether they trust AI-generated synthesis.",
+    );
+    expect(screen.getByLabelText("Problem solved (optional)")).toHaveValue(
+      "Founders cannot convert fragmented interviews into a clear next step.",
     );
   });
 
@@ -615,7 +633,7 @@ describe("DashboardPage", () => {
           id: "guided-project",
           name: expect.stringMatching(/^An AI copilot for founder research/),
           description:
-            `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nReference URL: ${intake.url}`,
+            `${intake.primaryIdea}\n\nTarget user: ${intake.targetUser}\n\nMain uncertainty: ${intake.mainUncertainty}\n\nProblem solved: ${intake.problemSolved}\n\nReference URL: ${intake.url}`,
         }),
       );
       expect(setHref).toHaveBeenCalledWith("/project/guided-project");
@@ -631,6 +649,7 @@ describe("DashboardPage", () => {
         has_url: true,
         has_target_user: true,
         has_main_uncertainty: true,
+        has_problem_solved: true,
       }),
     );
     expect(trackEvent).toHaveBeenCalledWith(
@@ -689,6 +708,7 @@ describe("DashboardPage", () => {
       url: "",
       targetUser: "",
       mainUncertainty: "",
+      problemSolved: "",
     });
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 
@@ -711,6 +731,7 @@ describe("DashboardPage", () => {
         has_url: false,
         has_target_user: false,
         has_main_uncertainty: false,
+        has_problem_solved: false,
       }),
     );
   });
@@ -729,6 +750,7 @@ describe("DashboardPage", () => {
       url: "",
       targetUser: "",
       mainUncertainty: "",
+      problemSolved: "",
     });
     fireEvent.click(screen.getByRole("button", { name: "Launch Project" }));
 

@@ -160,6 +160,7 @@ function parseDescriptionMetadata(description: string) {
   const metadata = {
     targetUser: "",
     mainUncertainty: "",
+    problemSolved: "",
     referenceUrl: "",
   };
   const narrativeLines: string[] = [];
@@ -180,6 +181,12 @@ function parseDescriptionMetadata(description: string) {
     const uncertaintyMatch = line.match(/^main uncertainty\s*:\s*(.+)$/i);
     if (uncertaintyMatch) {
       metadata.mainUncertainty = uncertaintyMatch[1].trim();
+      continue;
+    }
+
+    const problemSolvedMatch = line.match(/^(problem solved|problem|what problem does it solve\??)\s*:\s*(.+)$/i);
+    if (problemSolvedMatch) {
+      metadata.problemSolved = problemSolvedMatch[2].trim();
       continue;
     }
 
@@ -458,6 +465,7 @@ function ProjectSnapshotPanel({
   brief,
   targetUser,
   mainUncertainty,
+  problemSolved,
   referenceUrl,
   currentPhase,
   currentFocus,
@@ -467,6 +475,7 @@ function ProjectSnapshotPanel({
   brief: string;
   targetUser: string;
   mainUncertainty: string;
+  problemSolved: string;
   referenceUrl: string;
   currentPhase: string;
   currentFocus: string;
@@ -515,6 +524,12 @@ function ProjectSnapshotPanel({
             <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Main uncertainty</div>
               <p className="mt-2 text-sm leading-6 text-stone-700">{mainUncertainty}</p>
+            </div>
+          ) : null}
+          {problemSolved ? (
+            <div className="rounded-2xl border border-stone-200 bg-white px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Problem solved</div>
+              <p className="mt-2 text-sm leading-6 text-stone-700">{problemSolved}</p>
             </div>
           ) : null}
           {referenceUrl ? (
@@ -1377,6 +1392,7 @@ export default function ProjectWorkspacePage() {
             brief={projectSnapshot.brief}
             targetUser={projectSnapshot.metadata.targetUser}
             mainUncertainty={projectSnapshot.metadata.mainUncertainty}
+            problemSolved={projectSnapshot.metadata.problemSolved}
             referenceUrl={projectSnapshot.metadata.referenceUrl}
             currentPhase={projectSnapshot.currentPhase}
             currentFocus={projectSnapshot.currentFocus}

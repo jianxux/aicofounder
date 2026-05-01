@@ -41,11 +41,12 @@ function deriveProjectName(primaryIdea: string) {
   return `${firstSentence.slice(0, 57).trimEnd()}...`;
 }
 
-function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty }: OnboardingIntake) {
+function buildProjectDescription({ primaryIdea, url, targetUser, mainUncertainty, problemSolved }: OnboardingIntake) {
   return [
     primaryIdea.trim(),
     targetUser.trim() ? `Target user: ${targetUser.trim()}` : null,
     mainUncertainty.trim() ? `Main uncertainty: ${mainUncertainty.trim()}` : null,
+    problemSolved.trim() ? `Problem solved: ${problemSolved.trim()}` : null,
     url.trim() ? `Reference URL: ${url.trim()}` : null,
   ]
     .filter((value): value is string => Boolean(value))
@@ -153,6 +154,7 @@ export default function DashboardPage() {
       has_url: Boolean(intake.url.trim()),
       has_target_user: Boolean(intake.targetUser.trim()),
       has_main_uncertainty: Boolean(intake.mainUncertainty.trim()),
+      has_problem_solved: Boolean(intake.problemSolved.trim()),
     });
     void trackEvent("project_created", {
       page: "/dashboard",
