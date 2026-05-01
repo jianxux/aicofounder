@@ -130,6 +130,21 @@ const sourceMaterialChips = [
   "Competitor screenshots or teardown notes",
 ];
 
+const founderContextChips = [
+  {
+    label: "Website/current draft",
+    hint: "Website/current draft: Paste the URL, homepage copy, screenshot notes, or current product draft here.",
+  },
+  {
+    label: "Ideal customer",
+    hint: "Ideal customer: Describe the buyer, team, segment, use case, and why this problem is urgent for them.",
+  },
+  {
+    label: "Proof gap/main uncertainty",
+    hint: "Proof gap/main uncertainty: Name the riskiest assumption or evidence you need before building more.",
+  },
+] as const;
+
 const focusPresets = [
   {
     id: "demand-validation",
@@ -467,6 +482,14 @@ export default function LandingPage() {
     }
   };
 
+  const handleAppendFounderContext = (hint: string) => {
+    setHeroPrompt((currentPrompt) => {
+      const trimmedPrompt = currentPrompt.trimEnd();
+      return trimmedPrompt ? `${trimmedPrompt}\n\n${hint}` : hint;
+    });
+    heroTextareaRef.current?.focus();
+  };
+
   return (
     <>
       <LoginPromptModal
@@ -580,6 +603,23 @@ export default function LandingPage() {
                       placeholder={activePreset.placeholder}
                       className="min-h-[132px] w-full resize-none bg-transparent text-base leading-8 text-stone-800 outline-none placeholder:text-stone-400"
                     />
+                    <div className="mt-4 rounded-[1.2rem] border border-stone-200 bg-white/70 px-3.5 py-3 text-left">
+                      <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-stone-500">Founder context</div>
+                      <p className="mt-1 text-xs leading-5 text-stone-500">Add one lightweight cue to make the first answer more specific.</p>
+                      <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Add founder context to prompt">
+                        {founderContextChips.map((chip) => (
+                          <button
+                            key={chip.label}
+                            type="button"
+                            onClick={() => handleAppendFounderContext(chip.hint)}
+                            className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:border-stone-300 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-900/20"
+                            aria-label={`Add ${chip.label} context to prompt`}
+                          >
+                            + {chip.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <span id={heroShortcutHintId} className="text-sm text-stone-500">
                         Press Enter for a new line, or use ⌘/Ctrl + Enter to open the login prompt.
@@ -595,18 +635,18 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4">
                     <div className="text-left text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">Founder example starters</div>
-                    <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {activePreset.promptIdeas.map((prompt) => (
-                      <button
-                        key={prompt.title}
-                        type="button"
-                        onClick={() => setHeroPrompt(prompt.prompt)}
-                        className="rounded-[1.2rem] border border-stone-200 bg-white px-3.5 py-3 text-left transition hover:border-stone-300 hover:bg-stone-50"
-                      >
-                        <div className="text-sm font-semibold tracking-[-0.02em] text-stone-800">{prompt.title}</div>
-                        <p className="mt-1 text-xs leading-5 text-stone-500">{prompt.summary}</p>
-                      </button>
-                    ))}
+                    <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3" role="group" aria-label="Founder example starters">
+                      {activePreset.promptIdeas.map((prompt) => (
+                        <button
+                          key={prompt.title}
+                          type="button"
+                          onClick={() => setHeroPrompt(prompt.prompt)}
+                          className="rounded-[1.2rem] border border-stone-200 bg-white px-3.5 py-3 text-left transition hover:border-stone-300 hover:bg-stone-50"
+                        >
+                          <div className="text-sm font-semibold tracking-[-0.02em] text-stone-800">{prompt.title}</div>
+                          <p className="mt-1 text-xs leading-5 text-stone-500">{prompt.summary}</p>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </form>

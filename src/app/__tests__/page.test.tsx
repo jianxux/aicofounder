@@ -37,9 +37,8 @@ function getHeroStarterButtons() {
 
   expect(form).not.toBeNull();
 
-  const exampleButtons = within(form as HTMLFormElement)
-    .getAllByRole("button")
-    .filter((button) => button.textContent?.trim() !== "Send");
+  const starters = within(form as HTMLFormElement).getByRole("group", { name: "Founder example starters" });
+  const exampleButtons = within(starters).getAllByRole("button");
 
   return {
     textarea,
@@ -95,6 +94,11 @@ describe("LandingPage", () => {
     expect(screen.getByText(/Use this when you need clearer evidence that the problem is painful/i)).toBeInTheDocument();
     expect(screen.getByText(/Bring whatever you already have/i)).toBeInTheDocument();
     expect(screen.getByText(/Rough artifacts are welcome\./i)).toBeInTheDocument();
+    expect(screen.getByText("Founder context")).toBeInTheDocument();
+    expect(screen.getByText(/Add one lightweight cue to make the first answer more specific\./i)).toBeInTheDocument();
+    ["Website/current draft", "Ideal customer", "Proof gap/main uncertainty"].forEach((item) => {
+      expect(screen.getByRole("button", { name: `Add ${item} context to prompt` })).toBeInTheDocument();
+    });
     [
       "Customer interview notes",
       "Existing homepage or URL",
@@ -145,6 +149,24 @@ describe("LandingPage", () => {
         expect.stringMatching(/Clinic intake no-shows/i),
       ]),
     );
+  });
+
+  it("appends founder context chips to the existing hero prompt without overwriting it", () => {
+    render(<LandingPage />);
+
+    const promptField = screen.getByLabelText("I want to") as HTMLTextAreaElement;
+
+    fireEvent.change(promptField, {
+      target: { value: "Validate a workflow for small clinics." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Ideal customer context to prompt" }));
+
+    expect(promptField.value).toContain("Validate a workflow for small clinics.");
+    expect(promptField.value).toContain(
+      "Ideal customer: Describe the buyer, team, segment, use case, and why this problem is urgent for them.",
+    );
+    expect(promptField.value).toMatch(/small clinics\.\n\nIdeal customer:/);
+    expect(promptField).toHaveFocus();
   });
 
   it("populates the hero textarea from a demand-validation example and keeps the textarea editable", () => {
