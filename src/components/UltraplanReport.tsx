@@ -1,9 +1,17 @@
 "use client";
 
+import { useId } from "react";
+
 import { UltraplanResult } from "@/lib/ultraplan";
 
 type UltraplanReportProps = {
   result: UltraplanResult;
+};
+
+const effortPriority: Record<"low" | "medium" | "high", number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
 };
 
 function getSeverityColor(severity: number) {
@@ -35,6 +43,35 @@ function getLevelBadgeColor(level: "low" | "medium" | "high") {
 }
 
 export default function UltraplanReport({ result }: UltraplanReportProps) {
+  const actionPlanSnapshotTitleId = useId();
+  const totalEstimatedHours = result.actions.reduce((total, action) => total + action.timelineHours, 0);
+  const highImpactActions = result.actions.filter((action) => action.impact === "high").length;
+  const highImpactActionLabel = `${highImpactActions} high-impact action${
+    highImpactActions === 1 ? "" : "s"
+  }`;
+  const nextAction = result.actions.reduce<(typeof result.actions)[number] | null>((selected, action) => {
+    if (!selected) {
+      return action;
+    }
+
+    const selectedEffort = effortPriority[selected.effort];
+    const actionEffort = effortPriority[action.effort];
+
+    if (actionEffort < selectedEffort) {
+      return action;
+    }
+
+    if (actionEffort > selectedEffort) {
+      return selected;
+    }
+
+    if (action.timelineHours < selected.timelineHours) {
+      return action;
+    }
+
+    return selected;
+  }, null);
+
   return (
     <div className="rounded-[32px] border border-stone-200 bg-white p-5 shadow-sm">
       <div className="rounded-3xl bg-[#fcfaf6] p-5">
@@ -73,6 +110,25 @@ export default function UltraplanReport({ result }: UltraplanReportProps) {
 
         <p className="mt-4 text-sm leading-6 text-stone-700">{result.blocker.description}</p>
       </div>
+
+      <section
+        className="mt-4 rounded-3xl border border-stone-200 bg-stone-50 p-5"
+        aria-labelledby={actionPlanSnapshotTitleId}
+      >
+        <h3
+          id={actionPlanSnapshotTitleId}
+          className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500"
+        >
+          Action plan snapshot
+        </h3>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium text-stone-700">
+          <span className="rounded-full bg-white px-3 py-1">{totalEstimatedHours}h total</span>
+          <span className="rounded-full bg-white px-3 py-1">{highImpactActionLabel}</span>
+          <span className="rounded-full bg-white px-3 py-1">
+            Start with: {nextAction ? `${nextAction.title} (${nextAction.timelineHours}h)` : "No actions yet"}
+          </span>
+        </div>
+      </section>
 
       <div className="mt-4 space-y-4">
         {result.actions.map((action, index) => (
