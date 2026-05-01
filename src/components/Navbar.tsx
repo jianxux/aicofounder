@@ -37,6 +37,9 @@ export default function Navbar({ showAuth = true, redirectTo = "/dashboard" }: N
           Sign in
         </Link>
         {showAuth ? (
+          <span className="hidden text-xs font-medium text-stone-500 md:inline">Free preview · no credit card</span>
+        ) : null}
+        {showAuth ? (
           <AuthButton
             redirectTo={redirectTo}
             label="Sign up"
