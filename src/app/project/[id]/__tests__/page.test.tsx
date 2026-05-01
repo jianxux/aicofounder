@@ -434,6 +434,10 @@ describe("ProjectWorkspacePage", () => {
     expect(within(snapshot).getByText("1/2 done")).toBeInTheDocument();
     expect(within(snapshot).getByText("Interview users")).toBeInTheDocument();
     expect(within(snapshot).getByText("Complete task: Interview users.")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Decision checklist")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Define customer and problem")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Inspect evidence and proof gaps")).toBeInTheDocument();
+    expect(within(snapshot).getByText("Choose next experiment or action")).toBeInTheDocument();
   });
 
   it("renders an unsafe snapshot reference URL as plain text instead of a link", async () => {
