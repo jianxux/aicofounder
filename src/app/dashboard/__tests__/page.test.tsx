@@ -269,8 +269,8 @@ describe("DashboardPage", () => {
     expect(card).toBeInTheDocument();
     expect(within(card!).getByText(/1 of 2 tasks complete/i)).toBeInTheDocument();
     expect(within(card!).getByText(/50% complete/i)).toBeInTheDocument();
-    expect(within(card!).getByText(/next action/i)).toBeInTheDocument();
-    expect(within(card!).getByText(/prototype the workflow/i)).toBeInTheDocument();
+    expect(within(card!).getByText(/^Next action:$/i)).toBeInTheDocument();
+    expect(within(card!).getAllByText(/prototype the workflow/i).length).toBeGreaterThan(0);
   });
 
   it("renders a completed state without a next action prompt when all tasks are done", async () => {
@@ -300,7 +300,7 @@ describe("DashboardPage", () => {
     expect(card).toBeInTheDocument();
     expect(within(card!).getByText(/2 of 2 tasks complete/i)).toBeInTheDocument();
     expect(within(card!).getByText(/100% complete/i)).toBeInTheDocument();
-    expect(within(card!).getByText(/all tasks complete/i)).toBeInTheDocument();
+    expect(within(card!).getAllByText(/all tasks complete/i).length).toBeGreaterThan(0);
     expect(within(card!).queryByText(/next action/i)).not.toBeInTheDocument();
     expect(within(card!).queryByText(/prototype the workflow/i)).not.toBeInTheDocument();
   });
@@ -330,6 +330,61 @@ describe("DashboardPage", () => {
     expect(within(card!).queryByText(/all tasks complete/i)).not.toBeInTheDocument();
     expect(within(card!).queryByText(/0 of 0 tasks complete/i)).not.toBeInTheDocument();
     expect(within(card!).queryByText(/0% complete/i)).not.toBeInTheDocument();
+  });
+
+  it("adds a founder update / weekly decision digest cue that packages key signals into a shareable update", async () => {
+    const projects = [
+      createProject({
+        id: "project-next-action",
+        name: "Next Action Project",
+      }),
+      createProject({
+        id: "project-complete-digest",
+        name: "Complete Digest Project",
+        phases: [
+          {
+            id: "build",
+            title: "Build",
+            tasks: [{ id: "task-1", label: "Ship onboarding flow", done: true }],
+          },
+        ],
+      }),
+      createProject({
+        id: "project-zero-digest",
+        name: "Zero Task Digest Project",
+        phases: [{ id: "discovery", title: "Discovery", tasks: [] }],
+      }),
+    ];
+
+    vi.mocked(getProjects).mockResolvedValue(projects);
+
+    renderPage();
+
+    const nextActionCardHeading = await screen.findByRole("heading", { name: "Next Action Project" });
+    const nextActionCard = nextActionCardHeading.closest("a");
+    expect(nextActionCard).toBeInTheDocument();
+    expect(within(nextActionCard!).getByText("Founder update / weekly decision digest")).toBeInTheDocument();
+    expect(
+      within(nextActionCard!).getByText(
+        "Packages scattered signals into a shareable update so your next decision is easy to share.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(nextActionCard!).getByText(/2 notes • 50% progress • updated mar 10, 2024/i),
+    ).toBeInTheDocument();
+    expect(within(nextActionCard!).getByText(/next action: prototype the workflow/i)).toBeInTheDocument();
+
+    const completeCardHeading = screen.getByRole("heading", { name: "Complete Digest Project" });
+    const completeCard = completeCardHeading.closest("a");
+    expect(completeCard).toBeInTheDocument();
+    expect(within(completeCard!).getByText(/100% progress/i)).toBeInTheDocument();
+    expect(within(completeCard!).getAllByText(/all tasks complete/i).length).toBeGreaterThan(0);
+
+    const zeroTaskCardHeading = screen.getByRole("heading", { name: "Zero Task Digest Project" });
+    const zeroTaskCard = zeroTaskCardHeading.closest("a");
+    expect(zeroTaskCard).toBeInTheDocument();
+    expect(within(zeroTaskCard!).getByText(/0% progress/i)).toBeInTheDocument();
+    expect(within(zeroTaskCard!).getByText(/zero tasks yet/i)).toBeInTheDocument();
   });
 
   it("renders project cards as links to the project detail page", async () => {
