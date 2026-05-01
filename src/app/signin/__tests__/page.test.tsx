@@ -30,13 +30,19 @@ describe("SignInPage", () => {
     return render(page);
   }
 
-  it("renders AI Cofounder sign-in copy and AuthButton", async () => {
+  it("renders AI Cofounder sign-in copy, continuity cards, and AuthButton", async () => {
     await renderPage();
 
     expect(
       screen.getByRole("heading", { name: "Sign in to your AI Cofounder workspace" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Returning founders")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What continues after sign-in" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Saved project context" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Reusable research and messaging" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Next action readiness" })).toBeInTheDocument();
     expect(screen.getByTestId("auth-button")).toBeInTheDocument();
     expect(screen.getByTestId("auth-button")).toHaveAttribute("data-label", "Continue with Google");
   });
@@ -73,7 +79,7 @@ describe("SignInPage", () => {
   it("includes the secondary demo explore link", async () => {
     await renderPage();
 
-    expect(screen.getByRole("link", { name: "Explore the demo dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Return to the demo dashboard" })).toHaveAttribute(
       "href",
       "/dashboard",
     );
