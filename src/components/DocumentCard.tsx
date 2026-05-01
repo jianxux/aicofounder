@@ -29,6 +29,7 @@ export default function DocumentCard({ document, onChange, onDragStart, onDelete
         className="relative cursor-grab rounded-t-2xl border-b border-stone-200 bg-stone-100 px-4 py-3 active:cursor-grabbing"
       >
         <input
+          aria-label="Document title"
           value={document.title}
           onChange={(event) => onChange(document.id, { title: event.target.value })}
           className="w-full border-none bg-transparent pr-8 text-sm font-semibold text-stone-900 outline-none"
@@ -51,6 +52,7 @@ export default function DocumentCard({ document, onChange, onDragStart, onDelete
       <div className="min-h-40 rounded-b-2xl px-4 py-3">
         {isEditing ? (
           <textarea
+            aria-label="Document content"
             value={document.content}
             onChange={(event) => onChange(document.id, { content: event.target.value })}
             onBlur={() => setIsEditing(false)}

@@ -32,7 +32,7 @@ describe("DocumentCard", () => {
       <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={vi.fn()} />,
     );
 
-    expect(screen.getByDisplayValue("My Document")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /document title/i })).toHaveValue("My Document");
   });
 
   it("renders markdown content when not editing", () => {
@@ -44,29 +44,25 @@ describe("DocumentCard", () => {
   });
 
   it("enters edit mode on double click and shows textarea", () => {
-    const { container } = render(
-      <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={vi.fn()} />,
-    );
+    render(<DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={vi.fn()} />);
 
     fireEvent.doubleClick(screen.getByTestId("markdown-content").parentElement as HTMLDivElement);
 
-    const textarea = container.querySelector("textarea");
+    const textarea = screen.getByRole("textbox", { name: /document content/i });
 
     expect(textarea).toBeInTheDocument();
     expect(textarea).toHaveValue("# Hello\n\nSome **bold** text");
   });
 
   it("exits edit mode on blur", () => {
-    const { container } = render(
-      <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={vi.fn()} />,
-    );
+    render(<DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={vi.fn()} />);
 
     fireEvent.doubleClick(screen.getByTestId("markdown-content").parentElement as HTMLDivElement);
 
-    const textarea = container.querySelector("textarea");
+    const textarea = screen.getByRole("textbox", { name: /document content/i });
 
     expect(textarea).toBeInTheDocument();
-    fireEvent.blur(textarea!);
+    fireEvent.blur(textarea);
 
     expect(screen.getByTestId("markdown-content")).toHaveTextContent("Hello");
   });
@@ -76,7 +72,7 @@ describe("DocumentCard", () => {
 
     render(<DocumentCard document={createDocument()} zoom={1} onChange={onChange} onDragStart={vi.fn()} />);
 
-    fireEvent.change(screen.getByDisplayValue("My Document"), {
+    fireEvent.change(screen.getByRole("textbox", { name: /document title/i }), {
       target: { value: "Updated Title" },
     });
 
@@ -86,16 +82,14 @@ describe("DocumentCard", () => {
   it("calls onChange when content is edited in edit mode", () => {
     const onChange = vi.fn();
 
-    const { container } = render(
-      <DocumentCard document={createDocument()} zoom={1} onChange={onChange} onDragStart={vi.fn()} />,
-    );
+    render(<DocumentCard document={createDocument()} zoom={1} onChange={onChange} onDragStart={vi.fn()} />);
 
     fireEvent.doubleClick(screen.getByTestId("markdown-content").parentElement as HTMLDivElement);
 
-    const textarea = container.querySelector("textarea");
+    const textarea = screen.getByRole("textbox", { name: /document content/i });
 
     expect(textarea).toBeInTheDocument();
-    fireEvent.change(textarea!, {
+    fireEvent.change(textarea, {
       target: { value: "# Updated\n\nNew content" },
     });
 
@@ -109,7 +103,9 @@ describe("DocumentCard", () => {
       <DocumentCard document={createDocument()} zoom={1} onChange={vi.fn()} onDragStart={onDragStart} />,
     );
 
-    fireEvent.pointerDown(screen.getByDisplayValue("My Document").parentElement as HTMLDivElement);
+    fireEvent.pointerDown(
+      screen.getByRole("textbox", { name: /document title/i }).parentElement as HTMLDivElement,
+    );
 
     expect(onDragStart).toHaveBeenCalledTimes(1);
     expect(onDragStart.mock.calls[0]?.[0]).toBe("doc-1");
