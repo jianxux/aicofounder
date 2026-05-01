@@ -38,6 +38,21 @@ export default function ResearchMemoDualView({
             <p className="mt-2 text-sm leading-6 text-stone-600">
               The memo and map are derived from the same research state, so new findings, contradictions, questions, and sources update together.
             </p>
+            <div className="mt-3 rounded-2xl border border-stone-200 bg-white/80 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Research action loop</p>
+              <ol
+                aria-label="Research action loop stages"
+                className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium text-stone-700"
+              >
+                <li className="rounded-full border border-stone-200 bg-white px-2.5 py-1">
+                  Gather evidence <span aria-hidden="true" className="ml-2 text-stone-400">→</span>
+                </li>
+                <li className="rounded-full border border-stone-200 bg-white px-2.5 py-1">
+                  Synthesize signals <span aria-hidden="true" className="ml-2 text-stone-400">→</span>
+                </li>
+                <li className="rounded-full border border-stone-200 bg-white px-2.5 py-1">Decide next move</li>
+              </ol>
+            </div>
           </div>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-stone-700">
             Synchronized

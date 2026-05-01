@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ResearchMemoDualView from "@/components/ResearchMemoDualView";
 import { normalizeProject, type Project } from "@/lib/types";
@@ -81,6 +81,17 @@ describe("ResearchMemoDualView", () => {
     expect(screen.getByTestId("research-memo-dual-view")).toBeInTheDocument();
     expect(screen.getByText("Customer research memo + canvas map")).toBeInTheDocument();
     expect(screen.getByText("Synchronized")).toBeInTheDocument();
+    expect(screen.getByText("Research action loop")).toBeInTheDocument();
+    expect(screen.getByLabelText("Research action loop stages")).toBeInTheDocument();
+    const actionLoopList = screen.getByRole("list", { name: "Research action loop stages" });
+    const actionLoopStages = within(actionLoopList).getAllByRole("listitem");
+    expect(actionLoopStages).toHaveLength(3);
+    expect(actionLoopStages[0]).toHaveTextContent("Gather evidence");
+    expect(actionLoopStages[1]).toHaveTextContent("Synthesize signals");
+    expect(actionLoopStages[2]).toHaveTextContent("Decide next move");
+    expect(screen.getByText("Gather evidence")).toBeInTheDocument();
+    expect(screen.getByText("Synthesize signals")).toBeInTheDocument();
+    expect(screen.getByText("Decide next move")).toBeInTheDocument();
     expect(screen.getByTestId("research-memo-canvas-map")).toBeInTheDocument();
     expect(screen.getByText(/memo nodes/)).toBeInTheDocument();
     expect(screen.getByText("1 source")).toBeInTheDocument();
@@ -98,6 +109,9 @@ describe("ResearchMemoDualView", () => {
 
     render(<ResearchMemoDualView artifact={artifact} status="empty" report={null} />);
 
+    expect(screen.getByLabelText("Research action loop stages")).toBeInTheDocument();
+    const actionLoopList = screen.getByRole("list", { name: "Research action loop stages" });
+    expect(within(actionLoopList).getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getByText("0 memo nodes")).toBeInTheDocument();
     expect(screen.getByText("Run or refresh the customer research memo to populate the synchronized map.")).toBeInTheDocument();
   });
