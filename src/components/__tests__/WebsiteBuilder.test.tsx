@@ -279,6 +279,76 @@ describe("WebsiteBuilder", () => {
     });
   });
 
+  it("disables boundary block reorder controls in edit mode and does not render them in preview mode", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={createWebsiteBuilder()}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Move hero block at position 1 up" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Move text block at position 4 down" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Move features block at position 2 up" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Move cta block at position 3 down" }),
+    ).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    expect(
+      screen.queryByRole("button", { name: "Move hero block at position 1 up" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Move text block at position 4 down" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls onChange with reordered blocks when moving blocks up and down", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const websiteBuilder = createWebsiteBuilder();
+
+    render(
+      <WebsiteBuilder
+        websiteBuilder={websiteBuilder}
+        onChange={onChange}
+        onDelete={vi.fn()}
+        onDragStart={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Move features block at position 2 up" }));
+    expect(onChange).toHaveBeenCalledWith("website-1", {
+      blocks: [
+        websiteBuilder.blocks[1],
+        websiteBuilder.blocks[0],
+        websiteBuilder.blocks[2],
+        websiteBuilder.blocks[3],
+      ],
+    });
+
+    await user.click(screen.getByRole("button", { name: "Move cta block at position 3 down" }));
+    expect(onChange).toHaveBeenCalledWith("website-1", {
+      blocks: [
+        websiteBuilder.blocks[0],
+        websiteBuilder.blocks[1],
+        websiteBuilder.blocks[3],
+        websiteBuilder.blocks[2],
+      ],
+    });
+  });
+
   it("calls onDelete when the delete button is clicked", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
